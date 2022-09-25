@@ -2,7 +2,12 @@ streamlit
 pandas
 numpy
 plotly
+streamlit
+plotly
+matplotlib
+pip
+openpyxl
+streamlit-echarts
+streamlit-lottie
 streamlit-aggrid
-psycopg2
-kaleido
-fpdf
+streamlit-url-fragment

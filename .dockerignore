@@ -1,0 +1,7 @@
+Data/
+Notebook/
+.vscode
+.cache
+Miniconda3-latest-Linux-x86_64.sh
+01_PDU_python.code-workspace
+PDU_rtdc.yml

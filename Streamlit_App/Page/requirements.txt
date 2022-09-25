@@ -1,0 +1,8 @@
+streamlit
+pandas
+numpy
+plotly
+streamlit-aggrid
+psycopg2
+kaleido
+fpdf

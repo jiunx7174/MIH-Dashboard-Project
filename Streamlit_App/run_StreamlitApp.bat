@@ -1,1 +1,0 @@
-streamlit run c:/Users/irsya/Documents/Jiunx_Files/PROJECT/2021-PDU/01_PDU_python/Streamlit_App/Main_v0.2.py
