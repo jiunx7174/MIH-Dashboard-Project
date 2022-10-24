@@ -3,20 +3,10 @@ from Auth import UserAuthFunc
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-from Page import ActivityMapping, ActivitySummary, ActivityDashboard, Welcome
-from importlib import reload
-reload(UserAuthFunc)
-
+from Page import ActivityMapping, ActivitySummary, ActivityDashboard
 
 print("start")
-UserLogin_dict = UserAuthFunc.getUserID()
-
-
-
-
 st.set_page_config(page_title="Realtime Activity Mapping", page_icon=None, layout="wide",)
-
-
 
 hide_streamlit_style = """
             <style>
@@ -28,12 +18,6 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # st.sidebar.image('Streamlit_App/Data/PDU_Logo.jpg',use_column_width ='never', width=200)
 
 
-
-
-
-
-
-
     # if ():
 # else:
 PageList = [
@@ -43,18 +27,17 @@ PageList = [
 ]
 st.sidebar.markdown("# RTDC App")
 st.sidebar.markdown("#### User: ")
-st.sidebar.text(UserLogin_dict["user_name"] + "(" + UserLogin_dict["user_id"] + ")")
+st.sidebar.text("Admin (ALIAS)")
 st.sidebar.markdown("#### Email: ")
-st.sidebar.text(UserLogin_dict["user_email"])
+st.sidebar.text("Admin@mail.com")
 st.sidebar.markdown("#### Company: ")
-st.sidebar.text(UserLogin_dict["user_company_name"])
-
+st.sidebar.text("Parama Data Unit")
 
 NavBar = st.sidebar.selectbox("Select Module:",PageList)
 
 
 CompName_JSON = requests.get(
-        "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserLogin_dict["user_cid"]
+        "http://khansadev.xyz/dome_api/rtdc/get_company/"
     ).json()
 
 # st.text(CompName_JSON)
@@ -91,28 +74,15 @@ else:
         # print(st.session_state.Well_ID_API)
 
 
-################
-################
-################
-################
-################
-
 if NavBar == "Activity Mapping Module" and (st.session_state.CompName_Select != '-') and (st.session_state.WellName_Select != '-') :
-
-    reload(ActivityMapping)
-
     ActivityMapping.App_v07()
 
 elif NavBar == "Activity Viewer Table" and (st.session_state.CompName_Select != '-') and (st.session_state.WellName_Select != '-') :
-    reload(ActivitySummary)
     ActivitySummary.App_v02()
 
 elif NavBar == "Summary Dashboard" and (st.session_state.CompName_Select != '-') and (st.session_state.WellName_Select != '-') :
-    reload(ActivityDashboard)
     ActivityDashboard.App_v02()
 
 else:
     # st.text('test')
-    reload(Welcome)
-    Welcome.App()
-    # st.markdown("<h1 style='text-align: center; font-size: 130px;margin-top: 300px;'>  Welcome !</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 130px;margin-top: 300px;'>  Welcome !</h1>", unsafe_allow_html=True)

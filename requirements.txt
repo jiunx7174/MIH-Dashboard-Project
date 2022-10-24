@@ -11,3 +11,5 @@ streamlit-echarts
 streamlit-lottie
 streamlit-aggrid
 streamlit-url-fragment
+kaleido
+fpdf
