@@ -268,7 +268,7 @@ def App_v02():
         if SectionSelect is not 'All':
             ActivitySummary_DF_Dome = ActivitySummary_DF_Dome[ActivitySummary_DF_Dome['Section']==SectionSelect]
         ActivitySummary_DF_Dome = Activity.labelStand_v3(ActivitySummary_DF_Dome)
-
+        
         # gb_3 = GridOptionsBuilder.from_dataframe(ActivitySummary_DF_Dome[Summary_Used_Columns.values()])
         gb_3 = GridOptionsBuilder.from_dataframe(ActivitySummary_DF_Dome)
 

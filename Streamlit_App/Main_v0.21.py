@@ -3,18 +3,18 @@ from Auth import UserAuthFunc
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-from Page import ActivityMapping, ActivitySummary, ActivityDashboard, Welcome
+from Page import ActivityMapping, ActivitySummary, ActivityDashboard, Welcome, TrajectoryToolbox
 from importlib import reload
 reload(UserAuthFunc)
 
 
 print("start")
+st.set_page_config(page_title="Realtime Activity Mapping", page_icon=None, layout="wide",)
 UserLogin_dict = UserAuthFunc.getUserID()
 
 
 
 
-st.set_page_config(page_title="Realtime Activity Mapping", page_icon=None, layout="wide",)
 
 
 
@@ -38,8 +38,12 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # else:
 PageList = [
     "Activity Mapping Module",
+    "Activity Mapping Module_Dev",
     "Activity Viewer Table",
     "Summary Dashboard",
+]
+ToolList = [
+"Trajectory Toolbox"
 ]
 st.sidebar.markdown("# RTDC App")
 st.sidebar.markdown("#### User: ")
@@ -50,45 +54,46 @@ st.sidebar.markdown("#### Company: ")
 st.sidebar.text(UserLogin_dict["user_company_name"])
 
 
-NavBar = st.sidebar.selectbox("Select Module:",PageList)
+NavBar = st.sidebar.selectbox("Select Module:",(PageList + ToolList))
 
+if NavBar not in ToolList:
+    
+    CompName_JSON = requests.get(
+            "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserLogin_dict["user_cid"]
+        ).json()  
 
-CompName_JSON = requests.get(
-        "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserLogin_dict["user_cid"]
-    ).json()
+    # st.text(CompName_JSON)
+    CompName_DF = pd.json_normalize(CompName_JSON, record_path = 'result')
 
-# st.text(CompName_JSON)
-CompName_DF = pd.json_normalize(CompName_JSON, record_path = 'result')
+    st.session_state.CompName_Select = st.sidebar.selectbox("Select Company:",["-"] + CompName_DF['company_name'].to_list())
 
-st.session_state.CompName_Select = st.sidebar.selectbox("Select Company:",["-"] + CompName_DF['company_name'].to_list())
+    if st.session_state.CompName_Select == "-":
+        WellList =["-"]
+        Datetime_min = ['-']
+        Datetime_max = ['-']
+    else:
+        # print(CompName_DF.loc[CompName_DF['company_name']==st.session_state.CompName_Select, 'cid'].values)
+        getWellAPI = "http://khansadev.xyz/dome_api/rtdc/get_well?cid=" + (CompName_DF.loc[CompName_DF['company_name']==st.session_state.CompName_Select, 'cid'].values)
+        WellName_JSON = requests.get(
+                getWellAPI[0]
+            ).json()
 
-if st.session_state.CompName_Select == "-":
-    WellList =["-"]
-    Datetime_min = ['-']
-    Datetime_max = ['-']
-else:
-    # print(CompName_DF.loc[CompName_DF['company_name']==st.session_state.CompName_Select, 'cid'].values)
-    getWellAPI = "http://khansadev.xyz/dome_api/rtdc/get_well?cid=" + (CompName_DF.loc[CompName_DF['company_name']==st.session_state.CompName_Select, 'cid'].values)
-    WellName_JSON = requests.get(
-            getWellAPI[0]
-        ).json()
+        st.session_state.WellName_DF = pd.json_normalize(WellName_JSON, record_path = 'result')
 
-    st.session_state.WellName_DF = pd.json_normalize(WellName_JSON, record_path = 'result')
+        st.session_state.WellName_DF['active_date'] = st.session_state.WellName_DF['active_date'].astype('datetime64').dt.date
+        st.session_state.WellName_DF['end_date'] = st.session_state.WellName_DF['end_date'].astype('datetime64').dt.date
 
-    st.session_state.WellName_DF['active_date'] = st.session_state.WellName_DF['active_date'].astype('datetime64').dt.date
-    st.session_state.WellName_DF['end_date'] = st.session_state.WellName_DF['end_date'].astype('datetime64').dt.date
+        WellList = st.session_state.WellName_DF['well_name'].to_list()
 
-    WellList = st.session_state.WellName_DF['well_name'].to_list()
+        # print(st.session_state.WellName_DF[['well_name','wid']])
+        
+        st.session_state.WellName_Select = st.sidebar.selectbox("Select Well",['-'] + WellList, key='WellNameSelect')
+        if (st.session_state.WellName_Select != '-'):
+            CompWell_Name = st.session_state.CompName_Select + '-' + st.session_state.WellName_Select
 
-    # print(st.session_state.WellName_DF[['well_name','wid']])
-
-    st.session_state.WellName_Select = st.sidebar.selectbox("Select Well",['-'] + WellList, key='WellNameSelect')
-    if (st.session_state.WellName_Select != '-'):
-        CompWell_Name = st.session_state.CompName_Select + '-' + st.session_state.WellName_Select
-
-        st.session_state.Well_ID = (st.session_state.WellName_DF.loc[st.session_state.WellName_DF['well_name']==st.session_state.WellName_Select, 'wid'])
-        st.session_state.Well_ID_API = int(st.session_state.Well_ID.values[0])
-        # print(st.session_state.Well_ID_API)
+            st.session_state.Well_ID = (st.session_state.WellName_DF.loc[st.session_state.WellName_DF['well_name']==st.session_state.WellName_Select, 'wid'])
+            st.session_state.Well_ID_API = int(st.session_state.Well_ID.values[0])
+            # print(st.session_state.Well_ID_API)
 
 
 ################
@@ -102,6 +107,10 @@ if NavBar == "Activity Mapping Module" and (st.session_state.CompName_Select != 
     reload(ActivityMapping)
 
     ActivityMapping.App_v07()
+elif NavBar == "Activity Mapping Module_Dev" and (st.session_state.CompName_Select != '-') and (st.session_state.WellName_Select != '-') :
+    reload(ActivityMapping)
+
+    ActivityMapping.App_v08()
 
 elif NavBar == "Activity Viewer Table" and (st.session_state.CompName_Select != '-') and (st.session_state.WellName_Select != '-') :
     reload(ActivitySummary)
@@ -110,6 +119,11 @@ elif NavBar == "Activity Viewer Table" and (st.session_state.CompName_Select != 
 elif NavBar == "Summary Dashboard" and (st.session_state.CompName_Select != '-') and (st.session_state.WellName_Select != '-') :
     reload(ActivityDashboard)
     ActivityDashboard.App_v02()
+
+elif NavBar == "Trajectory Toolbox" :
+    reload(TrajectoryToolbox)
+    TrajectoryToolbox.App()
+    # st.text("Trajectory Toolbox")
 
 else:
     # st.text('test')

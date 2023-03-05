@@ -1338,8 +1338,8 @@ def App_v07():
             try:
                 InputActivity_DB = getActivityLogTable(st.session_state.Well_ID_API, str(InputActivityLog_date_start), str(InputActivityLog_date_end))
             except:
-                if DomeCekTable(st.session_state.Well_ID_API)['table']==0:
-                   DomeCreateTable(st.session_state.Well_ID_API)
+                if IO_Data.DomeCekTable(st.session_state.Well_ID_API)['table']==0:
+                   IO_Data.DomeCreateTable(st.session_state.Well_ID_API)
                 InputActivity_DB = getActivityLogTable(st.session_state.Well_ID_API, str(InputActivityLog_date_start), str(InputActivityLog_date_end))
 
             with st.form(key='Activity Input:'):
@@ -1547,7 +1547,6 @@ def App_v07():
                     # st.dataframe(ActivitySummary_DF_Dome)
                     # st.dataframe(SummaryActivity_DF)
                     # st.dataframe(ActivitySummary_DF_Dome)
-
                     ActivitySummary_AgGrid = st.session_state.ActivitySummary_AgGrid
                     gb_2 = GridOptionsBuilder.from_dataframe(ActivitySummary_AgGrid)
                     gb_2.configure_selection('multiple', use_checkbox=True)
@@ -1668,3 +1667,23 @@ def App_v07():
         st.markdown("<h1 style='text-align: center; font-size: 50px;margin-top: 300px;'>  Welcome !</h1>", unsafe_allow_html=True)
 
 
+def App_v08():
+    if 'SelectDateLogic' not in st.session_state:
+        st.session_state.SelectDateLogic = False
+
+    if 'FileUploadLogic_SummaryReport' not in st.session_state:
+        st.session_state.FileUploadLogic_SummaryReport = False
+
+    if 'UpdateRTData' not in st.session_state:
+        st.session_state.UpdateRTData = False
+
+    if 'StartDateTime_select' not in st.session_state:
+        st.session_state.StartDateTime_select = False
+    if 'EndDateTime_select' not in st.session_state:
+        st.session_state.EndDateTime_select = True
+    if 'CalculateDuration' not in st.session_state:
+        st.session_state.CalculateDuration = False
+
+
+    # App started from here
+    st.markdown('<h1 style="text-align: center; font-size: 50px; margin-top: 2px;"><span style="text-decoration: underline;">ACTIVITY MAPPING MODULE</span></h1>', unsafe_allow_html=True)

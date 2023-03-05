@@ -4,7 +4,7 @@ import json
 
 def App():
     print('lotti')
-#     st.set_page_config(page_title="Realtime Activity Mapping", page_icon=None, layout="centered",)
+    st.set_page_config(page_title="Realtime Activity Mapping", page_icon=None, layout="centered",)
     # st.markdown("# User Not recognized")
     hide_streamlit_style = """
             <style>

@@ -1,0 +1,13 @@
+streamlit
+pandas
+numpy
+plotly
+matplotlib
+pip
+openpyxl
+streamlit-echarts
+streamlit-lottie
+streamlit-aggrid
+streamlit-url-fragment
+kaleido
+fpdf
