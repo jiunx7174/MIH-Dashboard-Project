@@ -2,7 +2,7 @@ streamlit
 pandas
 numpy
 plotly
-streamlit
+welleng
 plotly
 matplotlib
 pip
