@@ -57,10 +57,12 @@ st.sidebar.text(UserLogin_dict["user_company_name"])
 NavBar = st.sidebar.selectbox("Select Module:",(PageList + ToolList))
 
 if NavBar not in ToolList:
-    
-    CompName_JSON = requests.get(
-            "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserLogin_dict["user_cid"]
-        ).json()  
+    if UserLogin_dict["user_cid"]=='1':
+        getCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" 
+    else:
+        getCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserLogin_dict["user_cid"]
+    CompName_JSON = requests.get(getCompAPI).json()  
+
 
     # st.text(CompName_JSON)
     CompName_DF = pd.json_normalize(CompName_JSON, record_path = 'result')
