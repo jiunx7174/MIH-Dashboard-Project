@@ -9,7 +9,7 @@ def App():
     with col_temp[1]:
         st_lottie(lottie_json, width=500, speed=1)
     st.markdown("<h1 style='text-align: center; font-size: 100px;'>  Welcome !</h1>", unsafe_allow_html=True)
-    st.stop()
+    # st.stop()
     # col_temp = st.columns(3)
     # with col_temp[1]:
     
