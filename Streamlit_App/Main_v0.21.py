@@ -38,12 +38,12 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # else:
 PageList = [
     "Activity Mapping Module",
-    "Activity Mapping Module_Dev",
     "Activity Viewer Table",
     "Summary Dashboard",
 ]
 ToolList = [
-"Trajectory Toolbox"
+    "Activity Mapping Module_Dev",
+"Trajectory Toolbox_Dev"
 ]
 st.sidebar.markdown("# RTDC App")
 st.sidebar.markdown("#### User: ")
@@ -54,13 +54,16 @@ st.sidebar.markdown("#### Company: ")
 st.sidebar.text(UserLogin_dict["user_company_name"])
 
 
-NavBar = st.sidebar.selectbox("Select Module:",(PageList + ToolList))
 
+if UserLogin_dict["user_cid"]=='1' or UserLogin_dict["user_cid"]=='':
+    getCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" 
+    listAvailableApp = PageList + ToolList
+else:
+    getCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserLogin_dict["user_cid"]
+    listAvailableApp = PageList
+
+NavBar = st.sidebar.selectbox("Select Module:",(listAvailableApp))
 if NavBar not in ToolList:
-    if UserLogin_dict["user_cid"]=='1':
-        getCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" 
-    else:
-        getCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserLogin_dict["user_cid"]
     CompName_JSON = requests.get(getCompAPI).json()  
 
 
