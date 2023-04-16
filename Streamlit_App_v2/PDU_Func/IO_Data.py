@@ -5,6 +5,7 @@ import numpy as np
 import json
 import time
 from Page import Welcome
+from datetime import datetime
 # import datetime
 def getColumnRename(Table='ActivityLogTable', scheme="API_To_DF"):
     if Table=='ActivityLogTable':
@@ -226,6 +227,7 @@ def DomeDeleteData(dict_row, table_type="ActivityLogTable"):
 
 
 def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
+    # TODO: simplify the column name in activity log, make it only 2 type colname, for calculation and display
     
     ColumnRenameDict = {'wid': 'wid',
                         'date': 'Date',
@@ -301,10 +303,9 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         TableAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/get_data"
         # print(wid)
         json_queries = json.dumps(
-            {
-            "wid": wid,
-            "start" : start_date_time,
-            "end" : end_date_time
+            {"wid" : int(WellInfoDict['wid']),
+             "start" : str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime']),
+             "end" : str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime']),
             },
             indent = 4
         )
@@ -316,55 +317,63 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         # print((response.json()))
 
         ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
-        # print("TESSSSSSSSSS")
-        # print(ActivitySummary_DF.empty)
-        if list(ActivitySummary_DF.columns) == []:
-            ActivitySummary_DF['wid'] = wid
-            ActivitySummary_DF = pd.DataFrame(columns=ColumnRenameDict.values())
-        else:
-            # ActivitySummary_DF.drop('on_bottom_hours', axis=1, inplace=True)
-            ActivitySummary_DF['wid'] = wid
-            ActivitySummary_DF.rename(columns = ColumnRenameDict, inplace = True)
-            ActivitySummary_DF = ActivitySummary_DF[ColumnRenameDict.values()]
-        # ActivitySummary_DF.drop('wid', axis=1, inplace=True)
-        # st.dataframe(ActivitySummary_DF)
-        ActivitySummary_DF[['Date', 'Start Time', 'End Time']] = ActivitySummary_DF[['Date', 'Start Time', 'End Time']].astype('datetime64') 
-        
-        list_float = ['Duration (Minutes)', 'Hole Depth (Max)', 'Bit Depth(mean)', 'Drilling Meterage (m)', 'Rotate Drilling Time (Minutes)',
-                     'Slide Drilling Time (Minutes)', 'Reaming Time (Minutes)', 'Connection Time (Minutes)', 'On Bottom state (hrs)', 'Total Stand Duration (hrs)',
-                     'Total Stand Drilling Meterage (m)']
+        return ActivitySummary_DF
 
-        ActivitySummary_DF[list_float] = ActivitySummary_DF[list_float].astype('float64') 
-        list_string = ["SUB-ACTIVITY","ACTIVITY","CONNECTION-ACTIVITY","PIC",
-                        "Section","Remarks","Stand Group"]
-        ActivitySummary_DF[list_string] = ActivitySummary_DF[list_string].astype('string') 
-        # ActivitySummary_DF
+        # if list(ActivitySummary_DF.columns) == []:
+        #     ActivitySummary_DF['wid'] = int(WellInfoDict['wid'])
+        #     ActivitySummary_DF = pd.DataFrame(columns=ColumnRenameDict.values())
+        # else:
+        #     ActivitySummary_DF['wid'] = int(WellInfoDict['wid'])
+        #     ActivitySummary_DF.rename(columns = ColumnRenameDict, inplace = True)
+        #     ActivitySummary_DF = ActivitySummary_DF[ColumnRenameDict.values()]
+        # # ActivitySummary_DF.drop('wid', axis=1, inplace=True)
+        # # st.dataframe(ActivitySummary_DF)
+        # ActivitySummary_DF[['Date', 'Start Time', 'End Time']] = ActivitySummary_DF[['Date', 'Start Time', 'End Time']].astype('datetime64') 
+        
+        # list_float = ['Duration (Minutes)', 'Hole Depth (Max)', 'Bit Depth(mean)', 'Drilling Meterage (m)', 'Rotate Drilling Time (Minutes)',
+        #              'Slide Drilling Time (Minutes)', 'Reaming Time (Minutes)', 'Connection Time (Minutes)', 'On Bottom state (hrs)', 'Total Stand Duration (hrs)',
+        #              'Total Stand Drilling Meterage (m)']
+
+        # ActivitySummary_DF[list_float] = ActivitySummary_DF[list_float].astype('float64') 
+        # list_string = ["SUB-ACTIVITY","ACTIVITY","CONNECTION-ACTIVITY","PIC",
+        #                 "Section","Remarks","Stand Group"]
+        # ActivitySummary_DF[list_string] = ActivitySummary_DF[list_string].astype('string') 
+        # # ActivitySummary_DF
         
 
         # print(ActivitySummary_DF)
         return ActivitySummary_DF
 
-def DomeGetRealtimeSensorData(WellInfoDict, DateTimeRange):
+def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
 
+    # TODO: uncomment the code below if Realtime Data is ready
     Data_params ={
-        "wid" : WellInfoDict['wid'],
-        "start" : DateTimeRange[0],
-        "end" : DateTimeRange[1]
+        "wid" : int(WellInfoDict['wid']),
+        "start" : str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime']),
+        "end" : str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime']),
     }
-    # now.strftime("%Y-%m-%d, %H:%M:%S")
-    # print(Data_params)
-    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
-    # return None
-    WellData = (
-        (
-            requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
-        ).text
+
+    # column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
+
+    # WellData = (
+    #     (
+    #         requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
+    #     ).text
+    # )
+
+    # Data_DF = pd.json_normalize(json.loads(WellData), record_path='result')
+
+    # return Data_DF[column_list]
+    Realtime_DF = pd.read_excel(
+        "..\\Data\\Master_Report\\KS_ORKA\\AAE-05\\RealTime_test.xlsx", 
+        # names=['raw']
     )
-    print(WellData)
-    Data_DF = pd.json_normalize(json.loads(WellData), record_path='result')
-    print(Data_DF)
-    # print(Data_DF.head(5))
-    return Data_DF[column_list]
+    Realtime_DF['dt'] = Realtime_DF['dt'].astype('datetime64')
+    start = datetime.strptime(Data_params['start'], '%Y-%m-%d %H:%M:%S')
+    end = datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S')
+    mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
+    filtered_DF = Realtime_DF[mask]
+    return filtered_DF
 
 # def cache_RealTime_Data(well_id, StartDateTime_select, EndDateTime_select):
 #     Activity_DF = DomeGetRealtimeSensorData(well_id, StartDateTime_select, EndDateTime_select)

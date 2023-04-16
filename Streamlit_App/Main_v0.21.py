@@ -43,7 +43,7 @@ PageList = [
 ]
 ToolList = [
     "Activity Mapping Module_Dev",
-"Trajectory Toolbox_Dev"
+    "Trajectory Toolbox_Dev"
 ]
 st.sidebar.markdown("# RTDC App")
 st.sidebar.markdown("#### User: ")
@@ -125,7 +125,7 @@ elif NavBar == "Summary Dashboard" and (st.session_state.CompName_Select != '-')
     reload(ActivityDashboard)
     ActivityDashboard.App_v02()
 
-elif NavBar == "Trajectory Toolbox" :
+elif NavBar == "Trajectory Toolbox_Dev" :
     reload(TrajectoryToolbox)
     TrajectoryToolbox.App()
     # st.text("Trajectory Toolbox")

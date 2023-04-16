@@ -108,24 +108,24 @@ def App():
     with SidebarContainer.form(key='DateForm'):
         DateCol,TimeCol = st.columns([1,1])
         st.session_state['UserDateRange'] = {
-        "StartDate":DateCol.date_input(
+        "StartDate":str(DateCol.date_input(
             "Start Date",
             value = datetime.strptime('31-07-2021', '%d-%m-%Y').date(),
             key="StartDateValues"
-            ),
+            )),
 
-        "StartTime":TimeCol.time_input(
+        "StartTime":str(TimeCol.time_input(
             "Start Time",
             value = datetime.strptime('00:00', '%H:%M').time(),
-            key="StartTimeValues"),
-        "EndDate":DateCol.date_input(
+            key="StartTimeValues")),
+        "EndDate":str(DateCol.date_input(
             "End Date",
             value = datetime.strptime('01-08-2021', '%d-%m-%Y').date(),
-            key="EndDateValues"),
-        "EndTime":TimeCol.time_input(
+            key="EndDateValues")),
+        "EndTime":str(TimeCol.time_input(
             "End Time",
             value = datetime.strptime('23:59', '%H:%M').time(),
-            key="EndTimeValues")
+            key="EndTimeValues"))
         }
 
 
@@ -162,3 +162,5 @@ def App():
             st.experimental_rerun()
 
 
+    # TODO
+    # create  
