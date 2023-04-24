@@ -53,7 +53,7 @@ class ActivitySummaryTable:
         self.UserDateRange = UserDateRange
         
     
-    def getActivitySummary(self,):
+    def getActivitySummary(self,InputActivity_DB):
         """
         download the activity summary table from existing server
         """
@@ -78,8 +78,10 @@ class ActivitySummaryTable:
                     "EndTime": EndDateTime.strftime('%H:%M:%S'),
                     }
             # print(UserDateRangeUpdate)
-            temp_RTSensor_df =IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRangeUpdate)
-            return temp_RTSensor_df, temp_ActSum_df
+            RTSensor_df =IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRangeUpdate)
+            tail_ActSum_df = ActivityLogLabelling (RTSensor_df, InputActivity_DB)
+
+            return tail_ActSum_df
 
 
         pass
@@ -98,3 +100,48 @@ class ActivitySummaryTable:
         pass
 
 
+def ActivityLogLabelling (RTSensor_df, InputActivity_DB):
+    ii = 0
+    InputActivity_DB = InputActivity_DB.reset_index()
+    # print('test')
+
+    # RTSensor_df['PIC'] = ''
+    # RTSensor_df['section'] = ''
+    # RTSensor_df['remarks'] = ''
+    for i,row in InputActivity_DB.iterrows():
+        # if ii<InputActivity_DB.shape[1]:
+
+        try:
+            start_time_temp = InputActivity_DB.loc[ii, 'dt']
+            end_time_temp = InputActivity_DB.loc[ii+1, 'dt']
+            # print(InputActivity_DB.iloc[ii+1, 0])
+            idx_logic = (RTSensor_df['dt'] >= start_time_temp) & (RTSensor_df['dt'] < end_time_temp)
+        except:
+            start_time_temp = InputActivity_DB.loc[ii, 'dt']
+            # print(InputActivity_DB.iloc[ii, 0])
+            # print('test')
+            # end_time_temp = InputActivity_DB.loc[ii+1, 'dt']
+            # print((RTSensor_df['dt'].dtypes))
+            # print(type(start_time_temp))
+            # print(start_time_temp)
+            idx_logic = (RTSensor_df['dt'] >= start_time_temp)
+        # print('testttt ardelia')
+        # print(InputActivity_DB.columns)
+        activity_label_temp = InputActivity_DB.loc[ii, 'Activity']
+        pic_label_temp = InputActivity_DB.loc[ii, 'PIC']
+        section_label_temp = InputActivity_DB.loc[ii, 'Section Size']
+        remarks_label_temp = InputActivity_DB.loc[ii, 'Remarks']
+
+        # print(idx_logic)
+        # print('----')
+        RTSensor_df.loc[idx_logic, ("Activity")] = activity_label_temp
+        RTSensor_df.loc[idx_logic, ("PIC")] = pic_label_temp
+        RTSensor_df.loc[idx_logic, ("Section Size")] = section_label_temp
+        RTSensor_df.loc[idx_logic, ("remarks")] = remarks_label_temp
+        # print(InputActivity_DB)
+        activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Threshold']
+        # print(RTSensor_df)
+        RTSensor_df.loc[idx_logic, ("Hookload Treshold")] = activity_label_temp
+        ii = ii+1
+    
+    return RTSensor_df

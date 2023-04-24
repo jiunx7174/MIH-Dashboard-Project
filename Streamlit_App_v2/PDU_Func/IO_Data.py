@@ -368,7 +368,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
         "..\\Data\\Master_Report\\KS_ORKA\\AAE-05\\RealTime_test.xlsx", 
         # names=['raw']
     )
-    Realtime_DF['dt'] = Realtime_DF['dt'].astype('datetime64')
+    Realtime_DF['dt'] = Realtime_DF['dt'].astype('datetime64[ns]')
     start = datetime.strptime(Data_params['start'], '%Y-%m-%d %H:%M:%S')
     end = datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S')
     mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
