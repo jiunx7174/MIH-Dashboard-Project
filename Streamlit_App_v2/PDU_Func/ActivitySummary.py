@@ -62,6 +62,8 @@ class ActivitySummaryTable:
 
         StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
         EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
         
         # get the ActivitySummaryTable data between the UserDateRange
         temp_ActSum_df = IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="Activity Summary")
@@ -97,10 +99,10 @@ class ActivitySummaryTable:
         RTSensor_df = SubActivityMapping(RTSensor_df)
         # group and aggregate the Realtime data into ActitivtySummaryTable
         
-        #TODO 
-        # -create the GroupActivity function
-        # -create the false sensor cleaning, should be different function(?)
-
+        """ 
+        TODO 
+        create the GroupActivity functioncreate the false sensor cleaning, should be different function(?)
+        """
         tail_ActSum_df = GroupSubActivity(RTSensor_df)
 
 
