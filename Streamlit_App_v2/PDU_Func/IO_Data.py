@@ -229,29 +229,53 @@ def DomeDeleteData(dict_row, table_type="ActivityLogTable"):
 def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
     # TODO: simplify the column name in activity log, make it only 2 type colname, for calculation and display
     
-    ColumnRenameDict = {'wid': 'wid',
-                        'date': 'Date',
-                        'time_start': 'Start Time',
-                        'time_end': 'End Time',
-                        'duration_minutes': 'Duration (Minutes)',
-                        'label_subactivity': 'SUB-ACTIVITY',
-                        'label_activity': 'ACTIVITY',
-                        'stand_durationx': 'CONNECTION-ACTIVITY',
-                        'hole_depth': 'Hole Depth (Max)',
-                        'bit_depth': 'Bit Depth(mean)',
-                        'meterage_drilling': 'Drilling Meterage (m)',
-                        'rotate_drilling_time': 'Rotate Drilling Time (Minutes)',
-                        'slide_drilling_time': 'Slide Drilling Time (Minutes)',
-                        'reaming_time': 'Reaming Time (Minutes)',
-                        'connection_time': 'Connection Time (Minutes)',
-                        'on_bottom_hours': 'On Bottom state (hrs)',
-                        'stand_duration': 'Total Stand Duration (hrs)',
-                        'stand_meterage_drilling': 'Total Stand Drilling Meterage (m)',
-                        'stand_group': 'Stand Group',
-                        'pic': 'PIC',
-                        'section': 'Section',
-                        'remark': 'Remarks',
-                        'stand_on_bottom': 'zeros'}
+    ActivitySummaryColumnRenameDict = {"wid":"wid",
+                            "date":"date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            "stand_on_bottom":"OnBottomDurationPerStand",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            }
+    # ActivitySummaryColumnRenameDict = {'wid': 'wid',
+    #                     'date': 'Date',
+    #                     'time_start': 'Start Time',
+    #                     'time_end': 'End Time',
+    #                     'duration_minutes': 'Duration (Minutes)',
+    #                     'label_subactivity': 'SUB-ACTIVITY',
+    #                     'label_activity': 'ACTIVITY',
+    #                     'stand_durationx': 'CONNECTION-ACTIVITY',
+    #                     'hole_depth': 'Hole Depth (Max)',
+    #                     'bit_depth': 'Bit Depth(mean)',
+    #                     'meterage_drilling': 'Drilling Meterage (m)',
+    #                     'rotate_drilling_time': 'Rotate Drilling Time (Minutes)',
+    #                     'slide_drilling_time': 'Slide Drilling Time (Minutes)',
+    #                     'reaming_time': 'Reaming Time (Minutes)',
+    #                     'connection_time': 'Connection Time (Minutes)',
+    #                     'on_bottom_hours': 'On Bottom state (hrs)',
+    #                     'stand_duration': 'Total Stand Duration (hrs)',
+    #                     'stand_meterage_drilling': 'Total Stand Drilling Meterage (m)',
+    #                     'stand_group': 'Stand Group',
+    #                     'pic': 'PIC',
+    #                     'section': 'Section',
+    #                     'remark': 'Remarks',
+    #                     'stand_on_bottom': 'zeros'}
     ActivityLogColumnRenameDict = {
                             'id': 'id',
                             'dt': 'DateTime',
@@ -285,18 +309,18 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         # print(response)
         if (dict(response.json())['result']) == []:
 
-            out_DF = pd.DataFrame(columns=ActivityLogColumnRenameDict.values())
+            ActivityLog_DF = pd.DataFrame(columns=ActivityLogColumnRenameDict.values())
 
         else:
-            out_DF = pd.DataFrame(dict(response.json())['result'])
+            ActivityLog_DF = pd.DataFrame(dict(response.json())['result'])
     
-            # out_DF['date_time'] = pd.to_datetime(out_DF['date'] + " " + out_DF['time'])
-            out_DF.rename(columns = ActivityLogColumnRenameDict, inplace = True)
-            # st.dataframe(out_DF)
-            out_DF = out_DF.sort_values(by='DateTime')
-            # out_DF=out_DF.set_index('DateTime')
-            # out_DF = out_DF.drop(['id'], 1)
-        return out_DF
+            # ActivityLog_DF['date_time'] = pd.to_datetime(ActivityLog_DF['date'] + " " + ActivityLog_DF['time'])
+            ActivityLog_DF.rename(columns = ActivityLogColumnRenameDict, inplace = True)
+            # st.dataframe(ActivityLog_DF)
+            ActivityLog_DF = ActivityLog_DF.sort_values(by='DateTime')
+            # ActivityLog_DF=ActivityLog_DF.set_index('DateTime')
+            # ActivityLog_DF = ActivityLog_DF.drop(['id'], 1)
+        return ActivityLog_DF
             # return dict(response.json())['result']
 
     elif table_type=="Activity Summary":
@@ -317,6 +341,8 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         # print((response.json()))
 
         ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
+        ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict, inplace = True)
+        
         return ActivitySummary_DF
 
         # if list(ActivitySummary_DF.columns) == []:
@@ -345,6 +371,12 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         return ActivitySummary_DF
 
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
+    UserDateRange = {
+            "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
+            "StartTime": UserDateRange['StartTime'].strftime('%H:%M:%S'),
+            "EndDate": UserDateRange['EndDate'].strftime('%Y-%m-%d'),
+            "EndTime": UserDateRange['EndTime'].strftime('%H:%M:%S'),
+            }
 
     # TODO: uncomment the code below if Realtime Data is ready
     Data_params ={
