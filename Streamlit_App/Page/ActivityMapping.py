@@ -324,6 +324,7 @@ def App_v05():
                     gridOptions=gridOptions,
                     data_return_mode=DataReturnMode.AS_INPUT, 
                     update_mode=(GridUpdateMode.SELECTION_CHANGED),
+                    fit_columns_on_grid_load =True
             )
 
 
@@ -358,81 +359,82 @@ def App_v05():
 
             if not (InputActivity_DB.empty):
                 # elif(InputActivityLog_date_start)
-                with st.spinner(text="Generate Activity Summary..."):
-                    Table_col_2 = st.columns(1)
+                # with st.spinner(text="Generate Activity Summary..."):
+                Table_col_2 = st.columns(1)
+                AggridContainer = st.container()
 
-                    Input_Temp = InputTranslator(InputActivity_DB)
+                Input_Temp = InputTranslator(InputActivity_DB)
 
-                    Activity_DF = Activity.GetActivity_DF(Activity_DF, Input_Temp)
+                Activity_DF = Activity.GetActivity_DF(Activity_DF, Input_Temp)
 
-                    Activity_DF = Activity.GetSubActivity_DF_v3(Activity_DF)
+                Activity_DF = Activity.GetSubActivity_DF_v3(Activity_DF)
 
-                    
-
-
-
-                    Table_col_2[0].markdown('### Activity Summary Table')
-                    Table_col_2[0].text('To Do: ')
-
-
-                    RadioButton = Table_col_2[0].radio("Apply FALSE Sensor Filter?",
-                                    ('Yes', 'No/RAW'), key='RadioButton'
-                                    )
-
-                    if RadioButton=='No/RAW':
-                        SummaryActivity_DF = Activity.labelStand_v2(Activity.GenerateDuration_DF_v4(Activity_DF))
-                    else:
-                        SummaryActivity_DF = Activity.labelStand_v2(Activity.cleanFalseSensor((Activity.GenerateDuration_DF_v4(Activity_DF))))
-
-                        # Activity.GenerateDuration_DF_v4(Activity_DF)
-                    SummaryActivity_DF['Stand Group_Pred'] = 0
-                    # print(SummaryActivity_DF.columns)
-                    Summary_Used_Columns = {
-                        "STATUS":"STATUS",
-                        "date":"Date",
-                        "Time_start":"Start Time",
-                        "Time_end":"End Time",
-                        "LABEL_Activity":"ACTIVITY",
-                        "LABEL_SubActivity":"SUB-ACTIVITY",
-                        "Duration(minutes)": "Duration (Minutes)",
-                        "Hole Depth(max)":"Hole Depth (Max)",
-                        "Bit Depth(mean)":"Bit Depth(mean)",
-                        "Meterage(m)(Drilling)": "Drilling Meterage (m)",
-                        "RotateDrilling":"Rotate Drilling (minutes)",
-                        "Slide Drilling": "Slide Drilling (minutes)",
-                        "ReamingTime": "Reaming (minutes)",
-                        "ConnectionTime":"Connection (minutes)",
-                        "On Bottom Hours":"On Bottom state (Hours)",
-                        "Stand Group_Pred":"Stand Group_Pred", #to be check
-                        "Stand Duration":"Stand Duration",
-                        "Stand Meterage (m) (Drilling)":"Total Stand Drilling Meterage (m)",
-                        "Stand Stand Duration (hrs)":"Total Stand Duration (hrs)",
-                        "Stand On Bottom Hours": "Total On Bottom Duration (hrs)",
-                        "pic":"PIC",
-                        "remarks":"Remarks",
-                        "section":"Section",
-                    }
+                
 
 
 
-                    if ActivitySummary_DF_Dome.empty:
-                        SummaryActivity_DF_temp = SummaryActivity_DF.copy()
-                    else:
-                        SummaryActivity_DF_temp = SummaryActivity_DF.loc[SummaryActivity_DF['Time_start'] >= ActivitySummary_DF_Dome['End Time'].max(),:].copy()
-                    SummaryActivity_DF_temp['STATUS'] = 'ON REVIEW'
-
-                    SummaryActivity_DF_temp.rename(columns=Summary_Used_Columns, inplace=True)
+                Table_col_2[0].markdown('### Activity Summary Table')
+                Table_col_2[0].text('To Do: ')
 
 
+                RadioButton = Table_col_2[0].radio("Apply FALSE Sensor Filter?",
+                                ('Yes', 'No/RAW'), key='RadioButton'
+                                )
 
-                    ActivitySummary_AgGrid = pd.concat([ActivitySummary_DF_Dome[list(Summary_Used_Columns.values())],
-                                                                        SummaryActivity_DF_temp[list(Summary_Used_Columns.values())]],
-                                                                        ignore_index=True
-                                                                        )
+                if RadioButton=='No/RAW':
+                    SummaryActivity_DF = Activity.labelStand_v2(Activity.GenerateDuration_DF_v4(Activity_DF))
+                else:
+                    SummaryActivity_DF = Activity.labelStand_v2(Activity.cleanFalseSensor((Activity.GenerateDuration_DF_v4(Activity_DF))))
 
-                    # totrows = df.shape[0])
-                    # gb. Configure your aggrid initially with
-                    
+                    # Activity.GenerateDuration_DF_v4(Activity_DF)
+                SummaryActivity_DF['Stand Group_Pred'] = 0
+                # print(SummaryActivity_DF.columns)
+                Summary_Used_Columns = {
+                    "STATUS":"STATUS",
+                    "date":"Date",
+                    "Time_start":"Start Time",
+                    "Time_end":"End Time",
+                    "LABEL_Activity":"ACTIVITY",
+                    "LABEL_SubActivity":"SUB-ACTIVITY",
+                    "Duration(minutes)": "Duration (Minutes)",
+                    "Hole Depth(max)":"Hole Depth (Max)",
+                    "Bit Depth(mean)":"Bit Depth(mean)",
+                    "Meterage(m)(Drilling)": "Drilling Meterage (m)",
+                    "RotateDrilling":"Rotate Drilling (minutes)",
+                    "Slide Drilling": "Slide Drilling (minutes)",
+                    "ReamingTime": "Reaming (minutes)",
+                    "ConnectionTime":"Connection (minutes)",
+                    "On Bottom Hours":"On Bottom state (Hours)",
+                    "Stand Group_Pred":"Stand Group_Pred", #to be check
+                    "Stand Duration":"Stand Duration",
+                    "Stand Meterage (m) (Drilling)":"Total Stand Drilling Meterage (m)",
+                    "Stand Stand Duration (hrs)":"Total Stand Duration (hrs)",
+                    "Stand On Bottom Hours": "Total On Bottom Duration (hrs)",
+                    "pic":"PIC",
+                    "remarks":"Remarks",
+                    "section":"Section",
+                }
+
+
+
+                if ActivitySummary_DF_Dome.empty:
+                    SummaryActivity_DF_temp = SummaryActivity_DF.copy()
+                else:
+                    SummaryActivity_DF_temp = SummaryActivity_DF.loc[SummaryActivity_DF['Time_start'] >= ActivitySummary_DF_Dome['End Time'].max(),:].copy()
+                SummaryActivity_DF_temp['STATUS'] = 'ON REVIEW'
+
+                SummaryActivity_DF_temp.rename(columns=Summary_Used_Columns, inplace=True)
+
+
+
+                ActivitySummary_AgGrid = pd.concat([ActivitySummary_DF_Dome[list(Summary_Used_Columns.values())],
+                                                                    SummaryActivity_DF_temp[list(Summary_Used_Columns.values())]],
+                                                                    ignore_index=True
+                                                                    )
+
+                # totrows = df.shape[0])
+                # gb. Configure your aggrid initially with
+                with AggridContainer:
                     gb_2 = GridOptionsBuilder.from_dataframe(ActivitySummary_AgGrid)
                     gb_2.configure_selection('multiple', use_checkbox=True)
                     gb_2.configure_column("ACTIVITY", editable=True, cellEditor='agSelectCellEditor', cellEditorPopup=True, cellEditorParams={
@@ -533,44 +535,46 @@ def App_v05():
                             ActivitySummary_AgGrid, 
                             gridOptions=gridOptions,
                             allow_unsafe_jscode=True,
-                            height=1000, 
+                            height=400, 
                             # width='100%',
+                            width=400,
+                            # fit_columns_on_grid_load =True,
                             data_return_mode=DataReturnMode.AS_INPUT, 
                             update_mode=(GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.MODEL_CHANGED),
                             
                     )
                     SummaryDF_Finalize = SummaryActivityGrid_response['data']
 
-                    # SummaryActivity_DF.to_csv('RealTime_Test/Temp_SummaryActivity.csv', index = False)
-                    
-                    
-                    # st.table(Activity_DF.head(20))
+                # SummaryActivity_DF.to_csv('RealTime_Test/Temp_SummaryActivity.csv', index = False)
+                
+                
+                # st.table(Activity_DF.head(20))
 
-                    # csv = convert_df(my_large_df)
-                    st.download_button(
-                        label="Download Summary data as CSV",
-                        data=convert_df(ActivitySummary_AgGrid),
-                        file_name=st.session_state.CompName_Select + "_"+ st.session_state.WellName_Select + '_ActivitySummary.csv',
-                        mime='text/csv',
-                    )
-                    st.download_button(
-                        label="Download Realtime(5second) data as CSV",
-                        data=convert_df(Activity_DF),
-                        file_name=st.session_state.CompName_Select + "_"+ st.session_state.WellName_Select + '_RT_5second_Data.csv',
-                        mime='text/csv',
-                    )
+                # csv = convert_df(my_large_df)
+                st.download_button(
+                    label="Download Summary data as CSV",
+                    data=convert_df(ActivitySummary_AgGrid),
+                    file_name=st.session_state.CompName_Select + "_"+ st.session_state.WellName_Select + '_ActivitySummary.csv',
+                    mime='text/csv',
+                )
+                st.download_button(
+                    label="Download Realtime(5second) data as CSV",
+                    data=convert_df(Activity_DF),
+                    file_name=st.session_state.CompName_Select + "_"+ st.session_state.WellName_Select + '_RT_5second_Data.csv',
+                    mime='text/csv',
+                )
 
-                    if st.button(label="Finalize"):
-                        SummaryDF_Finalize.to_excel('finalize.xlsx')
-                        print('TEST')
-                        print(SummaryActivityGrid_response['selected_rows'])
-                        # st.dataframe(pd.DataFrame(SummaryActivityGrid_response['selected_rows']))
-                        with st.spinner("Finalizing Activity Summary...."):
+                if st.button(label="Finalize"):
+                    SummaryDF_Finalize.to_excel('finalize.xlsx')
+                    print('TEST')
+                    print(SummaryActivityGrid_response['selected_rows'])
+                    # st.dataframe(pd.DataFrame(SummaryActivityGrid_response['selected_rows']))
+                    with st.spinner("Finalizing Activity Summary...."):
 
-                            IO_Data.UploadActivitySummary(pd.DataFrame(SummaryActivityGrid_response['selected_rows']), st.session_state.Well_ID_API)
-                        st.success("Success!")
-                        # InputActivityGrid_response
-                        # IO_Data.InsertSummaryActivity_DB(IO_Data.OpenConnection(), SummaryActivity_DF, st.session_state.WellName_Select, st.session_state.CompName_Select)
+                        IO_Data.UploadActivitySummary(pd.DataFrame(SummaryActivityGrid_response['selected_rows']), st.session_state.Well_ID_API)
+                    st.success("Success!")
+                    # InputActivityGrid_response
+                    # IO_Data.InsertSummaryActivity_DB(IO_Data.OpenConnection(), SummaryActivity_DF, st.session_state.WellName_Select, st.session_state.CompName_Select)
             else:
                 st.warning("Please Input Activity Log Table first before generate Activity Summary Table")
     else:
