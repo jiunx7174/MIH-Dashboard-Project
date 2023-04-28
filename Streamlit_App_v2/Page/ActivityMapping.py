@@ -1,7 +1,12 @@
 import streamlit as st
-from PDU_Func import Authentification, IO_Data,Table
+from PDU_Func import Authentification, IO_Data,Table, ActivitySummary
 from PDU_Func.IO_Data import getAvailableCompanyDF
 from datetime import datetime
+
+@st.cache_data
+def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
+    return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+
 
 
 @st.cache_resource
@@ -68,9 +73,26 @@ def checkActivityLog(ActivityLog_DF):
     return ActivityLog_DF
         
 
+def checkActSum(ActSumData):
+    # TODO
+    # create an activity log input check
+    # -Duplicate Date Time
+    # -empty columns values
 
+    return ActSumData
+def ReCalculateDuration(ActSumData):
+    # TODO
+    # create an activity log input check
+    # -Duplicate Date Time
+    # -empty columns values
 
+    return ActSumData
 
+# TODO
+# Build Case #1 ActivitySummary CRUD function
+def updateActSum(ActivityLog_DF, UpdateActivityLog_DF):
+    #The table should support the remove duplicate and any cleaning workflow
+    pass
 
 # def updateActivityLog(ActivityLog_DF, UpdateActivityLog_DF):
 #     old = ActivityLog_DF.set_index('DateTime')
@@ -135,7 +157,7 @@ def App():
 
     st.markdown('<h1 style="text-align: center; font-size: 50px; margin-top: 2px;"><span style="text-decoration: underline;">ACTIVITY MAPPING MODULE</span></h1>', unsafe_allow_html=True)
     
-    st.button("Refresh", key="RefreshButton")
+    st.button("Reset", key="ActLogReset")
 
 
     if st.session_state['IsFormSubmit']:
@@ -146,19 +168,52 @@ def App():
         ActivityLog_DF = st.session_state["ActivityLog_DF"]
         # ActivityLog_DF = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
         st.json(st.session_state['UserDateRange'])
-        with st.form(key='aggrid_update'):
-            out = Table.ActivityLogTable_Agrid(ActivityLog_DF, reload=True)
+        with st.form(key='ActivityLogTable_Agrid'):
+            ActLogAgridOut = Table.ActivityLogTable_Agrid(ActivityLog_DF, reload=True)
 
 
-            isApply = st.form_submit_button("apply")
+            isActLogApply = st.form_submit_button("apply")
 
 
-        if isApply:
-            ActivityLog_DF_Upload = checkActivityLog(out['data'])
+        if isActLogApply:
+            ActivityLog_DF_Upload = checkActivityLog(ActLogAgridOut['data'])
 
             updateActivityLog(WellInfoDict,ActivityLog_DF_Upload,st.session_state['UserDateRange'])
             st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
             st.success("Activity Log Update")
+            st.experimental_rerun()
+        
+        # retrieve Realtime Sensor Data
+        RTSensor_df = DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+
+        IsActSumReset = st.button("Reset", key="ActSumReset")
+        #######
+        ## ActSumTable
+        #######
+        if ("ActSum" not in st.session_state):
+            # Init ActSumTable
+            st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, st.session_state['UserDateRange'])
+        
+            # generate both of FIRM and REVIEW ActSum
+            st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
+            st.session_state["ActSum_Preserve"] = st.session_state["ActSum"]
+        if IsActSumReset:
+            # Reset The ActSum
+            st.session_state["ActSum"] = st.session_state["ActSum_Preserve"]
+        ActSumData = st.session_state["ActSum"]
+        with st.form(key='ActSumTable_Agrid'):
+
+            # TODO build a ActSum Agrid Table 
+            ActSumAgridOut = Table.ActSumTable_Agrid(ActSumData, reload=True)
+
+            isActSumApply = st.form_submit_button("apply")
+
+        if isActSumApply:
+            ActSumData_Upload = checkActSum(ActSumAgridOut['data'])
+
+            updateActSum(WellInfoDict, ActSumData_Upload, st.session_state['UserDateRange'])
+            st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
+            st.success("ActSumUpdate")
             st.experimental_rerun()
 
 

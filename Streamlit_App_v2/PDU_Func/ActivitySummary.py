@@ -162,7 +162,7 @@ class ActivitySummaryTable:
         ActSum_df['wid'] =  int(WellInfoDict['wid'])
         ActSum_df['status'] =  "REVIEW"
 
-        return pd.concat([temp_ActSum_df, ActSum_df])
+        self.Data= pd.concat([temp_ActSum_df, ActSum_df])
 
 
         
