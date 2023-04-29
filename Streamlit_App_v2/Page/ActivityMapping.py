@@ -1,7 +1,7 @@
 import streamlit as st
 from PDU_Func import Authentification, IO_Data,Table, ActivitySummary
 from PDU_Func.IO_Data import getAvailableCompanyDF
-from datetime import datetime
+from datetime import datetime,timedelta
 
 @st.cache_data
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
@@ -16,9 +16,23 @@ def CheckCreateTable(WellInfoDict):
     if IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type ="ActivitySummaryTable")['table']==0:
         IO_Data.DomeCreateTable(WellInfoDict['wid'], table_type ="ActivitySummaryTable")
 
+def AllDateTime():
+    DateRange = {
+                "StartDate": datetime.strptime('01-08-2000', '%d-%m-%Y').date(),
+                "StartTime": datetime.strptime('00:00', '%H:%M').time(),
+                "EndDate": datetime.strptime('01-08-2100', '%d-%m-%Y').date(),
+                "EndTime": datetime.strptime('00:00', '%H:%M').time()
+                    }
+    return DateRange
+def ExtendDateTime(DateRange):
+    DateRange['StartDate'] = DateRange['StartDate'] - timedelta(days=1)
+    # DateRange['EndDate'] = DateRange['EndDate'] - timedelta(days=1)
 
+    return DateRange
 def IsSubmitFormTrue():
     st.session_state['IsFormSubmit'] = True
+    if ("ActSum" in st.session_state):
+        del st.session_state["ActSum"]
 
 
 def initiateSession(WellInfoDict):
@@ -90,7 +104,7 @@ def ReCalculateDuration(ActSumData):
 
 # TODO
 # Build Case #1 ActivitySummary CRUD function
-def updateActSum(ActivityLog_DF, UpdateActivityLog_DF):
+def updateActSum(ActivityLog_DF, UpdateActivityLog_DF, UpdateActivitysLog_DF):
     #The table should support the remove duplicate and any cleaning workflow
     pass
 
@@ -130,21 +144,21 @@ def App():
     with SidebarContainer.form(key='DateForm'):
         DateCol,TimeCol = st.columns([1,1])
         st.session_state['UserDateRange'] = {
-        "StartDate":str(DateCol.date_input(
+        "StartDate":(DateCol.date_input(
             "Start Date",
             value = datetime.strptime('31-07-2021', '%d-%m-%Y').date(),
             key="StartDateValues"
             )),
 
-        "StartTime":str(TimeCol.time_input(
+        "StartTime":(TimeCol.time_input(
             "Start Time",
             value = datetime.strptime('00:00', '%H:%M').time(),
             key="StartTimeValues")),
-        "EndDate":str(DateCol.date_input(
+        "EndDate":(DateCol.date_input(
             "End Date",
             value = datetime.strptime('01-08-2021', '%d-%m-%Y').date(),
             key="EndDateValues")),
-        "EndTime":str(TimeCol.time_input(
+        "EndTime":(TimeCol.time_input(
             "End Time",
             value = datetime.strptime('23:59', '%H:%M').time(),
             key="EndTimeValues"))
@@ -163,7 +177,7 @@ def App():
     if st.session_state['IsFormSubmit']:
 
         if "ActvitiyLog_DF" not in st.session_state:
-            st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
+            st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(st.session_state['UserDateRange']), table_type="ActivityLogTable"))
         
         ActivityLog_DF = st.session_state["ActivityLog_DF"]
         # ActivityLog_DF = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
@@ -174,7 +188,6 @@ def App():
 
             isActLogApply = st.form_submit_button("apply")
 
-
         if isActLogApply:
             ActivityLog_DF_Upload = checkActivityLog(ActLogAgridOut['data'])
 
@@ -184,13 +197,14 @@ def App():
             st.experimental_rerun()
         
         # retrieve Realtime Sensor Data
-        RTSensor_df = DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
-
-        IsActSumReset = st.button("Reset", key="ActSumReset")
+        RTSensor_df = DomeGetRealtimeSensorData(WellInfoDict, st.session_state['UserDateRange'])
+        ActSumButtonCol = st.columns(8)
+        IsActSumReset = ActSumButtonCol[0].button("Reset", key="ActSumReset")
+        IsActSumRefresh = ActSumButtonCol[1].button("Refresh", key="ActSumRefresh")
         #######
         ## ActSumTable
         #######
-        if ("ActSum" not in st.session_state):
+        if ("ActSum" not in st.session_state) or IsActSumRefresh:
             # Init ActSumTable
             st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, st.session_state['UserDateRange'])
         
@@ -200,7 +214,12 @@ def App():
         if IsActSumReset:
             # Reset The ActSum
             st.session_state["ActSum"] = st.session_state["ActSum_Preserve"]
+            # del st.session_state["ActSum"]
+            st.experimental_rerun()
+
         ActSumData = st.session_state["ActSum"]
+        st.dataframe(ActSumData.Data)
+        # st.stop()
         with st.form(key='ActSumTable_Agrid'):
 
             # TODO build a ActSum Agrid Table 

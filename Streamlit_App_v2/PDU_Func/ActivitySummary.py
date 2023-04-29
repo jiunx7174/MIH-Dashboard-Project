@@ -138,14 +138,14 @@ class ActivitySummaryTable:
         #_________________________________________________
         #% labelling the activity data with the ActLogData
         # TODO if the ActivityLog_DF is outside the UserDateRange
-        RTSensor_df = getActivityLabel(RTSensor_df, ActivityLog_DF)
+        RTSensor_df = getActivityLabel(RTSensor_df, ActivityLog_DF, UserDateRange=UserDateRange)
 
 
         #_________________________________________________
         #% apply the PDU mapping logic function
         RTSensor_df = getSubActivityLabel(RTSensor_df)
 
-
+        
         #_________________________________________________
         #% group and aggregate the Realtime data into ActitivtySummaryTable, this function is categorized as lv.1 aggregate
         ActSum_df = getGroupDuration(RTSensor_df, DrillActivityList='default')
@@ -269,7 +269,8 @@ def getGroupDuration(RTSensor_df , DrillActivityList='default'):
 
     RTSensor_df ['dt'] = pd.to_datetime(RTSensor_df ['dt'])
     RTSensor_df ["LABEL_All"] =RTSensor_df ['SubActivity'].astype(str)+'--'+RTSensor_df ['Activity'].astype(str)
-
+    RTSensor_df ['Activity'] = RTSensor_df ['Activity'].fillna("N/A").astype(str)
+    RTSensor_df ['SubActivity'] = RTSensor_df ['SubActivity'].fillna("N/A").astype(str)
     # TODO , a funtion that check the latest hole depth
     Hole_Depth_max = 0
     list_dict_out = []
@@ -574,8 +575,16 @@ def getSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivityLi
 
     return RTSensor_df
 
-def getActivityLabel (RTSensor_df, InputActivity_DB):
+def getActivityLabel (RTSensor_df, InputActivity_DB, UserDateRange="All"):
     ii = 0
+    if UserDateRange is not "All":
+        StartDateTime = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+        EndDateTime = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+        RTSensor_df = RTSensor_df[(RTSensor_df['dt'] >= StartDateTime) & (RTSensor_df['dt'] < EndDateTime)]
+
+
+    print(RTSensor_df['dt'].head(2))
+    print(RTSensor_df['dt'].tail(2))
     InputActivity_DB = InputActivity_DB.reset_index()
     # print('test')
 

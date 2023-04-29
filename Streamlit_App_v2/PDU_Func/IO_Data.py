@@ -288,7 +288,14 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
                             'section': 'Section Size'
                             }
     print("get " + table_type + " data/table from DOME")
+    UserDateRange = {
+        "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
+        "StartTime": UserDateRange['StartTime'].strftime('%H:%M:%S'),
+        "EndDate": UserDateRange['EndDate'].strftime('%Y-%m-%d'),
+        "EndTime": UserDateRange['EndTime'].strftime('%H:%M:%S'),
+        }
     if table_type=="ActivityLogTable":
+        
 
         TableAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/get_data"
         # print(wid)
