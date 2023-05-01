@@ -1547,7 +1547,7 @@ def App_v07():
                         SummaryActivity_DF = GenerateSummaryActivity_DB(Activity_DF, InputActivity_DB, cleanFalseSensor=True)
 
                     if 'ActivitySummary_AgGrid' not in st.session_state:
-	                    st.session_state.ActivitySummary_AgGrid = MergedSummaryActivity_DB(ActivitySummary_DF_Dome, SummaryActivity_DF,InputActivityLog_date_start,InputActivityLog_date_end)
+                        st.session_state.ActivitySummary_AgGrid = MergedSummaryActivity_DB(ActivitySummary_DF_Dome, SummaryActivity_DF,InputActivityLog_date_start,InputActivityLog_date_end)
                     # st.dataframe(ActivitySummary_DF_Dome)
                     # st.dataframe(SummaryActivity_DF)
                     # st.dataframe(ActivitySummary_DF_Dome)
@@ -1660,7 +1660,7 @@ def App_v07():
                         with st.spinner("Finalizing Activity Summary...."):
                             time.sleep(1)
 
-                            IO_Data.UploadActivitySummary(pd.DataFrame(SummaryActivityGrid_response['selected_rows']), st.session_state.Well_ID_API)
+                            # IO_Data.UploadActivitySummary(pd.DataFrame(SummaryActivityGrid_response['selected_rows']), st.session_state.Well_ID_API)
                             IO_Data.UploadActivitySummary_v2(pd.DataFrame(SummaryActivityGrid_response['selected_rows']), st.session_state.Well_ID_API)
                         st.success("Success!")
                         # InputActivityGrid_response

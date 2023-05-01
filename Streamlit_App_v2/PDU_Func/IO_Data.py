@@ -6,6 +6,7 @@ import json
 import time
 from Page import Welcome
 from datetime import datetime
+from stqdm import stqdm
 # import datetime
 def getColumnRename(Table='ActivityLogTable', scheme="API_To_DF"):
     if Table=='ActivityLogTable':
@@ -230,7 +231,7 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
     # TODO: simplify the column name in activity log, make it only 2 type colname, for calculation and display
     
     ActivitySummaryColumnRenameDict = {"wid":"wid",
-                            "date":"date",
+                            "date":"Date",
                             "time_start":"StartDateTime",
                             "time_end":"EndDateTime",
                             "duration_minutes":"Duration",
@@ -247,7 +248,7 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
                             "label_activity":"LABEL_Activity",
                             "stand_meterage_drilling":"DrillingMeteragePerStand",
                             "stand_durationx":"InSlip_Treshold",
-                            "stand_on_bottom":"OnBottomDurationPerStand",
+                            "stand_on_bottom":"LABEL_ConnectionActivity",
                             "pic":"PIC",
                             "section":"Section",
                             "remark":"Remarks",
@@ -287,6 +288,17 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
                             'pic': 'PIC',
                             'section': 'Section Size'
                             }
+    ActivityLogRowEmpty = {
+                            'id':[1],
+                            'DateTime': [datetime.now()],
+                            'Date': UserDateRange['StartDate'].strftime('%Y-%m-%d'),
+                            'Time': UserDateRange['StartTime'].strftime('%H:%M:%S'),
+                            'Activity': ['N/A'],
+                            'In-Slip Threshold': [63], 
+                            'Remarks': [''],
+                            'PIC': [''],
+                            'Section Size': ['']
+                            }
     print("get " + table_type + " data/table from DOME")
     UserDateRange = {
         "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
@@ -316,7 +328,9 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         # print(response)
         if (dict(response.json())['result']) == []:
 
-            ActivityLog_DF = pd.DataFrame(columns=ActivityLogColumnRenameDict.values())
+            ActivityLog_DF = pd.DataFrame(ActivityLogRowEmpty)
+            # ActivityLog_DF = pd.DataFrame(columns=ActivityLogColumnRenameDict.values())
+            # ActivityLog_DF = ActivityLog_DF.append(ActivityLog_DF, ignore_index=True)
 
         else:
             ActivityLog_DF = pd.DataFrame(dict(response.json())['result'])
@@ -346,9 +360,12 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
             )
         )
         # print((response.json()))
-
         ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
         ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict, inplace = True)
+
+
+        
+        
         
         return ActivitySummary_DF
 
@@ -375,7 +392,7 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         
 
         # print(ActivitySummary_DF)
-        return ActivitySummary_DF
+        # return ActivitySummary_DF
 
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
     UserDateRange = {
@@ -391,29 +408,47 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
         "start" : str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime']),
         "end" : str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime']),
     }
+    
 
-    # column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
+    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
 
-    # WellData = (
-    #     (
-    #         requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
-    #     ).text
-    # )
+    WellData = (
+        (
+            # requests.get("https://pdumitradome.id/dome_api/rtdc/rtdc/get_data", data=json.dumps(Data_params))
+            requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
+        ).text
+    )
 
-    # Data_DF = pd.json_normalize(json.loads(WellData), record_path='result')
+    
+
+    Realtime_DF = pd.json_normalize(json.loads(WellData), record_path='result')
 
     # return Data_DF[column_list]
-    Realtime_DF = pd.read_excel(
-        "..\\Data\\Master_Report\\KS_ORKA\\AAE-05\\RealTime_test.xlsx", 
-        # names=['raw']
-    )
+    # Realtime_DF = pd.read_excel(
+    #     "..\\Data\\Master_Report\\KS_ORKA\\AAE-05\\RealTime_test.xlsx", 
+    #     # names=['raw']
+    # )
     Realtime_DF['dt'] = Realtime_DF['dt'].astype('datetime64[ns]')
     start = datetime.strptime(Data_params['start'], '%Y-%m-%d %H:%M:%S')
     end = datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S')
     mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
     filtered_DF = Realtime_DF[mask]
-    return filtered_DF
+    return filtered_DF[column_list]
 
+def splitDateTime(UserDateRange, hours=0.5):
+    startDateTimeStr = UserDateRange['StartDate'] + ' ' + UserDateRange['StartTime']
+    endDateTimeStr = UserDateRange['EndDate'] + ' ' + UserDateRange['EndTime']
+
+
+    startDateTime = pd.Timestamp(startDateTimeStr)
+    endDateTime = pd.Timestamp(endDateTimeStr)
+    deltaTime = pd.Timedelta(hours=hours)
+
+    date_ranges = pd.date_range(start=startDateTime, end=endDateTime.floor("H"), freq=deltaTime)
+
+    date_list = date_ranges.tolist() + [endDateTime]
+    StartDateTimeList,EndDateTimeList = date_list[:-1],date_list[1:]
+    return StartDateTimeList,EndDateTimeList
 # def cache_RealTime_Data(well_id, StartDateTime_select, EndDateTime_select):
 #     Activity_DF = DomeGetRealtimeSensorData(well_id, StartDateTime_select, EndDateTime_select)
 #     Activity_DF['dt'] = Activity_DF['dt'].astype('datetime64')
@@ -427,4 +462,59 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
 #     Activity_DF['stppress'] = Activity_DF['stppress'].astype('float64')
 #     Activity_DF['mudflowin'] = Activity_DF['mudflowin'].astype('float64')
 
-#     return Activity_DF
+def DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange, hours=0.5):
+    UserDateRange = {
+            "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
+            "StartTime": UserDateRange['StartTime'].strftime('%H:%M:%S'),
+            "EndDate": UserDateRange['EndDate'].strftime('%Y-%m-%d'),
+            "EndTime": UserDateRange['EndTime'].strftime('%H:%M:%S'),
+            }
+    # st.write("texsxt")
+    # st.stop()
+    StartDateTimeList,EndDateTimeList = splitDateTime(UserDateRange, hours=hours)
+    # TODO: uncomment the code below if Realtime Data is ready
+    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
+    Realtime_List = []
+    time_elapsed = []
+    i = 0
+    StartEndList=list(zip(StartDateTimeList,EndDateTimeList))
+    my_bar = st.progress(0.0,)
+
+    for ii in range(len((StartEndList))):
+        my_bar.progress(np.round(ii/len(StartEndList),2), text=f"Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
+        StartDateTime,EndDateTime = StartEndList[ii]
+        loopStartTime = time.time()
+        Data_params ={
+            "wid" : int(WellInfoDict['wid']),
+            "start" : str(StartDateTime),
+            "end" : str(EndDateTime),
+        }
+        # print(Data_params)
+        # st.text(Data_params)
+        # if ii>5:
+        #     st.stop()
+        WellData = json.loads((
+            (
+                # requests.get("https://pdumitradome.id/dome_api/rtdc/rtdc/get_data", data=json.dumps(Data_params))
+                requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
+            ).text
+        ))
+        if WellData['status'] != 200:
+            raise KeyError (WellData['message'])
+        
+        Realtime_DF_temp = pd.json_normalize((WellData), record_path='result')
+        Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
+        Realtime_List.append(Realtime_DF_temp)
+        loopEndTime = time.time()
+        i=i+1
+        time_elapsed.append(loopEndTime-loopStartTime)
+        # print(f"Iteration {i}: {(loopEndTime-loopStartTime):.4f} seconds")
+    Realtime_DF = pd.concat(Realtime_List, axis=0, ignore_index=True)
+
+    start = str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime'])
+    end = str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime'])
+    mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
+    filtered_DF = Realtime_DF[mask]
+    print( np.mean(time_elapsed))
+    my_bar.progress(1.0)
+    return filtered_DF[column_list]

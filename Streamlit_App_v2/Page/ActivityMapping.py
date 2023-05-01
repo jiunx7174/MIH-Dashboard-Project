@@ -2,10 +2,13 @@ import streamlit as st
 from PDU_Func import Authentification, IO_Data,Table, ActivitySummary
 from PDU_Func.IO_Data import getAvailableCompanyDF
 from datetime import datetime,timedelta
+from importlib import reload
 
-@st.cache_data
+
+# @st.cache_data(experimental_allow_widgets=True)
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
-    return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+    # return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+    return IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
 
 
 
@@ -33,6 +36,9 @@ def IsSubmitFormTrue():
     st.session_state['IsFormSubmit'] = True
     if ("ActSum" in st.session_state):
         del st.session_state["ActSum"]
+
+    if ("RTSensor_df" in st.session_state):
+        del st.session_state["RTSensor_df"]
 
 
 def initiateSession(WellInfoDict):
@@ -181,7 +187,7 @@ def App():
         
         ActivityLog_DF = st.session_state["ActivityLog_DF"]
         # ActivityLog_DF = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
-        st.json(st.session_state['UserDateRange'])
+
         with st.form(key='ActivityLogTable_Agrid'):
             ActLogAgridOut = Table.ActivityLogTable_Agrid(ActivityLog_DF, reload=True)
 
@@ -197,7 +203,14 @@ def App():
             st.experimental_rerun()
         
         # retrieve Realtime Sensor Data
-        RTSensor_df = DomeGetRealtimeSensorData(WellInfoDict, st.session_state['UserDateRange'])
+        print("GetRealtimeData")
+        print(st.session_state['UserDateRange'])
+        if "RTSensor_df" not in st.session_state:
+            st.session_state['RTSensor_df'] = IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, st.session_state['UserDateRange'])
+        RTSensor_df = st.session_state['RTSensor_df']
+        # RTSensor_df = DomeGetRealtimeSensorData(WellInfoDict, st.session_state['UserDateRange'])
+
+        # st.dataframe(RTSensor_df)
         ActSumButtonCol = st.columns(8)
         IsActSumReset = ActSumButtonCol[0].button("Reset", key="ActSumReset")
         IsActSumRefresh = ActSumButtonCol[1].button("Refresh", key="ActSumRefresh")
@@ -218,7 +231,7 @@ def App():
             st.experimental_rerun()
 
         ActSumData = st.session_state["ActSum"]
-        st.dataframe(ActSumData.Data)
+
         # st.stop()
         with st.form(key='ActSumTable_Agrid'):
 

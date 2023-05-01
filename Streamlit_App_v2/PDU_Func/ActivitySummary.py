@@ -5,6 +5,7 @@ import requests
 import json
 from PDU_Func import IO_Data
 import matplotlib.pyplot as plt
+import streamlit as st
 def test():
     print("Wakwaw")
 
@@ -57,16 +58,94 @@ def _DataType():
         }
     # print(type(data))
     return data_type
+def _ActivitySummaryColumnRenameDict():
+    ActivitySummaryColumnRenameDict = {"wid":"wid",
+                            "date":"Date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            # "stand_on_bottom":"OnBottomDurationPerStand",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            }
+    out= {
+        "ColumnName":{"wid":"wid",
+                            "date":"Date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            # "stand_on_bottom":"OnBottomDurationPerStand",
+                            "stand_on_bottom":"LABEL_ConnectionActivity",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            }.values(),
+        "DataTypeDict":{
+                    "wid": 'int',
+                    "Date": "datetime64",
+                    "StartDateTime": "datetime64",
+                    "EndDateTime": "datetime64",
+                    "Duration": "float",
+                    "Hole_Depth_max": "float",
+                    "Bit_Depth_avg": "float",
+                    "DrillingMeterage": "float",
+                    "RotateDrillingDuration": "float",
+                    "SlideDrillingDuration": "float",
+                    "ReamingDuration": "float",
+                    "ConnectionDuration": "float",
+                    "OnBottomDurationPerStand": "float",
+                    "StandDuration": "float",
+                    "LABEL_SubActivity": "string",
+                    "LABEL_Activity": "string",
+                    "DrillingMeteragePerStand": "float",
+                    "InSlip_Treshold": "float",
+                    "PIC": "string",
+                    "Section": "string",
+                    "Remarks": "string",
+                    "Stand Group_Pred": "string",
+                    "LABEL_ConnectionActivity":"string",
+                    },
 
+    }
+    return out
 
 class ActivitySummaryTable:
     def __init__(self, WellInfoDict:dict, UserDateRange:dict):
-        ColDataType = _DataType()
+        ColumProperty = _ActivitySummaryColumnRenameDict()
         self.Data = pd.DataFrame(
-                    columns = ColDataType.keys(),
+                    columns = ColumProperty['ColumnName'],
                     # dtype=ColDataType,
                     )
-        self.Data = self.Data.astype(ColDataType)
+        self.Data = self.Data.astype(ColumProperty['DataTypeDict'])
         self.WellInfoDict = WellInfoDict
         self.UserDateRange = UserDateRange
         
@@ -124,13 +203,20 @@ class ActivitySummaryTable:
             self.Data[list(temp_ActSum_df.columns)] = temp_ActSum_df[list(temp_ActSum_df.columns)]
             self.Data['wid'] =  int(WellInfoDict['wid'])
             self.Data['status'] =  "FIRM"
+            self.Data['LABEL_All'] = self.Data['LABEL_Activity'] + "--" + self.Data['LABEL_SubActivity']
             # StartDateTime = self.Data['time_end'].max()
-            StartDateTime = datetime.strptime(self.Data['time_end'].max(), '%Y-%m-%d %H:%M:%S')
+            # st.write(self.Data)
+            # st.write(self.Data.dtypes)
+
+            StartDateTime = datetime.strptime(self.Data['EndDateTime'].max(), '%Y-%m-%d %H:%M:%S')
+            UserDateRange['StartDate'] = StartDateTime.date()
+            UserDateRange['StartTime'] = StartDateTime.time()
+            # st.text(StartDateTime)
 
         # if the ActSumTable max end time is outside the UserDateRange, 
         # then ActivityMapping is no longer needed
         if  StartDateTime >= EndDateTime:
-            return self.Data
+            pass
 
         # get the realtime data
         # RTSensor_df = IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
@@ -158,11 +244,15 @@ class ActivitySummaryTable:
         #_________________________________________________
         # label the group stand, this function are useful to determine the lv.2 aggregate
         ActSum_df = getStandLabel(ActSum_df)
+        ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+
 
         ActSum_df['wid'] =  int(WellInfoDict['wid'])
         ActSum_df['status'] =  "REVIEW"
 
-        self.Data= pd.concat([temp_ActSum_df, ActSum_df])
+
+        self.Data= pd.concat([self.Data, ActSum_df])
 
 
         
@@ -189,6 +279,7 @@ def getStandLabel(ActSum_df):
     ActSum_df['DrillingMeteragePerStand'] = np.NaN
     ActSum_df['StandDuration'] = np.NaN
     ActSum_df['OnBottomDurationPerStand'] = np.NaN
+    ActSum_df['Stand Group_Pred'] = ""
     # ActSum_df['ConnectionDurationPerStand'] = np.NaN
 
     ActSum_df = ActSum_df.reset_index(drop=True).fillna(0)
@@ -242,7 +333,7 @@ def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=1):
         ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
 
         ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
-        {'date': 'max',
+        {'Date': 'max',
         'StartDateTime': 'min',
         'EndDateTime': 'max',
         'Duration': 'sum',
@@ -286,7 +377,7 @@ def getGroupDuration(RTSensor_df , DrillActivityList='default'):
         # Time_start = pd.to_datetime(date + " " + DF_Temp.head(1)['time'].values[0])
         # Time_end_temp = DF_Temp.tail(1)['time'].values[0]
         # Time_end = pd.to_datetime(DF_Temp.tail(1)['date'].values[0] + " " + str((datetime.strptime(Time_end_temp, "%H:%M:%S") + timedelta(seconds=5)).time()))
-        Date = DF_Temp['Date'].iloc[0]
+        Date = DF_Temp['date'].iloc[0]
         StartDateTime = DF_Temp['dt'].iloc[0]
         EndDateTime = DF_Temp['dt'].iloc[-1]
         # Time_start = DF_Temp.head(1)['time'].values[0]
@@ -337,7 +428,7 @@ def getGroupDuration(RTSensor_df , DrillActivityList='default'):
 
         list_dict_out.append(
             {
-            'date':Date,
+            'Date':Date,
             'StartDateTime':StartDateTime,
             'EndDateTime':EndDateTime,
             'Duration':Duration,
