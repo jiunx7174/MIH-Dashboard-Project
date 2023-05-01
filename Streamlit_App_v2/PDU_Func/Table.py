@@ -36,19 +36,8 @@ def add_row_func():
 #         allow_unsafe_jscode=True,
 #         reload_data =False)
 #     return InputActivityGrid_response
-from dateutil import parser as date_parser
-def date_picker_editor(params):
-    """
-    Date picker editor for Ag-Grid.
-    """
-    def on_date_picker_selected(selected_date):
-        params.api.stopEditing()
-        params.node.data[params.column.colDef.field] = selected_date.strftime('%m/%d/%Y')
-        params.api.refreshCells(params)
 
-    date = date_parser.parse(params.value) if params.value else datetime.now()
-    date_picker = st.date_input('', date_value=date, key=params.node.rowIndex, on_change=on_date_picker_selected)
-    return date_picker
+
 
 def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default', SectionSizeList='default'):
     st.markdown("""
