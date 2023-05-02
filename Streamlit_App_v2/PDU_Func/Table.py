@@ -188,8 +188,22 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
         reload_data =reload)
     return InputActivityGrid_response
 
+
+# def is_row_selectable(params):
+#     if params['data']['Status'] == 'FIRM':
+#         return False
+#     else:
+#         return True
 def ActSumTable_Agrid(ActSumData, reload=False):
     ActSum_DF = ActSumData.Data
+    is_row_selectable = JsCode("function isRowSelectable(params) {\
+                            if (params.data.status === 'FIRM') {\
+                                return false;\
+                            } else {\
+                                return true;\
+                            }\
+                            }\
+                        ")
     string_to_add_row = ("\n\n function(e) { \n \
     let api = e.api; \n \
     let rowIndex = e.rowIndex + 1; \n \
@@ -197,6 +211,7 @@ def ActSumTable_Agrid(ActSumData, reload=False):
     let newRowData = Object.assign({}, previousRowData); \n \
     api.applyTransaction({addIndex: rowIndex, add: [newRowData]}); \n \
         }; \n \n")
+
     cell_button_add = JsCode('''
     class BtnAddCellRenderer {
         init(params) {
@@ -298,7 +313,11 @@ def ActSumTable_Agrid(ActSumData, reload=False):
     gridOptions.configure_default_column(editable=False, autoHeaderHeight=True, autoHeight=True, wrapHeaderText=True)
     gb = gridOptions.build()
     gb["columnDefs"] =([
-        {"field":'status',                      "headerName":"Status", "width":80,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status"},
+        {"field":'status',                      "headerName":"Status", "width":120,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",
+                                                'headerCheckboxSelection': True,
+                                                'checkboxSelection': True,
+                                                'showDisabledCheckboxes':False,
+                                                },
         {"field":'StartDateTime',               "headerName":"Start", "width":140,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start",},
         {"field":'EndDateTime',                 "headerName":"End", "width":140,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start"},
         {"field":'LABEL_Activity',              "headerName":"Activity", "width":160,'editable':False,"filter":True,"headerTooltip":"Major Activity"},
@@ -353,12 +372,13 @@ def ActSumTable_Agrid(ActSumData, reload=False):
     ]
         
         )
+    gb['isRowSelectable']=is_row_selectable
     gb['tooltipShowDelay']=100
     gridOptions_dict = {
     'alwaysShowHorizontalScroll': True,
     'alwaysShowVerticalScroll': True,
-    'pagination': True,
-    'paginationPageSize': 15,
+    # 'pagination': True,
+    # 'paginationPageSize': 15,
     }
     for keys in gridOptions_dict.keys():
         gb[keys] = gridOptions_dict[keys]
@@ -366,13 +386,13 @@ def ActSumTable_Agrid(ActSumData, reload=False):
     InputActSumGrid_response = AgGrid(
         ActSum_DF, 
         gridOptions=gb,
-        # height=500,
+        height=800,
         # width=700,
-
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
         allow_unsafe_jscode=True,
+        # on_edit_done=disable_checkboxes,
         reload_data =reload)
     return InputActSumGrid_response
 # df=pd.DataFrame({ "Name": ['Erica', 'Rogers', 'Malcolm', 'Barrett'], "Age": [43, 35, 57, 29]})

@@ -37,8 +37,7 @@ def getAvailableCompanyDF(UserAuthDict):
 
     # st.json(CompName_JSON)
     CompDF = pd.json_normalize(CompName_JSON, record_path = 'result')
-    print('test')
-    print('test 2')
+
     return CompDF
 
 # @st.cache_resource
@@ -53,13 +52,14 @@ def getAvailableWellDF(SelectComp,UserAuthDict):
     # st.text(cid)
     GetAvailableWellAPI =  "http://khansadev.xyz/dome_api/rtdc/get_well?cid=" + str(cid)
     AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
+    # st.json(AvailableWell_JSON)
     AvailableWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
     # st.dataframe(AvailableWellDF)
     if not AvailableWellDF.empty:
         # st.stop()
         # Welcome.App()
         AvailableWellDF['cid'] = cid
-        AvailableWellDF = AvailableWellDF.astype({"cid": int,"wid": int, "well_name": 'string', 'active_date': 'datetime64', 'end_date': 'datetime64', 'rig_name':'string'})
+        AvailableWellDF = AvailableWellDF.astype({"cid": int,"wid": int, "well_name": 'string', 'rig_name':'string'})
     else:
         AvailableWellDF =pd.DataFrame.from_dict({"cid":[],"wid": [], "well_name": [], 'active_date': [], 'end_date': [], 'rig_name':[]})
     return AvailableWellDF

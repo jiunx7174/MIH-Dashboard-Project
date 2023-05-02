@@ -254,6 +254,111 @@ class ActivitySummaryTable:
 
         self.Data= pd.concat([self.Data, ActSum_df])
 
+    ## Fill Gap function
+    def getActivitySummary_v2(self,ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1):
+        """
+        download the activity summary table from existing server
+        there's 3 major funciton in general
+        # getGroupDuration
+        ## Aggregate lv.1, keep it as it is
+        -datetime start 
+        -datetime end 
+        -date 
+        -well name
+        -activity
+        -sub-activity
+        -section size
+        -PIC
+        -in-slip threshold
+        -remarks
+
+        ## Aggregate lv.1, calculate duration
+        -Duration 
+        -Hole Depth 
+        -Bit Depth 
+        -Drilling Meterage
+        -Rotate Drilling Duration
+        -Slide Drilling Duration
+        -Reaming Duration
+        -Connection Duration
+
+        # LabelStand
+        ## Aggregate lv.2
+        # Connection Activity
+        # On Bottom Duration 
+        # Stand Duration 
+        """
+        UserDateRange = self.UserDateRange
+        WellInfoDict = self.WellInfoDict
+
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        StartDateTime = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+        EndDateTime = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+        
+        # get the ActivitySummaryTable data between the UserDateRange
+        temp_ActSum_df = IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="Activity Summary")
+        
+        # If the ActivitySummaryTable between the UserDateRange is exist or partially exist
+        # TODO, if we want to fill out a "Gap" ActSumTable case
+
+        if list(temp_ActSum_df.columns) != []:
+            self.Data[list(temp_ActSum_df.columns)] = temp_ActSum_df[list(temp_ActSum_df.columns)]
+            self.Data['wid'] =  int(WellInfoDict['wid'])
+            self.Data['status'] =  "FIRM"
+            self.Data['LABEL_All'] = self.Data['LABEL_Activity'] + "--" + self.Data['LABEL_SubActivity']
+            # StartDateTime = self.Data['time_end'].max()
+            # st.write(self.Data)
+            # st.write(self.Data.dtypes)
+
+            StartDateTime = datetime.strptime(self.Data['EndDateTime'].max(), '%Y-%m-%d %H:%M:%S')
+            UserDateRange['StartDate'] = StartDateTime.date()
+            UserDateRange['StartTime'] = StartDateTime.time()
+            # st.text(StartDateTime)
+
+        # if the ActSumTable max end time is outside the UserDateRange, 
+        # then ActivityMapping is no longer needed
+        if  StartDateTime >= EndDateTime:
+            pass
+
+        # get the realtime data
+        # RTSensor_df = IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+        
+        #_________________________________________________
+        #% labelling the activity data with the ActLogData
+        # TODO if the ActivityLog_DF is outside the UserDateRange
+        RTSensor_df = getActivityLabel(RTSensor_df, ActivityLog_DF, UserDateRange=UserDateRange)
+
+
+        #_________________________________________________
+        #% apply the PDU mapping logic function
+        RTSensor_df = getSubActivityLabel(RTSensor_df)
+
+        
+        #_________________________________________________
+        #% group and aggregate the Realtime data into ActitivtySummaryTable, this function is categorized as lv.1 aggregate
+        ActSum_df = getGroupDuration(RTSensor_df, DrillActivityList='default')
+
+
+        #_________________________________________________
+        #% clean the False/Check and Look and define under the constraint
+        ActSum_df = cleanFalseSensor(ActSum_df, MinuteTolerances=MinuteTolerances, CleaningIteration=CleaningIteration)
+
+        #_________________________________________________
+        # label the group stand, this function are useful to determine the lv.2 aggregate
+        ActSum_df = getStandLabel(ActSum_df)
+        ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
+        ActSum_df['wid'] =  int(WellInfoDict['wid'])
+        ActSum_df['status'] =  "REVIEW"
+
+
+        self.Data= pd.concat([self.Data, ActSum_df])
+
 
         
 

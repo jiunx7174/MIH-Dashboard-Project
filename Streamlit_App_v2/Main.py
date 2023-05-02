@@ -71,7 +71,7 @@ SidebarContainer = st.sidebar.container()
 
 # with SidebarContainer:
 SelectComp = SidebarContainer.selectbox("Select Company",['-'] + IO_Data.getAvailableCompanyDF(UserAuthDict)['company_name'].tolist(), key='SelectCompany')
-# st.text(SelectComp)
+
 # st.dataframe( IO_Data.getAvailableCompanyDF(UserAuthDict))
 if SelectComp != '-':
     SelectWell = SidebarContainer.selectbox("Select Well",['-'] + IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)['well_name'].tolist(), key='SelectWell')
