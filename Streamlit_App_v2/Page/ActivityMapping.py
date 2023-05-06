@@ -217,18 +217,19 @@ def App():
         #######
         ## ActSumTable
         #######
-        if ("ActSum" not in st.session_state) or IsActSumRefresh:
+        if ("ActSum" not in st.session_state) or IsActSumReset:
             # Init ActSumTable
             st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, st.session_state['UserDateRange'])
         
             # generate both of FIRM and REVIEW ActSum
             st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
             st.session_state["ActSum_Preserve"] = st.session_state["ActSum"]
-        if IsActSumReset:
-            # Reset The ActSum
-            st.session_state["ActSum"] = st.session_state["ActSum_Preserve"]
-            # del st.session_state["ActSum"]
             st.experimental_rerun()
+        #if IsActSumReset:
+        #    # Reset The ActSum
+        #    st.session_state["ActSum"] = st.session_state["ActSum_Preserve"]
+        #    # del st.session_state["ActSum"]
+        #    st.experimental_rerun()
 
         ActSumData = st.session_state["ActSum"]
 
@@ -241,12 +242,29 @@ def App():
             isActSumApply = st.form_submit_button("apply")
 
         if isActSumApply:
+            # TODO create a function to check the actsum data
+            # - if there's a gap?
+            # - if date error?
+            checkActSum(ActSumAgridOut['data'])
+            # TODO build a recalculate duration
+            st.session_state["ActSum"] = ReCalculateDuration(ActSumAgridOut['data'])
+            st.session_state["ActSum"] = LabelStand(st.session_state["ActSum"])
             ActSumData_Upload = checkActSum(ActSumAgridOut['data'])
+
 
             updateActSum(WellInfoDict, ActSumData_Upload, st.session_state['UserDateRange'])
             st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
             st.success("ActSumUpdate")
-            st.experimental_rerun()
+            #if ActSumAgridOut['data'] is selected:
+                # show the selected values
+                # show button to reconfirm
+                #if IsConfirmUpdate:
+                #    upload ActSum
+                #    st.experimental_rerun()
+
+            # else:
+            # st.experimental_rerun()
+
 
 
     # TODO
