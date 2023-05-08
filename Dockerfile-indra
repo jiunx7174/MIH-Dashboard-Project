@@ -1,0 +1,12 @@
+From python:3.8-buster
+RUN mkdir streamlit-app && \
+    apt-get update && apt-get install -y libx11-dev libeigen3-dev libccd-dev octomap-tools ffmpeg libsm6 libxext6
+WORKDIR streamlit-app
+COPY requirements_pdu.txt .
+COPY setup.sh .
+RUN pip install --upgrade pip
+RUN pip3 install -r requirements_pdu.txt
+ENV PORT=8085
+RUN chmod +x setup.sh && ./setup.sh
+CMD ["streamlit","run","Streamlit_App/Main_v0.21.py"]
+EXPOSE 8085
