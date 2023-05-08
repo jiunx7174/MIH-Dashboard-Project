@@ -134,9 +134,7 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
             getGui() {
                 return this.eGui;
             }
-
-        };
-        ''')
+        };''')
 
     if ActivityList  =='default':
         ActivityList = ["N/A",'CEMENTING JOB','CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT','DRILLING FORMATION',
@@ -188,14 +186,48 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
         reload_data =reload)
     return InputActivityGrid_response
 
+def datetime_renderer(params):
+    value = params.value
+    date_str = value.strftime("%Y-%m-%d")
+    time_str = value.strftime("%H:%M:%S")
+    formatted_value = f"<span style='font-style: italic;'>{date_str}</span><br><span style='font-weight: bold; font-size: 16px;'>{time_str}</span>"
+    return formatted_value
 
-# def is_row_selectable(params):
-#     if params['data']['Status'] == 'FIRM':
-#         return False
-#     else:
-#         return True
-def ActSumTable_Agrid(ActSumData, reload=False):
-    ActSum_DF = ActSumData.Data
+def ActSumTable_Agrid(ActSum_DF, reload=False):
+    # ActSum_DF = ActSumData.Data
+    datetime_renderer = JsCode('''
+    class DatetimeCellRenderer {
+        init(params) {
+            this.params = params;
+            this.eGui = document.createElement('div');
+            this.eGui.innerHTML = `
+                <span>
+                    <style>
+                    .date {
+                        font-style: oblique;
+                        font-weight: lighter;
+                        color: #696969;
+                    //    font-size: larger;
+                    }
+
+                    .time {
+                        font-weight: bolder;
+                        color: #696969;
+                    //    font-style: oblique;
+                    }
+                    </style>
+                    <span class="date">${params.value.split(' ')[0]}</span>
+                    <span class="time">${params.value.split(' ')[1]}</span>
+                </span>
+            `;
+        }
+
+        getGui() {
+            return this.eGui;
+        }
+    }
+    ''')
+                               
     is_row_selectable = JsCode("function isRowSelectable(params) {\
                             if (params.data.status === 'FIRM') {\
                                 return false;\
@@ -294,34 +326,23 @@ def ActSumTable_Agrid(ActSumData, reload=False):
         ''')
 
     gridOptions  = GridOptionsBuilder.from_dataframe(ActSum_DF)
-    # gridOptions  = GridOptionsBuilder.from_dataframe(ActivityLog_DF.drop(['DateTime'], 1))
-    gridOptions.configure_selection('multiple')
 
 
-    # gridOptions.configure_column('Insert', headerTooltip='Click on Button to add new row', editable=False, filter=False,
-    #                         onCellClicked=JsCode(string_to_add_row), cellRenderer=cell_button_add,
-    #                         autoHeight=True, wrapText=True, suppressMovable='true')
-    # gridOptions.configure_column('Delete', headerTooltip='Click on Button to remove row',
-    #                                 editable=False, filter=False, onCellClicked=JsCode(string_to_delete),
-    #                                 cellRenderer=cell_button_delete,
-    #                                 autoHeight=True, )
-    # gridOptions.configure_column('Delete', headerTooltip='Click on Button to remove row',
-    #                                 editable=False, filter=False, onCellClicked=JsCode(string_to_delete),
-    #                                 cellRenderer=cell_button_delete,
-    #                                 autoHeight=True, )
     
     gridOptions.configure_default_column(editable=False, autoHeaderHeight=True, autoHeight=True, wrapHeaderText=True)
     gb = gridOptions.build()
+
     gb["columnDefs"] =([
         {"field":'status',                      "headerName":"Status", "width":120,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",
                                                 'headerCheckboxSelection': True,
                                                 'checkboxSelection': True,
                                                 'showDisabledCheckboxes':False,
+                                                
                                                 },
-        {"field":'StartDateTime',               "headerName":"Start", "width":140,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start",},
-        {"field":'EndDateTime',                 "headerName":"End", "width":140,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start"},
+        {"field":'StartDateTime',               "headerName":"Start", "width":140,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)","cellRenderer": datetime_renderer},
+        {"field":'EndDateTime',                 "headerName":"End", "width":140,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity end \n(YYYY:MM:DD hh:mm:ss)" ,"cellRenderer": datetime_renderer},
         {"field":'LABEL_Activity',              "headerName":"Activity", "width":160,'editable':False,"filter":True,"headerTooltip":"Major Activity"},
-        {"field":'LABEL_SubActivity',           "headerName":"SubActivity", "width":140,'editable':True,"filter":True,"headerTooltip":"SubActivity"},
+        {"field":'LABEL_SubActivity',           "headerName":"SubActivity", "width":140,'editable':'(params) => params.data.status == "REVIEW"',"filter":True,"headerTooltip":"SubActivity"},
         {"field":'LABEL_ConnectionActivity',    "headerName":"Connection Activity", "width":90,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start"},
         {"headerName": "Activity Duration","width":200,
          "children":[
@@ -359,6 +380,7 @@ def ActSumTable_Agrid(ActSumData, reload=False):
             "wrapText":True, 
             "suppressMovable":True,
             "width":110,
+            'pinned': 'right',
         },
         {"field":'Delete',
             "headerTooltip":'Click on Button to remove row',
@@ -368,33 +390,171 @@ def ActSumTable_Agrid(ActSumData, reload=False):
             "cellRenderer":cell_button_delete,
             "autoHeight":True, 
             "width":110,
+            'pinned': 'right',
         }
     ]
         
         )
+    gb['rowSelection']='multiple'
     gb['isRowSelectable']=is_row_selectable
     gb['tooltipShowDelay']=100
-    gridOptions_dict = {
-    'alwaysShowHorizontalScroll': True,
-    'alwaysShowVerticalScroll': True,
-    # 'pagination': True,
-    # 'paginationPageSize': 15,
-    }
-    for keys in gridOptions_dict.keys():
-        gb[keys] = gridOptions_dict[keys]
-    
+    gb['alwaysShowHorizontalScroll']=True
+    gb['alwaysShowVerticalScroll']=True
+    gb['pagination']=True
+    gb['paginationPageSize']=20
+    # gridOptions_dict = {
+    # 'alwaysShowHorizontalScroll': True,
+    # 'alwaysShowVerticalScroll': True,
+    # # 'pagination': True,
+    # # 'paginationPageSize': 15,
+    # }
+    # for keys in gridOptions_dict.keys():
+    #     gb[keys] = gridOptions_dict[keys]
+
     InputActSumGrid_response = AgGrid(
         ActSum_DF, 
         gridOptions=gb,
-        height=800,
-        # width=700,
+        # height=500,
+        # width=1300,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
         allow_unsafe_jscode=True,
+        # on_ready=preselect_rows,
+        # preselected_rows=[24,25],
         # on_edit_done=disable_checkboxes,
         reload_data =reload)
     return InputActSumGrid_response
+
+
+def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False):
+    # ActSum_DF = ActSumData.Data
+    datetime_renderer = JsCode('''
+    class DatetimeCellRenderer {
+        init(params) {
+            this.params = params;
+            this.eGui = document.createElement('div');
+            this.eGui.innerHTML = `
+                <span>
+                    <style>
+                    .date {
+                        font-style: oblique;
+                        font-weight: lighter;
+                        color: #696969;
+                    //    font-size: larger;
+                    }
+
+                    .time {
+                        font-weight: bolder;
+                        color: #696969;
+                    //    font-style: oblique;
+                    }
+                    </style>
+                    <span class="date">${params.value.split(' ')[0]}</span>
+                    <span class="time">${params.value.split(' ')[1]}</span>
+                </span>
+            `;
+        }
+
+        getGui() {
+            return this.eGui;
+        }
+    }
+    ''')
+    
+    gridOptions  = GridOptionsBuilder.from_dataframe(ActSum_DF)
+
+    gridOptions.configure_default_column(editable=False, autoHeaderHeight=True, autoHeight=True, wrapHeaderText=True)
+    gb = gridOptions.build()
+
+    gb["columnDefs"] =([
+        {"field":'status',                      "headerName":"Status", "width":120,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",                                                
+                                                },
+        {"field":'StartDateTime',               "headerName":"Start", "width":140,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)","cellRenderer": datetime_renderer},
+        {"field":'EndDateTime',                 "headerName":"End", "width":140,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity end \n(YYYY:MM:DD hh:mm:ss)" ,"cellRenderer": datetime_renderer},
+        {"field":'LABEL_Activity',              "headerName":"Activity", "width":160,'editable':False,"filter":True,"headerTooltip":"Major Activity"},
+        {"field":'LABEL_SubActivity',           "headerName":"SubActivity", "width":140,'editable':False,"filter":True,"headerTooltip":"SubActivity"},
+        {"field":'LABEL_ConnectionActivity',    "headerName":"Connection Activity", "width":90,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity start"},
+        {"headerName": "Activity Duration","width":200,
+         "children":[
+            {"field":'Duration',                    "headerName":"Duration (Minutes)","width":170, 'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'closed',},
+            {"field":'Duration',                    "headerName":"Duration (Minutes)","width":100, 'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'RotateDrillingDuration',  "headerName":"Rotate Drilling Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'SlideDrillingDuration',   "headerName":"Slide Drilling Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'ReamingDuration',         "headerName":"Reaming Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'ConnectionDuration',      "headerName":"Connection Duration","width":105,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+         ]},
+        {"headerName": "Activity Meterage",
+         "children":[
+            {'field':'DrillingMeterage',        "headerName":"Drilling Meterage","width":170,'editable':False,"filter":True,"headerTooltip":"(Meter)",'columnGroupShow': 'closed',},
+            {'field':'DrillingMeterage',        "headerName":"Drilling Meterage","width":95,'editable':False,"filter":True,"headerTooltip":"(Meter)",'columnGroupShow': 'open',},
+            {'field':'Hole_Depth_max',          "headerName":"Hole Depth","width":90,'editable':False,"filter":True,"headerTooltip":"Max. (Meter)",'columnGroupShow': 'open',},
+            {'field':'Bit_Depth_avg',           "headerName":"Bit Depth","width":90,'editable':False,"filter":True,"headerTooltip":"Avg. (Meter)",'columnGroupShow': 'open',},
+         ]},
+
+        {"headerName": "Stand Duration & Meterage",'columnGroupShow': 'closed',
+         "children":[
+            {"field":'Stand Group_Pred',            "headerName":"Stand Number","width":150,'editable':False,"filter":True,'columnGroupShow': 'closed',},
+            {"field":'Stand Group_Pred',            "headerName":"Stand Number","width":100,'editable':False,"filter":True,'columnGroupShow': 'open',},
+            {"field":'OnBottomDurationPerStand',    "headerName":"On Bottom Duration (Minutes)","width":100,'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'StandDuration',               "headerName":"Stand Duration (Minutes)","width":100,'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'DrillingMeteragePerStand',    "headerName":"Drilling Meterage per stand (Minutes)",'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+         ]},
+
+        # {"field":'Insert', 
+        #     "headerTooltip":'Click on Button to add new row',
+        #     'editable':False,
+        #     "filter":False,
+        #     "onCellClicked":JsCode(string_to_add_row), 
+        #     "cellRenderer":cell_button_add,
+        #     "autoHeight":True, 
+        #     "wrapText":True, 
+        #     "suppressMovable":True,
+        #     "width":110,
+        #     'pinned': 'right',
+        # },
+        # {"field":'Delete',
+        #     "headerTooltip":'Click on Button to remove row',
+        #     "editable":False, 
+        #     "filter":False, 
+        #     "onCellClicked":JsCode(string_to_delete),
+        #     "cellRenderer":cell_button_delete,
+        #     "autoHeight":True, 
+        #     "width":110,
+        #     'pinned': 'right',
+        # }
+    ]
+        
+        )
+    gb['tooltipShowDelay']=100
+    gb['alwaysShowHorizontalScroll']=True
+    gb['alwaysShowVerticalScroll']=True
+    gb['pagination']=True
+    # gb['paginationPageSize']=True
+    # gridOptions_dict = {
+    # 'alwaysShowHorizontalScroll': True,
+    # 'alwaysShowVerticalScroll': True,
+    # # 'pagination': True,
+    # # 'paginationPageSize': 15,
+    # }
+    # for keys in gridOptions_dict.keys():
+    #     gb[keys] = gridOptions_dict[keys]
+
+    InputActSumGrid_response = AgGrid(
+        ActSum_DF, 
+        gridOptions=gb,
+        # height=800,
+        # width=1300,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
+        # update_mode=(GridUpdateMode.NO_UPDATE),
+        update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
+        allow_unsafe_jscode=True,
+        # on_ready=preselect_rows,
+        # preselected_rows=[24,25],
+        # on_edit_done=disable_checkboxes,
+        reload_data =reload)
+    return InputActSumGrid_response
+
 # df=pd.DataFrame({ "Name": ['Erica', 'Rogers', 'Malcolm', 'Barrett'], "Age": [43, 35, 57, 29]})
 
 

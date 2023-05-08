@@ -47,8 +47,6 @@ def getAvailableWellDF(SelectComp,UserAuthDict):
     cid = CompDF.loc[CompDF['company_name']==SelectComp, 'cid'].values[0]
     # st.text(cid)
     # print(cid.values[0])
-
-
     # st.text(cid)
     GetAvailableWellAPI =  "http://khansadev.xyz/dome_api/rtdc/get_well?cid=" + str(cid)
     AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()

@@ -3,13 +3,14 @@ from PDU_Func import Authentification, IO_Data,Table, ActivitySummary
 from PDU_Func.IO_Data import getAvailableCompanyDF
 from datetime import datetime,timedelta
 from importlib import reload
-
+import pandas as pd 
+from streamlit_modal import Modal
+import time
 
 # @st.cache_data(experimental_allow_widgets=True)
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
     # return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
     return IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
-
 
 
 @st.cache_resource
@@ -53,6 +54,7 @@ def initiateSession(WellInfoDict):
             "EndDate":[],
             "EndTime":[]
         }
+
 
 def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
     with st.spinner("Communicate with the server"):
@@ -139,6 +141,7 @@ def updateActSum(ActivityLog_DF, UpdateActivityLog_DF, UpdateActivitysLog_DF):
 
 
 def App():
+
     UserAuthDict = st.session_state['UserAuthDict']
     WellInfoDict = st.session_state['WellInfoDict']
     st.json(UserAuthDict)
@@ -173,6 +176,7 @@ def App():
 
         st.form_submit_button(on_click=IsSubmitFormTrue)
 
+    print(st.session_state['UserDateRange'])
 
 
     st.markdown('<h1 style="text-align: center; font-size: 50px; margin-top: 2px;"><span style="text-decoration: underline;">ACTIVITY MAPPING MODULE</span></h1>', unsafe_allow_html=True)
@@ -183,13 +187,14 @@ def App():
     if st.session_state['IsFormSubmit']:
 
         if "ActvitiyLog_DF" not in st.session_state:
-            st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(st.session_state['UserDateRange']), table_type="ActivityLogTable"))
+            st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(st.session_state['UserDateRange'].copy()), table_type="ActivityLogTable"))
         
         ActivityLog_DF = st.session_state["ActivityLog_DF"]
         # ActivityLog_DF = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
 
         with st.form(key='ActivityLogTable_Agrid'):
-            ActLogAgridOut = Table.ActivityLogTable_Agrid(ActivityLog_DF, reload=True)
+            with st.container():
+                ActLogAgridOut = Table.ActivityLogTable_Agrid(ActivityLog_DF, reload=True)
 
 
             isActLogApply = st.form_submit_button("apply")
@@ -218,13 +223,15 @@ def App():
         ## ActSumTable
         #######
         if ("ActSum" not in st.session_state) or IsActSumReset:
+            print("get activity summary")
             # Init ActSumTable
             st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, st.session_state['UserDateRange'])
         
             # generate both of FIRM and REVIEW ActSum
             st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
-            st.session_state["ActSum_Preserve"] = st.session_state["ActSum"]
-            st.experimental_rerun()
+            if ("ActSum" not in st.session_state):
+                st.session_state["ActSum_Preserve"] = st.session_state["ActSum"]
+            # st.experimental_rerun()
         #if IsActSumReset:
         #    # Reset The ActSum
         #    st.session_state["ActSum"] = st.session_state["ActSum_Preserve"]
@@ -234,37 +241,91 @@ def App():
         ActSumData = st.session_state["ActSum"]
 
         # st.stop()
+        PopUpWindow = Modal("Confirmation", key='modal_test')
+        if not PopUpWindow.is_open():
+            print("model is closed")
+            st.session_state['ActSumDF_Upload'] = None
+            if st.session_state.sidebar_state == 'collapsed': 
+                st.session_state.sidebar_state = 'expanded'
+                st.experimental_rerun()
+            
+
         with st.form(key='ActSumTable_Agrid'):
 
             # TODO build a ActSum Agrid Table 
-            ActSumAgridOut = Table.ActSumTable_Agrid(ActSumData, reload=True)
+            with st.container():
+                ActSumAgridOut = Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReset)
 
             isActSumApply = st.form_submit_button("apply")
 
-        if isActSumApply:
-            # TODO create a function to check the actsum data
-            # - if there's a gap?
-            # - if date error?
-            checkActSum(ActSumAgridOut['data'])
-            # TODO build a recalculate duration
-            st.session_state["ActSum"] = ReCalculateDuration(ActSumAgridOut['data'])
-            st.session_state["ActSum"] = LabelStand(st.session_state["ActSum"])
-            ActSumData_Upload = checkActSum(ActSumAgridOut['data'])
+        # print("modal")
+        # print(isActSumApply and (ActSumAgridOut['selected_rows'] != []))
+        if isActSumApply and (ActSumAgridOut['selected_rows'] != []):
+
+            st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['selected_rows']).drop('_selectedRowNodeInfo', axis=1)
+            st.session_state.sidebar_state = 'collapsed' if st.session_state.sidebar_state == 'expanded' else 'expanded'
+            PopUpWindow.open()
+
+        if PopUpWindow.is_open():
+            
+            with PopUpWindow.container():
+                st.markdown("### Please make sure or double check the following table is already correct.")
+                Table.ActSumTableConfirmation_Agrid(st.session_state['ActSumDF_Upload'])
+                PopUpWindowCol = st.columns(15)
+                isActSumUploadConfirm = PopUpWindowCol[14].button("Confirm", key="ActSumUploadConfirm")
+                if isActSumUploadConfirm:
+                    st.success("The Activity Summary Table has already update")
+                    del st.session_state["ActSum"]
+                    time.sleep(5)
+                    PopUpWindow.close()
 
 
-            updateActSum(WellInfoDict, ActSumData_Upload, st.session_state['UserDateRange'])
-            st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
-            st.success("ActSumUpdate")
-            #if ActSumAgridOut['data'] is selected:
-                # show the selected values
-                # show button to reconfirm
-                #if IsConfirmUpdate:
-                #    upload ActSum
-                #    st.experimental_rerun()
 
-            # else:
-            # st.experimental_rerun()
 
+        if ("ActSum" not in st.session_state) or IsActSumReset:
+            print("reset")
+            st.experimental_rerun()
+        # st.stop()
+        # if isActSumApply:
+        #     # TODO create a function to check the actsum data
+        #     # - if there's a gap?
+        #     # - if date error?
+        #     # checkActSum(ActSumAgridOut['data'])
+
+        #     # TODO build a recalculate duration
+        #     # st.session_state["ActSum"] = ReCalculateDuration(ActSumAgridOut['data'])
+        #     # st.session_state["ActSum"] = LabelStand(st.session_state["ActSum"])
+        #     # ActSumData_Upload = checkActSum(ActSumAgridOut['data'])
+
+
+        #     # updateActSum(WellInfoDict, ActSumData_Upload, st.session_state['UserDateRange'])
+        #     # st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
+        #     if ActSumAgridOut['selected_rows'] != []:
+        #         ActSumDF_Upload = pd.DataFrame.from_dict(ActSumAgridOut['selected_rows']).drop('_selectedRowNodeInfo', axis=1)
+        #         # st.write(ActSumDF_Upload)
+        #         # st.dataframe(ActSumDF_Upload)
+        #         # st.dataframe(ActSumData.Data)
+        #         Table.ActSumTableConfirmation_Agrid(ActSumDF_Upload)
+        #     # selected_df = pd.DataFrame(selected).apply(pd.to_numeric, errors='coerce')
+            
+        #     # st.dataframe(ActSumData.Data)
+        #     # st.dataframe(ActSumAgridOut['data'])
+        #     # st.write(ActSumAgridOut['selected_rows'])
+        #         st.success("ActSumUpdate")
+        #     #if ActSumAgridOut['data'] is selected:
+        #         # show the selected values
+        #         # show button to reconfirm
+        #         #if IsConfirmUpdate:
+        #         #    upload ActSum
+        #         #    st.experimental_rerun()
+
+        #     # else:
+        #     # st.experimental_rerun()
+        # if ("ActSum" not in st.session_state) or IsActSumReset:
+        #     print("reset")
+        #     st.experimental_rerun()
+
+        
 
 
     # TODO

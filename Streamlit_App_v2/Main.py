@@ -34,7 +34,9 @@ def showUserInfo(UserAuthDict, container):
 #     IO_Data.getWellList
 
 # * Initial Layout setting
-st.set_page_config(page_title="Realtime Activity Mapping", page_icon=None, layout="wide",)
+if 'sidebar_state' not in st.session_state:
+    st.session_state.sidebar_state = 'expanded'
+st.set_page_config(page_title="Realtime Activity Mapping",initial_sidebar_state=st.session_state.sidebar_state, page_icon=None, layout="wide",)
 # hide_streamlit_style = """
 #             <style>
 #             #MainMenu {visibility: hidden;}
