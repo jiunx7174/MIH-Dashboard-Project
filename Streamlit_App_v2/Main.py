@@ -46,8 +46,9 @@ st.set_page_config(page_title="Realtime Activity Mapping",initial_sidebar_state=
 # st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 
 # * get User Authentification
-st.session_state['UserAuthDict'] = Authentification.getUserID()
-UserAuthDict = st.session_state['UserAuthDict']
+# st.session_state['UserAuthDict'] = Authentification.getUserID()
+# UserAuthDict = st.session_state['UserAuthDict']
+UserAuthDict = Authentification.getUserID()
 if UserAuthDict['verification'] != 'verified':
     PageNotFound.App()
     st.stop()
@@ -81,10 +82,10 @@ if SelectComp != '-':
     # st.dataframe( IO_Data.getAvailableWellDF(SelectComp, UserAuthDict))
     if SelectWell != '-':
         SelectPageApp = SidebarContainer.selectbox("Select Module",['-']+list(PageAppDict.keys()), key='SelectModule')
-        st.session_state['WellInfoDict'] = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
+        
         
         if SelectPageApp != '-':
-            PageAppDict[SelectPageApp]()
+            PageAppDict[SelectPageApp](UserAuthDict, SelectComp, SelectWell)
         else:
             Welcome.App()
             st.stop()

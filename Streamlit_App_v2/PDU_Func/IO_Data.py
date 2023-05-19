@@ -159,6 +159,7 @@ def DomeInsertData(dict_row, table_type="ActivityLogTable"):
                 dict_row,
                 indent = 4
             )
+            print(json_queries)
             response = (
                 requests.post(
                     AddRowAPI, data=json_queries 
@@ -327,6 +328,7 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         if (dict(response.json())['result']) == []:
 
             ActivityLog_DF = pd.DataFrame(ActivityLogRowEmpty)
+            print(dict(response.json()))
             # ActivityLog_DF = pd.DataFrame(columns=ActivityLogColumnRenameDict.values())
             # ActivityLog_DF = ActivityLog_DF.append(ActivityLog_DF, ignore_index=True)
 

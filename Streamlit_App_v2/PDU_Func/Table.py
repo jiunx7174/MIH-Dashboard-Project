@@ -50,91 +50,95 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
     }
     </style>
     """, unsafe_allow_html=True)
-    string_to_add_row = ("\n\n function(e) { \n \
-    let api = e.api; \n \
-    let rowIndex = e.rowIndex + 1; \n \
-    let previousRowData = api.getDisplayedRowAtIndex(rowIndex - 1).data; \n \
-    let newRowData = Object.assign({}, previousRowData); \n \
-    api.applyTransaction({addIndex: rowIndex, add: [newRowData]}); \n \
-        }; \n \n")
+    string_to_add_row = "\n\n function(e) { \n \
+        let api = e.api; \n \
+        let rowIndex = e.rowIndex + 1; \n \
+        api.applyTransaction({addIndex: rowIndex, add: [{}]}); \n \
+            }; \n \n"
     cell_button_add = JsCode('''
-    class BtnAddCellRenderer {
-        init(params) {
-            this.params = params;
-            this.eGui = document.createElement('div');
-            this.eGui.innerHTML = `
-             <span>
-                <style>
-                .btn_add {
-                  background-color: limegreen;
-                  border: none;
-                  color: white;
-                  text-align: center;
-                  text-decoration: none;
-                  display: inline-block;
-                  font-size: 10px;
-                  height: 2.5em;
-                  width: 8em;
-                  cursor: pointer;
-                }
+        class BtnAddCellRenderer {
+            init(params) {
+                this.params = params;
+                this.eGui = document.createElement('div');
+                this.eGui.innerHTML = `
+                <span>
+                    <style>
+                    .btn_add {
+                    background-color: limegreen;
+                    border: none;
+                    color: white;
+                    text-align: center;
+                    text-decoration: none;
+                    display: inline-block;
+                    font-size: 10px;
+                    font-weight: bold;
+                    height: 2.5em;
+                    width: 8em;
+                    cursor: pointer;
+                    }
 
-                .btn_add :hover {
-                  background-color: #05d588;
-                }
-                </style>
-                <button id='click-button' 
-                    class="btn_add" 
-                    >&CirclePlus; Insert Row</button>
-             </span>
-          `;
-        }
+                    .btn_add :hover {
+                    background-color: #05d588;
+                    }
+                    </style>
+                    <button id='click-button' 
+                        class="btn_add" 
+                        >&CirclePlus; Add</button>
+                </span>
+            `;
+            }
 
-        getGui() {
-            return this.eGui;
-        }
+            getGui() {
+                return this.eGui;
+            }
 
-    };
-    ''')
-    string_to_delete =('''\n\n function(e) { \n \
+        };
+        ''')
+    string_to_delete = "\n\n function(e) { \n \
         let api = e.api; \n \
         let sel = api.getSelectedRows(); \n \
-        api.applyTransaction({remove: sel}); \n \
-        };''')
-    cell_button_delete = JsCode('''
+        api.applyTransaction({remove: sel});\n\
+    }; \n"
+    
+
+    
+    cell_button_delete = ('''
         class BtnCellRenderer {
             init(params) {
                 console.log(params.api.getSelectedRows());
                 this.params = params;
                 this.eGui = document.createElement('div');
                 this.eGui.innerHTML = `
-                 <span>
+                <span>
                     <style>
                     .btn {
-                      background-color: #F94721;
-                      border: none;
-                      color: white;
-                      font-size: 10px;
-                      font-weight: bold;
-                      height: 2.5em;
-                      width: 8em;
-                      cursor: pointer;
+                    background-color: #F94721;
+                    border: none;
+                    color: white;
+                    font-size: 10px;
+                    font-weight: bold;
+                    height: 2.5em;
+                    width: 8em;
+                    cursor: pointer;
                     }
 
                     .btn:hover {
-                      background-color: #FB6747;
+                    background-color: #FB6747;
                     }
                     </style>
                     <button id='click-button'
                         class="btn"
                         >&#128465; Delete</button>
-                 </span>
-              `;
+                </span>
+            `;
             }
 
             getGui() {
                 return this.eGui;
             }
-        };''')
+
+        };
+        ''')
 
     if ActivityList  =='default':
         ActivityList = ["N/A",'CEMENTING JOB','CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT','DRILLING FORMATION',
@@ -145,15 +149,17 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
         SectionSizeList=['26"','17-1/2"','12-1/4"','9-3/4"']
     gridOptions  = GridOptionsBuilder.from_dataframe(ActivityLog_DF.drop(columns=['id','DateTime']))
     # gridOptions  = GridOptionsBuilder.from_dataframe(ActivityLog_DF.drop(['DateTime'], 1))
-    gridOptions.configure_selection('multi')
+    gridOptions.configure_selection('single')
 
     gridOptions.configure_column('Insert', headerTooltip='Click on Button to add new row', editable=False, filter=False,width=105,
                             onCellClicked=JsCode(string_to_add_row), cellRenderer=cell_button_add,
                             autoHeight=True, wrapText=True, suppressMovable='true')
     gridOptions.configure_column('Delete', headerTooltip='Click on Button to remove row',width=105,
                                     editable=False, filter=False, onCellClicked=JsCode(string_to_delete),
-                                    cellRenderer=cell_button_delete,
-                                    autoHeight=True, )
+                                    cellRenderer=JsCode(cell_button_delete),
+                                    autoHeight=True, suppressMovable='true',
+                                    # checkboxSelection=True,
+                                    )
     gridOptions.configure_column('Date', width=100, autoHeight=True, editable=True,
                              )
     gridOptions.configure_column('Time', width=90, autoHeight=True, )
@@ -236,13 +242,22 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
                             }\
                             }\
                         ")
-    string_to_add_row = ("\n\n function(e) { \n \
+    string_to_add_rowx = ("\n\n function(e) { \n \
     let api = e.api; \n \
     let rowIndex = e.rowIndex + 1; \n \
     let previousRowData = api.getDisplayedRowAtIndex(rowIndex - 1).data; \n \
     let newRowData = Object.assign({}, previousRowData); \n \
     api.applyTransaction({addIndex: rowIndex, add: [newRowData]}); \n \
         }; \n \n")
+    string_to_add_row = ("\n\n function(e) { \n \
+    let api = e.api; \n \
+    let currentData = api.getDisplayedRowAtIndex(e.rowIndex).data; \n \
+    if (currentData.status ==='REVIEW') {\
+    let rowIndex = e.rowIndex + 1; \n \
+    let previousRowData = api.getDisplayedRowAtIndex(rowIndex - 1).data; \n \
+    let newRowData = Object.assign({}, previousRowData); \n \
+    api.applyTransaction({addIndex: rowIndex, add: [newRowData]}); \n \
+        };}; \n \n")
 
     cell_button_add = JsCode('''
     class BtnAddCellRenderer {
@@ -282,11 +297,15 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
 
     };
     ''')
-    string_to_delete =('''\n\n function(e) { \n \
+
+    string_to_delete = "\n\n function(e) { \n \
         let api = e.api; \n \
         let sel = api.getSelectedRows(); \n \
-        api.applyTransaction({remove: sel}); \n \
-        };''')
+        api.applyTransaction({remove: sel});\n\
+    }; \n"
+    
+
+    
     cell_button_delete = JsCode('''
         class BtnCellRenderer {
             init(params) {
@@ -294,28 +313,28 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
                 this.params = params;
                 this.eGui = document.createElement('div');
                 this.eGui.innerHTML = `
-                 <span>
+                <span>
                     <style>
                     .btn {
-                      background-color: #F94721;
-                      border: none;
-                      color: white;
-                      font-size: 10px;
-                      font-weight: bold;
-                      height: 2.5em;
-                      width: 8em;
-                      cursor: pointer;
+                    background-color: #F94721;
+                    border: none;
+                    color: white;
+                    font-size: 10px;
+                    font-weight: bold;
+                    height: 2.5em;
+                    width: 8em;
+                    cursor: pointer;
                     }
 
                     .btn:hover {
-                      background-color: #FB6747;
+                    background-color: #FB6747;
                     }
                     </style>
                     <button id='click-button'
                         class="btn"
                         >&#128465; Delete</button>
-                 </span>
-              `;
+                </span>
+            `;
             }
 
             getGui() {
@@ -333,15 +352,15 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     gb = gridOptions.build()
 
     gb["columnDefs"] =([
-        {"field":'status',                      "headerName":"Status", "width":120,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",
-                                                'headerCheckboxSelection': True,
-                                                'checkboxSelection': True,
-                                                'showDisabledCheckboxes':False,
+        {"field":'status',                      "headerName":"Status", "width":80,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",
+                                                # 'headerCheckboxSelection': True,
+                                                # 'checkboxSelection': True,
+                                                # 'showDisabledCheckboxes':False,
                                                 
                                                 },
-        {"field":'StartDateTime',               "headerName":"Start", "width":140,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)","cellRenderer": datetime_renderer},
-        {"field":'EndDateTime',                 "headerName":"End", "width":140,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity end \n(YYYY:MM:DD hh:mm:ss)" ,"cellRenderer": datetime_renderer},
-        {"field":'LABEL_Activity',              "headerName":"Activity", "width":160,'editable':False,"filter":True,"headerTooltip":"Major Activity"},
+        {"field":'StartDateTime',               "headerName":"Start", "width":160,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)","cellRenderer": datetime_renderer},
+        {"field":'EndDateTime',                 "headerName":"End", "width":160,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity end \n(YYYY:MM:DD hh:mm:ss)" ,"cellRenderer": datetime_renderer},
+        {"field":'LABEL_Activity',              "headerName":"Activity", "width":180,'editable':False,"filter":True,"headerTooltip":"Major Activity"},
         {"field":'LABEL_SubActivity',           "headerName":"SubActivity", "width":140,'editable':'(params) => params.data.status == "REVIEW"',"filter":True,"headerTooltip":"SubActivity"},
         {"field":'LABEL_ConnectionActivity',    "headerName":"Connection Activity", "width":90,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start"},
         {"headerName": "Activity Duration","width":200,
@@ -395,13 +414,15 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     ]
         
         )
-    gb['rowSelection']='multiple'
+    gb['rowSelection']='single'
     gb['isRowSelectable']=is_row_selectable
     gb['tooltipShowDelay']=100
-    gb['alwaysShowHorizontalScroll']=True
-    gb['alwaysShowVerticalScroll']=True
+    # gb['alwaysShowHorizontalScroll']=True
+    # gb['alwaysShowVerticalScroll']=True
     gb['pagination']=True
-    gb['paginationPageSize']=20
+    # gb['paginationPageSize']=20
+
+    # gb['getRowId'] ='StartDateTime'
     # gridOptions_dict = {
     # 'alwaysShowHorizontalScroll': True,
     # 'alwaysShowVerticalScroll': True,
@@ -414,7 +435,8 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     InputActSumGrid_response = AgGrid(
         ActSum_DF, 
         gridOptions=gb,
-        # height=500,
+        height=500,
+        fit_columns_on_grid_load =True,
         # width=1300,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         # update_mode=(GridUpdateMode.NO_UPDATE),
@@ -468,7 +490,7 @@ def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False):
     gb = gridOptions.build()
 
     gb["columnDefs"] =([
-        {"field":'status',                      "headerName":"Status", "width":120,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",                                                
+        {"field":'status',                      "headerName":"Status", "width":130,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",                                                
                                                 },
         {"field":'StartDateTime',               "headerName":"Start", "width":140,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)","cellRenderer": datetime_renderer},
         {"field":'EndDateTime',                 "headerName":"End", "width":140,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity end \n(YYYY:MM:DD hh:mm:ss)" ,"cellRenderer": datetime_renderer},
@@ -527,10 +549,10 @@ def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False):
         
         )
     gb['tooltipShowDelay']=100
-    gb['alwaysShowHorizontalScroll']=True
-    gb['alwaysShowVerticalScroll']=True
+    # gb['alwaysShowHorizontalScroll']=False
+    # gb['alwaysShowVerticalScroll']=True
     gb['pagination']=True
-    # gb['paginationPageSize']=True
+    # gb['paginationPageSize']=15
     # gridOptions_dict = {
     # 'alwaysShowHorizontalScroll': True,
     # 'alwaysShowVerticalScroll': True,
@@ -543,8 +565,9 @@ def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False):
     InputActSumGrid_response = AgGrid(
         ActSum_DF, 
         gridOptions=gb,
-        # height=800,
-        # width=1300,
+        height=400,
+        fit_columns_on_grid_load =True,
+        width=1300,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,

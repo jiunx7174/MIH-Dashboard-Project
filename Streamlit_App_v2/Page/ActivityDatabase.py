@@ -27,7 +27,10 @@ def getExampleExcelFileUrl():
     file_path = "Data\\Master_Report\\KS_ORKA\\AAE-05\\Upload_AAE-05_12.25in_Rev.1.3.xlsx"
     file_url = f"<a href='data:file/txt;base64,{base64.b64encode(open(file_path,'rb').read()).decode()}' download='example.xlsx'>Download Example file</a>"
     return file_url
-def App():
+
+
+
+def App(UserAuthDict, SelectComp, SelectWell):
     UserAuthDict = st.session_state['UserAuthDict']
     WellInfoDict = st.session_state['WellInfoDict']
 
