@@ -20,6 +20,14 @@ def CheckCreateTable(WellInfoDict):
     if IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type ="ActivitySummaryTable")['table']==0:
         IO_Data.DomeCreateTable(WellInfoDict['wid'], table_type ="ActivitySummaryTable")
 
+@st.cache_data
+def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
+    return (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(UserDateRange.copy()), table_type="ActivityLogTable"))
+
+@st.cache_data
+def cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange):
+    return IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
+
 def AllDateTime():
     DateRange = {
                 "StartDate": datetime.strptime('01-08-2000', '%d-%m-%Y').date(),
@@ -29,6 +37,9 @@ def AllDateTime():
                     }
     return DateRange
 def ExtendDateTime(DateRange):
+    """
+    Extend the date time by backdate by 1 day in the StartDate
+    """
     DateRange['StartDate'] = DateRange['StartDate'] - timedelta(days=1)
     # DateRange['EndDate'] = DateRange['EndDate'] - timedelta(days=1)
 
@@ -38,8 +49,8 @@ def IsSubmitFormTrue():
     if ("ActSum" in st.session_state):
         del st.session_state["ActSum"]
 
-    if ("RTSensor_df" in st.session_state):
-        del st.session_state["RTSensor_df"]
+    # if ("RTSensor_df" in st.session_state):
+    #     del st.session_state["RTSensor_df"]
 
 
 def initiateSession(WellInfoDict):
@@ -47,13 +58,13 @@ def initiateSession(WellInfoDict):
     CheckCreateTable(WellInfoDict)
     if "IsFormSubmit" not in st.session_state:
         st.session_state['IsFormSubmit'] = False
-    if 'UserDateRange' not in st.session_state:
-        st.session_state['UserDateRange'] = {
-            "StartDate":[],
-            "StartTime":[],
-            "EndDate":[],
-            "EndTime":[]
-        }
+    # if 'UserDateRange' not in st.session_state:
+    #     st.session_state['UserDateRange'] = {
+    #         "StartDate":[],
+    #         "StartTime":[],
+    #         "EndDate":[],
+    #         "EndTime":[]
+    #     }
 
 
 def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
@@ -67,13 +78,14 @@ def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
             'id':str(row['id']),
             }
             # st.json(input_dict_temp)
-            IO_Data.DomeDeleteData(dict_temp, table_type="ActivityLogTable")
+            print(IO_Data.DomeDeleteData(dict_temp, table_type="ActivityLogTable"))
 
         ## Insert
         for  i,row in UpdateActivityLog_DF.iterrows():            
             dict_temp = {
+                
                     'wid':WellInfoDict['wid'],
-                    'dt':str(row['DateTime']),
+                    'dt':str(row['Date']) + " "+str(row['Time']),
                     'date':str(row['Date']),
                     'time':str(row['Time']),
                     'activity':row['Activity'],
@@ -83,7 +95,7 @@ def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
                     'section':row['Section Size']
                     
                 }
-            IO_Data.DomeInsertData(dict_temp, table_type="ActivityLogTable")
+            print(IO_Data.DomeInsertData(dict_temp, table_type="ActivityLogTable"))
 
 
 def checkActivityLog(ActivityLog_DF):
@@ -140,10 +152,12 @@ def updateActSum(ActivityLog_DF, UpdateActivityLog_DF, UpdateActivitysLog_DF):
 
 
 
-def App():
+def App(UserAuthDict, SelectComp, SelectWell):
+    # st.session_state['WellInfoDict'] = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
+    WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
 
-    UserAuthDict = st.session_state['UserAuthDict']
-    WellInfoDict = st.session_state['WellInfoDict']
+    # UserAuthDict = st.session_state['UserAuthDict']
+    # WellInfoDict = st.session_state['WellInfoDict']
     st.json(UserAuthDict)
     st.json(WellInfoDict)
     initiateSession(WellInfoDict)
@@ -152,7 +166,8 @@ def App():
     # with SidebarContainer:
     with SidebarContainer.form(key='DateForm'):
         DateCol,TimeCol = st.columns([1,1])
-        st.session_state['UserDateRange'] = {
+        # st.session_state['UserDateRange'] = {
+        UserDateRange = {
         "StartDate":(DateCol.date_input(
             "Start Date",
             value = datetime.strptime('31-07-2021', '%d-%m-%Y').date(),
@@ -176,9 +191,9 @@ def App():
 
         st.form_submit_button(on_click=IsSubmitFormTrue)
 
-    print(st.session_state['UserDateRange'])
+    # print(st.session_state['UserDateRange'])
 
-
+    st.json(UserDateRange)
     st.markdown('<h1 style="text-align: center; font-size: 50px; margin-top: 2px;"><span style="text-decoration: underline;">ACTIVITY MAPPING MODULE</span></h1>', unsafe_allow_html=True)
     
     st.button("Reset", key="ActLogReset")
@@ -186,10 +201,11 @@ def App():
 
     if st.session_state['IsFormSubmit']:
 
-        if "ActvitiyLog_DF" not in st.session_state:
-            st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(st.session_state['UserDateRange'].copy()), table_type="ActivityLogTable"))
+        # if "ActvitiyLog_DF" not in st.session_state:
+        #     st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(UserDateRange.copy()), table_type="ActivityLogTable"))
+        ActivityLog_DF = cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange)
         
-        ActivityLog_DF = st.session_state["ActivityLog_DF"]
+        # ActivityLog_DF = st.session_state["ActivityLog_DF"]
         # ActivityLog_DF = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
 
         with st.form(key='ActivityLogTable_Agrid'):
@@ -202,17 +218,23 @@ def App():
         if isActLogApply:
             ActivityLog_DF_Upload = checkActivityLog(ActLogAgridOut['data'])
 
-            updateActivityLog(WellInfoDict,ActivityLog_DF_Upload,st.session_state['UserDateRange'])
-            st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
-            st.success("Activity Log Update")
+            updateActivityLog(WellInfoDict,ActivityLog_DF_Upload,UserDateRange)
+            # st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"))
+            cache_DomeGetData_ActivityLog.clear()
+            # ActivityLog_DF = cache_DomeGetData_AcctivityLog(WellInfoDict, UserDateRange)
+            st.success("Activity Log Updated")
             st.experimental_rerun()
         
         # retrieve Realtime Sensor Data
         print("GetRealtimeData")
-        print(st.session_state['UserDateRange'])
-        if "RTSensor_df" not in st.session_state:
-            st.session_state['RTSensor_df'] = IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, st.session_state['UserDateRange'])
-        RTSensor_df = st.session_state['RTSensor_df']
+        print(UserDateRange)
+        print("-----")
+
+        # if "RTSensor_df" not in st.session_state:
+        #     st.session_state['RTSensor_df'] = IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
+        # RTSensor_df = st.session_state['RTSensor_df']
+
+        RTSensor_df = cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
         # RTSensor_df = DomeGetRealtimeSensorData(WellInfoDict, st.session_state['UserDateRange'])
 
         # st.dataframe(RTSensor_df)
@@ -225,7 +247,7 @@ def App():
         if ("ActSum" not in st.session_state) or IsActSumReset:
             print("get activity summary")
             # Init ActSumTable
-            st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, st.session_state['UserDateRange'])
+            st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
         
             # generate both of FIRM and REVIEW ActSum
             st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
@@ -260,9 +282,9 @@ def App():
 
         # print("modal")
         # print(isActSumApply and (ActSumAgridOut['selected_rows'] != []))
-        if isActSumApply and (ActSumAgridOut['selected_rows'] != []):
+        if isActSumApply :
 
-            st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['selected_rows']).drop('_selectedRowNodeInfo', axis=1)
+            st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['data'])
             st.session_state.sidebar_state = 'collapsed' if st.session_state.sidebar_state == 'expanded' else 'expanded'
             PopUpWindow.open()
 
@@ -287,9 +309,18 @@ def App():
             st.experimental_rerun()
         # st.stop()
         # if isActSumApply:
+        #     # IDEA if the user click the recalculate duration, the QC Actsum run first, 
+        #                   if fail it'll raise an error and highlight the actsum 
+        #                   if QC pass, it'll recalculate the duration.
         #     # TODO create a function to check the actsum data
-        #     # - if there's a gap?
-        #     # - if date error?
+        #     # if date error?
+            #     # - if there's a gap?
+            #           - should fill the gap by Look and define values
+            #       - if there's date overlapping. End overlap with Start, Start overlap with End, 
+            #           - should be filled by "Overlap with previous/next activity"
+              # if False/Check
+              # if Look and Define
+
         #     # checkActSum(ActSumAgridOut['data'])
 
         #     # TODO build a recalculate duration
