@@ -27,6 +27,14 @@ def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
 @st.cache_data
 def cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange):
     return IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
+@st.cache_data
+def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df):
+    print("Get ActSum Data")
+    ActSumData= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
+        
+            # generate both of FIRM and REVIEW ActSum
+    ActSumData.getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
+    return ActSumData
 
 def AllDateTime():
     DateRange = {
@@ -69,14 +77,15 @@ def initiateSession(WellInfoDict):
 
 def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
     with st.spinner("Communicate with the server"):
-        InputActivity_DB = (IO_Data.DomeGetData(WellInfoDict, UserDateRange,table_type="ActivityLogTable"))
-
+        InputActivity_DB = (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(UserDateRange.copy()),table_type="ActivityLogTable"))
+        print(InputActivity_DB)
         ## Delete
         for i,row in InputActivity_DB.iterrows():
             dict_temp = {
             'wid':WellInfoDict['wid'],
             'id':str(row['id']),
             }
+            print(dict_temp)
             # st.json(input_dict_temp)
             print(IO_Data.DomeDeleteData(dict_temp, table_type="ActivityLogTable"))
 
@@ -107,13 +116,53 @@ def checkActivityLog(ActivityLog_DF):
     return ActivityLog_DF
         
 
-def checkActSum(ActSumData):
+def checkActSum(df):
+    df['StartDateTime'] = pd.to_datetime(df['StartDateTime'])
+    df['EndDateTime'] = pd.to_datetime(df['EndDateTime'])
+    df = df.sort_values('StartDateTime')
+    df = df.reset_index(drop=True)
+
+    df['Diff'] = df['StartDateTime'].shift(-1) - df['EndDateTime']
+    # case if Diff > 0
+    df_out = df.copy()
+    idx_start = 0
+    df_concat_list = []
+
+    for idx,row in df[df['Diff'] > pd.Timedelta(0)]:
+        df_concat_list.append(df.loc[idx_start:idx])
+        new_row = {
+            "StartDateTime":row["EndDateTime"],
+            "EndDateTime":df.loc[idx+1, 'StartDateTime'],
+            "LABEL_SubActivity":"Look and Define",
+        }
+        df_concat_list.append(pd.DataFrame(new_row))
+        idx_start = idx
+    df_concat_list.append(df.loc[idx:])
+
+        
+
+    df_out = pd.concat(df_concat_list)
+
+    # if negative-> overlap antara start dengan end 
+    #     2 baris tersebut SubActivitynya jadi DateError-look and define
+    # if positive-> ada gap antara start dengan end 
+    #     create new row to fill the gap, dan isi sub activitynya jadi look and define
+    
+
     # TODO
+    #     # if date error?
+    #     # - if there's a gap?
+    #           - should fill the gap by Look and define values
+    #       - if there's date overlapping. End overlap with Start, Start overlap with End, 
+    #           - should be filled by "Overlap with previous/next activity"
+        # if False/Check
+        # if Look and Define
+    
     # create an activity log input check
     # -Duplicate Date Time
     # -empty columns values
 
-    return ActSumData
+    return df_out
 def ReCalculateDuration(ActSumData):
     # TODO
     # create an activity log input check
@@ -223,7 +272,9 @@ def App(UserAuthDict, SelectComp, SelectWell):
             cache_DomeGetData_ActivityLog.clear()
             # ActivityLog_DF = cache_DomeGetData_AcctivityLog(WellInfoDict, UserDateRange)
             st.success("Activity Log Updated")
-            st.experimental_rerun()
+            if isActLogApply:
+                st.experimental_rerun()
+            
         
         # retrieve Realtime Sensor Data
         print("GetRealtimeData")
@@ -244,23 +295,24 @@ def App(UserAuthDict, SelectComp, SelectWell):
         #######
         ## ActSumTable
         #######
-        if ("ActSum" not in st.session_state) or IsActSumReset:
-            print("get activity summary")
-            # Init ActSumTable
-            st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
+        # if ("ActSum" not in st.session_state) or IsActSumReset or isActLogApply:
+        #     print("get activity summary")
+        #     # Init ActSumTable
+        #     st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
         
-            # generate both of FIRM and REVIEW ActSum
-            st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
-            if ("ActSum" not in st.session_state):
-                st.session_state["ActSum_Preserve"] = st.session_state["ActSum"]
-            # st.experimental_rerun()
+        #     # generate both of FIRM and REVIEW ActSum
+        #     st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
+
+
+
         #if IsActSumReset:
         #    # Reset The ActSum
         #    st.session_state["ActSum"] = st.session_state["ActSum_Preserve"]
         #    # del st.session_state["ActSum"]
         #    st.experimental_rerun()
 
-        ActSumData = st.session_state["ActSum"]
+        ActSumData = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
+        # ActSumData = st.session_state["ActSum"]
 
         # st.stop()
         PopUpWindow = Modal("Confirmation", key='modal_test')
@@ -276,7 +328,8 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
             # TODO build a ActSum Agrid Table 
             with st.container():
-                ActSumAgridOut = Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReset)
+                ActSumAgridOut = pd.DataFrame.from_dict(Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReset)['data'])
+                # pd.DataFrame.from_dict(ActSumAgridOut['data'])
 
             isActSumApply = st.form_submit_button("apply")
 
@@ -284,7 +337,8 @@ def App(UserAuthDict, SelectComp, SelectWell):
         # print(isActSumApply and (ActSumAgridOut['selected_rows'] != []))
         if isActSumApply :
 
-            st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['data'])
+            # st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['data'])
+            # st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['data'])
             st.session_state.sidebar_state = 'collapsed' if st.session_state.sidebar_state == 'expanded' else 'expanded'
             PopUpWindow.open()
 
@@ -292,20 +346,22 @@ def App(UserAuthDict, SelectComp, SelectWell):
             
             with PopUpWindow.container():
                 st.markdown("### Please make sure or double check the following table is already correct.")
-                Table.ActSumTableConfirmation_Agrid(st.session_state['ActSumDF_Upload'])
+                Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"])
+                # // Table.ActSumTableConfirmation_Agrid(st.session_state['ActSumDF_Upload'])
                 PopUpWindowCol = st.columns(15)
                 isActSumUploadConfirm = PopUpWindowCol[14].button("Confirm", key="ActSumUploadConfirm")
                 if isActSumUploadConfirm:
                     st.success("The Activity Summary Table has already update")
-                    del st.session_state["ActSum"]
+                    cache_DomeGetData_ActivitySummary.clear()
                     time.sleep(5)
                     PopUpWindow.close()
 
 
 
 
-        if ("ActSum" not in st.session_state) or IsActSumReset:
+        if IsActSumReset:
             print("reset")
+            cache_DomeGetData_ActivitySummary.clear()
             st.experimental_rerun()
         # st.stop()
         # if isActSumApply:

@@ -1,7 +1,7 @@
 import streamlit as st 
 
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode, JsCode
-
+import streamlit.components.v1 as components
 
 
 def add_row_func():
@@ -40,16 +40,41 @@ def add_row_func():
 
 
 def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default', SectionSizeList='default'):
-    st.markdown("""
-    <style>
-    /* Make agRichSelectCellEditor popup opaque */
+    css = """
+    .custom-rich-select-editor {
+    display: inline-block;
+    width: 100%;
+    }
+
+    .custom-rich-select-wrapper {
+    position: relative;
+    }
+
+    .custom-rich-select {
+    width: 100%;
+    padding: 8px 16px;
+    font-family: Arial;
+    font-size: 14px;
+    border: 1px solid #bdbdbd;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #333;
+    }
+
+    .custom-rich-select:focus {
+    outline: none;
+    border-color: #1976d2;
+    }
+
     .ag-rich-select-value.ag-cell-edit-input.ag-input-field-focus {
         background-color: white;
         opacity: 1 !important;
         box-shadow: 0 2px 5px rgba(0,0,0,.26),0 2px 10px rgba(0,0,0,.16);
     }
-    </style>
-    """, unsafe_allow_html=True)
+    """
+    st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+
+    # st.markdown(html_import, unsafe_allow_html=True)
     string_to_add_row = "\n\n function(e) { \n \
         let api = e.api; \n \
         let rowIndex = e.rowIndex + 1; \n \
@@ -100,8 +125,6 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
         api.applyTransaction({remove: sel});\n\
     }; \n"
     
-
-    
     cell_button_delete = ('''
         class BtnCellRenderer {
             init(params) {
@@ -139,6 +162,63 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
 
         };
         ''')
+    customCellEditor = JsCode(
+        """
+            class CustomRichSelectEditor {
+            init(params) {
+                this.params = params;
+                this.options = params.values;
+                this.eGui = document.createElement('div');
+                this.eGui.className = 'custom-rich-select-editor';
+                this.populateOptions();
+                this.addClickHandler();
+            }
+
+            populateOptions() {
+                const selectWrapper = document.createElement('div');
+                selectWrapper.className = 'custom-rich-select-wrapper';
+
+                const selectElement = document.createElement('select');
+                selectElement.className = 'custom-rich-select';
+
+                this.options.forEach((option) => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.text = option;
+                selectElement.appendChild(optionElement);
+                });
+
+                selectWrapper.appendChild(selectElement);
+                this.eGui.appendChild(selectWrapper);
+            }
+
+            addClickHandler() {
+                const selectElement = this.eGui.querySelector('.custom-rich-select');
+                selectElement.addEventListener('change', () => {
+                this.params.stopEditing();
+                });
+            }
+
+            getGui() {
+                return this.eGui;
+            }
+
+            afterGuiAttached() {
+                const selectElement = this.eGui.querySelector('.custom-rich-select');
+                selectElement.focus();
+            }
+
+            getValue() {
+                const selectElement = this.eGui.querySelector('.custom-rich-select');
+                return selectElement.value;
+            }
+
+            isPopup() {
+                return true;
+            }
+            }
+        """
+    )
 
     if ActivityList  =='default':
         ActivityList = ["N/A",'CEMENTING JOB','CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT','DRILLING FORMATION',
@@ -161,15 +241,17 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
                                     # checkboxSelection=True,
                                     )
     gridOptions.configure_column('Date', width=100, autoHeight=True, editable=True,
+                                #  cellEditor=customDateEditor,
+                                #  cellEditorPopup=True
                              )
     gridOptions.configure_column('Time', width=90, autoHeight=True, )
     gridOptions.configure_column('Activity', width=175, autoHeight=True, 
-                                cellEditor='agRichSelectCellEditor',
+                                cellEditor=customCellEditor,
                                 cellEditorPopup=True,
                                 cellEditorParams={'values': ActivityList}
                                  )
     gridOptions.configure_column('Section Size', width=175, autoHeight=True, 
-                                cellEditor='agRichSelectCellEditor',
+                                cellEditor=customCellEditor,
                                 cellEditorPopup=True,
                                 cellEditorParams={'values': SectionSizeList}
                                  )
@@ -189,6 +271,7 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
         allow_unsafe_jscode=True,
+        enable_enterprise_modules=False,
         reload_data =reload)
     return InputActivityGrid_response
 
@@ -201,6 +284,39 @@ def datetime_renderer(params):
 
 def ActSumTable_Agrid(ActSum_DF, reload=False):
     # ActSum_DF = ActSumData.Data
+    css = """
+    .custom-rich-select-editor {
+    display: inline-block;
+    width: 100%;
+    }
+
+    .custom-rich-select-wrapper {
+    position: relative;
+    }
+
+    .custom-rich-select {
+    width: 100%;
+    padding: 8px 16px;
+    font-family: Arial;
+    font-size: 14px;
+    border: 1px solid #bdbdbd;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #333;
+    }
+
+    .custom-rich-select:focus {
+    outline: none;
+    border-color: #1976d2;
+    }
+
+    .ag-rich-select-value.ag-cell-edit-input.ag-input-field-focus {
+        background-color: white;
+        opacity: 1 !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,.26),0 2px 10px rgba(0,0,0,.16);
+    }
+    """
+    st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
     datetime_renderer = JsCode('''
     class DatetimeCellRenderer {
         init(params) {
@@ -304,8 +420,124 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
         api.applyTransaction({remove: sel});\n\
     }; \n"
     
+    status_style_code = JsCode("""
+    function(params) {
+        if (params.value === 'REVIEW') {
+            return {
+                'background-color': '#E9967A',
+                'color': '#F8F8FF',
 
+            };
+        } else {
+            return {
+                'background-color': '#2E8B57',
+                'color': '#F8F8FF',
+
+            };
+        }
+    }
+    """)
+    highlight_style_code = JsCode("""
+    function(params) {
+        let api = params.api;
+        let currentData = api.getDisplayedRowAtIndex(params.rowIndex).data;
+        if (['FALSE/Check', 'Look and define'].includes(currentData.LABEL_SubActivity)) {
+            return {
+                'background-color': '#F0E68C',
+
+            };
+        } ;
+    }
+    """)
+    customCellEditor = JsCode(
+        """
+            class CustomRichSelectEditor {
+            init(params) {
+                this.params = params;
+                this.options = params.values;
+                this.eGui = document.createElement('div');
+                this.eGui.className = 'custom-rich-select-editor';
+                this.populateOptions();
+                this.addClickHandler();
+            }
+
+            populateOptions() {
+                const selectWrapper = document.createElement('div');
+                selectWrapper.className = 'custom-rich-select-wrapper';
+
+                const selectElement = document.createElement('select');
+                selectElement.className = 'custom-rich-select';
+
+                this.options.forEach((option) => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.text = option;
+                selectElement.appendChild(optionElement);
+                });
+
+                selectWrapper.appendChild(selectElement);
+                this.eGui.appendChild(selectWrapper);
+            }
+
+            addClickHandler() {
+                const selectElement = this.eGui.querySelector('.custom-rich-select');
+                selectElement.addEventListener('change', () => {
+                this.params.stopEditing();
+                });
+            }
+
+            getGui() {
+                return this.eGui;
+            }
+
+            afterGuiAttached() {
+                const selectElement = this.eGui.querySelector('.custom-rich-select');
+                selectElement.focus();
+            }
+
+            getValue() {
+                const selectElement = this.eGui.querySelector('.custom-rich-select');
+                return selectElement.value;
+            }
+
+            isPopup() {
+                return true;
+            }
+            }
+        """
+    )
+
+    TripActivityList = [   'TRIP IN', 'TRIP OUT',   'WIPER TRIP']
+
+    DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','DRILL OUT CEMENT',]
+
+    OverrideActivityList = ['CEMENTING JOB', 'CONNECTION', 'LAY DOWN BHA', 'MAKE UP BHA', 'NPT', 'N/D BOP', 
+                                'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR',]
     
+    DrillSubActivityList = ['Rotary Drilling','Slide Drilling','Reaming','Wash Up/Down','Connection']
+    TripSubActivityList = ['Wash Up/Down','Reaming','Moving','Circulation','Connection','Stationary']
+
+    customCellEditorParams = JsCode(
+        f"""
+        function(params) {{
+        let api = params.api;
+        let currentActivity = api.getDisplayedRowAtIndex(params.rowIndex).data.LABEL_Activity;
+        if ({TripActivityList}.includes(currentActivity)) {{
+            // Logic for List_A
+            console.log('Current Activity is in List_A');
+            // ... Additional code for List_A
+            return {{values: {TripSubActivityList}}};
+        }} else if ({DrillActivityList}.includes(currentActivity)) {{
+            return {{values: {DrillSubActivityList}}};
+        }} else {{
+            return {{values: [currentActivity]}};
+        }}
+
+
+        }}
+        """
+    )
+
     cell_button_delete = JsCode('''
         class BtnCellRenderer {
             init(params) {
@@ -349,6 +581,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
 
     
     gridOptions.configure_default_column(editable=False, autoHeaderHeight=True, autoHeight=True, wrapHeaderText=True)
+
     gb = gridOptions.build()
 
     gb["columnDefs"] =([
@@ -356,12 +589,27 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
                                                 # 'headerCheckboxSelection': True,
                                                 # 'checkboxSelection': True,
                                                 # 'showDisabledCheckboxes':False,
-                                                
+                                                'cellStyle':status_style_code,
                                                 },
-        {"field":'StartDateTime',               "headerName":"Start", "width":160,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)","cellRenderer": datetime_renderer},
-        {"field":'EndDateTime',                 "headerName":"End", "width":160,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity end \n(YYYY:MM:DD hh:mm:ss)" ,"cellRenderer": datetime_renderer},
-        {"field":'LABEL_Activity',              "headerName":"Activity", "width":180,'editable':False,"filter":True,"headerTooltip":"Major Activity"},
-        {"field":'LABEL_SubActivity',           "headerName":"SubActivity", "width":140,'editable':'(params) => params.data.status == "REVIEW"',"filter":True,"headerTooltip":"SubActivity"},
+        {"field":'StartDateTime',               "headerName":"Start", "width":160,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)",
+                                                    "cellRenderer": datetime_renderer,'cellStyle':highlight_style_code,
+                                                },
+        {"field":'EndDateTime',                 "headerName":"End", "width":160,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity end \n(YYYY:MM:DD hh:mm:ss)" ,
+                                                "cellRenderer": datetime_renderer,'cellStyle':highlight_style_code,
+                                                },
+        {"field":'LABEL_Activity',              "headerName":"Activity", "width":180,'editable':False,"filter":True,"headerTooltip":"Major Activity",
+                                                'cellStyle':highlight_style_code,
+                                                },
+        {"field":'LABEL_SubActivity',           "headerName":"SubActivity", "width":140,'editable':'(params) => params.data.status == "REVIEW"',"filter":True,
+                                                'editable':True,
+                                                "headerTooltip":"SubActivity",
+                                                'cellStyle':highlight_style_code,
+                                                'cellEditor':customCellEditor,
+                                                'cellEditorPopup':True,
+                                                'cellEditorParams':customCellEditorParams
+                                                # 'cellEditorParams':{'values': DrillSubActivityList}
+
+                                                },
         {"field":'LABEL_ConnectionActivity',    "headerName":"Connection Activity", "width":90,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start"},
         {"headerName": "Activity Duration","width":200,
          "children":[
@@ -417,10 +665,13 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     gb['rowSelection']='single'
     gb['isRowSelectable']=is_row_selectable
     gb['tooltipShowDelay']=100
+    gb['enableRangeSelection']= True
+    # gb['rowStyle']=row_style_code
     # gb['alwaysShowHorizontalScroll']=True
     # gb['alwaysShowVerticalScroll']=True
     gb['pagination']=True
     # gb['paginationPageSize']=20
+    # gb['rowClassRules']=row_style_code_2
 
     # gb['getRowId'] ='StartDateTime'
     # gridOptions_dict = {
@@ -442,6 +693,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
         allow_unsafe_jscode=True,
+        enable_enterprise_modules=False,
         # on_ready=preselect_rows,
         # preselected_rows=[24,25],
         # on_edit_done=disable_checkboxes,
