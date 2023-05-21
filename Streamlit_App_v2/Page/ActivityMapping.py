@@ -48,7 +48,7 @@ def ExtendDateTime(DateRange):
     """
     Extend the date time by backdate by 1 day in the StartDate
     """
-    DateRange['StartDate'] = DateRange['StartDate'] - timedelta(days=1)
+    DateRange['StartDate'] = DateRange['StartDate'] - timedelta(days=14)
     # DateRange['EndDate'] = DateRange['EndDate'] - timedelta(days=1)
 
     return DateRange
