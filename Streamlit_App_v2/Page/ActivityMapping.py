@@ -27,7 +27,7 @@ def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
 @st.cache_data
 def cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange):
     return IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
-@st.cache_data
+# @st.cache_data
 def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df):
     print("Get ActSum Data")
     ActSumData= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
@@ -62,10 +62,14 @@ def IsSubmitFormTrue():
 
 
 def initiateSession(WellInfoDict):
-    
     CheckCreateTable(WellInfoDict)
     if "IsFormSubmit" not in st.session_state:
         st.session_state['IsFormSubmit'] = False
+    if 'PopUpWindow' not in st.session_state:
+        st.session_state['PopUpWindow'] = Modal("Confirmation", key='modal_test')
+    if 'IsRecalculate' not in st.session_state:
+        st.session_state['IsRecalculate'] = False
+        
     # if 'UserDateRange' not in st.session_state:
     #     st.session_state['UserDateRange'] = {
     #         "StartDate":[],
@@ -207,18 +211,43 @@ def updateActSum(ActivityLog_DF, UpdateActivityLog_DF, UpdateActivitysLog_DF):
 #     st.text("changed")
 #     st.dataframe(changed)
 #     st.text(rows_changed.values)
+def showPopupWindow():
+    print("Clicked")
+    if st.session_state.sidebar_state == 'expanded':
+        st.session_state.sidebar_state = 'collapsed' 
+    if not st.session_state['PopUpWindow'].is_open():
+        st.session_state['PopUpWindow'].open()
 
 
 
 def App(UserAuthDict, SelectComp, SelectWell):
+    st.markdown(
+    """
+    <style>
+        [data-testid="stForm"] {border: 0px}
+    </style>
+    """,
+    unsafe_allow_html=True
+    )
     # st.session_state['WellInfoDict'] = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
 
     # UserAuthDict = st.session_state['UserAuthDict']
     # WellInfoDict = st.session_state['WellInfoDict']
-    st.json(UserAuthDict)
-    st.json(WellInfoDict)
+    # st.json(UserAuthDict)
+    # st.json(WellInfoDict)
     initiateSession(WellInfoDict)
+
+    SidebarContainer = st.sidebar.container()
+    st.markdown('<h1 style="text-align: center; font-size: 50px; margin-top: 2px;"><span style="text-decoration: underline;">ACTIVITY MAPPING MODULE</span></h1>', unsafe_allow_html=True)
+    # st.divider()
+    # st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 2px;">Major Activity Log Table</h1>', unsafe_allow_html=True)
+    ActLogContainer = st.container()
+    st.divider()
+    
+    ActSumContainer = st.container()
+    if not st.session_state['IsFormSubmit']:
+        SidebarContainer.warning("Select Datetime Range first")
 
     SidebarContainer = st.sidebar.container()
     # with SidebarContainer:
@@ -251,23 +280,21 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
     # print(st.session_state['UserDateRange'])
 
-    st.json(UserDateRange)
-    st.markdown('<h1 style="text-align: center; font-size: 50px; margin-top: 2px;"><span style="text-decoration: underline;">ACTIVITY MAPPING MODULE</span></h1>', unsafe_allow_html=True)
+    # st.json(UserDateRange)
     
-    st.button("Reset", key="ActLogReset")
+
 
 
     if st.session_state['IsFormSubmit']:
 
-        # if "ActvitiyLog_DF" not in st.session_state:
-        #     st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(UserDateRange.copy()), table_type="ActivityLogTable"))
+        with ActLogContainer:
+            RTSensor_df = cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
         ActivityLog_DF = cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange)
-        
-        # ActivityLog_DF = st.session_state["ActivityLog_DF"]
-        # ActivityLog_DF = (IO_Data.DomeGetData(WellInfoDict, st.session_state['UserDateRange'], table_type="ActivityLogTable"))
 
-        with st.form(key='ActivityLogTable_Agrid'):
+        with ActLogContainer.form(key='ActivityLogTable_Agrid'):
+            st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 2px;">Major Activity Log Table</h1>', unsafe_allow_html=True)
             with st.container():
+
                 ActLogAgridOut = Table.ActivityLogTable_Agrid(ActivityLog_DF, reload=True)
 
 
@@ -290,70 +317,70 @@ def App(UserAuthDict, SelectComp, SelectWell):
         print(UserDateRange)
         print("-----")
 
-        # if "RTSensor_df" not in st.session_state:
-        #     st.session_state['RTSensor_df'] = IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
-        # RTSensor_df = st.session_state['RTSensor_df']
 
-        RTSensor_df = cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
-        # RTSensor_df = DomeGetRealtimeSensorData(WellInfoDict, st.session_state['UserDateRange'])
-
-        # st.dataframe(RTSensor_df)
-        ActSumButtonCol = st.columns(8)
-        IsActSumReset = ActSumButtonCol[0].button("Reset", key="ActSumReset")
-        IsActSumRefresh = ActSumButtonCol[1].button("Refresh", key="ActSumRefresh")
         #######
         ## ActSumTable
         #######
+        if 'ActSum' not in st.session_state:
+            st.session_state['ActSum'] = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
         
-        ActSumData = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
+        ActSumData = st.session_state['ActSum']
 
-        PopUpWindow = Modal("Confirmation", key='modal_test')
-        if not PopUpWindow.is_open():
+        
+        if not st.session_state['PopUpWindow'].is_open():
             print("model is closed")
-            st.session_state['ActSumDF_Upload'] = None
+            # st.session_state['ActSumDF_Upload'] = None
             if st.session_state.sidebar_state == 'collapsed': 
                 st.session_state.sidebar_state = 'expanded'
                 st.experimental_rerun()
             
+        ActSumContainer.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 2px;">Activity Summary Table</h1>', unsafe_allow_html=True)
+        ActSumButtonCol = ActSumContainer.columns(3)
+        ActSumForm = ActSumContainer.container()
 
-        with st.form(key='ActSumTable_Agrid'):
-
-            # TODO build a ActSum Agrid Table 
-            with st.container():
-                # outtest = 
-                ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReset)['data'])
-                # ActSumAgridOut = pd.DataFrame.from_dict(outtest['data'])
-                # pd.DataFrame.from_dict(ActSumAgridOut['data'])
-
+        IsActSumReset = ActSumButtonCol[0].button("Reset Activity Summary Table", key="ActSumReset")
+        # IsActSumRecalculate = ActSumButtonCol[0].button("Recalculate Activity Summary Table", key="IsActSumRecalculate")
+        if IsActSumReset:
+            print("reset")
+            del st.session_state['ActSum']
+            # cache_DomeGetData_ActivitySummary.clear()
+            st.experimental_rerun()
+        IsActSumReload = IsActSumReset
+        # IsActSumRefresh = ActSumButtonCol[-1].button("Refresh", key="ActSumRefresh")
+        with ActSumForm.form(key='ActSumTable_Agrid'):
+            ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReload)['data'])
             isActSumApply = st.form_submit_button("apply")
 
-        # print("modal")
-        # print(isActSumApply and (ActSumAgridOut['selected_rows'] != []))
+
         if isActSumApply :
 
-            # st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['data'])
-            # st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['data'])
+            ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
+            print(ActSumAgridOut.columns)
+            if "ErrorWarning" in (ActSumAgridOut.columns):
+                with st.expander("Activity Summary Table Error"):
+                    st.markdown("Please Update the following row first")
+                    Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['ErrorWarning'].notna()], showWarning=True)
+            else:
+                
+                st.session_state['ActSum'].Data = (ActivitySummary.RecalculateActSum(ActSumAgridOut))
+                st.session_state['IsRecalculate'] = True
+                # st.stop()
+        if st.session_state['IsRecalculate']:
+            st.success("No Error Found")
+            st.button("save the Activity Summary", key="saveActSum", on_click=showPopupWindow)
+            
 
-            # result = pd.DataFrame(checkActSum(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"].copy()))
-            # st.dataframe(result)
-            # st.dataframe(result)
-            # st.dataframe(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"])
-            st.session_state['ActSum']=(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
-            # ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
+            st.session_state['IsRecalculate'] = False
+            
+                # if not PopUpWindow.is_open():
+                #     PopUpWindow.open()
 
-
-
-
-
-            st.session_state.sidebar_state = 'collapsed' if st.session_state.sidebar_state == 'expanded' else 'expanded'
-            if not PopUpWindow.is_open():
-                PopUpWindow.open()
-
-        if PopUpWindow.is_open():
-            ActSumAgridOut = st.session_state['ActSum']
-            with PopUpWindow.container():
+        if st.session_state['PopUpWindow'].is_open():
+            # st.text('tes')
+            # st.stop
+            ActSumAgridOut = st.session_state['ActSum'].Data
+            with st.session_state['PopUpWindow'].container():
                 st.markdown("### Please make sure or double check the following table is already correct.")
-                print(ActSumAgridOut.columns)
                 print("ErrorWarning" in (ActSumAgridOut.columns))
                 if "ErrorWarning" in (ActSumAgridOut.columns):
                     print('ErrorWarning')
@@ -366,17 +393,14 @@ def App(UserAuthDict, SelectComp, SelectWell):
                 # // Table.ActSumTableConfirmation_Agrid(st.session_state['ActSumDF_Upload'])
                     if isActSumUploadConfirm:
                         st.success("The Activity Summary Table has already update")
-                        cache_DomeGetData_ActivitySummary.clear()
+                        # cache_DomeGetData_ActivitySummary.clear()
+                        del st.session_state['ActSum']
                         time.sleep(5)
-                        PopUpWindow.close()
+                        st.session_state['PopUpWindow'].close()
 
 
 
 
-        if IsActSumReset:
-            print("reset")
-            cache_DomeGetData_ActivitySummary.clear()
-            st.experimental_rerun()
         # st.stop()
         # if isActSumApply:
         #     # IDEA if the user click the recalculate duration, the QC Actsum run first, 
@@ -427,7 +451,8 @@ def App(UserAuthDict, SelectComp, SelectWell):
         #     st.experimental_rerun()
 
         
-
+    # else:
+        
 
     # TODO
     # create  
