@@ -66,11 +66,7 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
     border-color: #1976d2;
     }
 
-    .ag-rich-select-value.ag-cell-edit-input.ag-input-field-focus {
-        background-color: white;
-        opacity: 1 !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,.26),0 2px 10px rgba(0,0,0,.16);
-    }
+
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
@@ -310,11 +306,6 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     border-color: #1976d2;
     }
 
-    .ag-rich-select-value.ag-cell-edit-input.ag-input-field-focus {
-        background-color: white;
-        opacity: 1 !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,.26),0 2px 10px rgba(0,0,0,.16);
-    }
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
     datetime_renderer = JsCode('''
@@ -580,7 +571,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
 
 
     
-    gridOptions.configure_default_column(editable=False, autoHeaderHeight=True, autoHeight=True, wrapHeaderText=True)
+    gridOptions.configure_default_column(editable=False, autoHeaderHeight=True, wrapHeaderText=True)
 
     gb = gridOptions.build()
 
@@ -664,13 +655,13 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
         )
     gb['rowSelection']='single'
     gb['isRowSelectable']=is_row_selectable
-    gb['tooltipShowDelay']=100
+    gb['tooltipShowDelay']=800
     gb['enableRangeSelection']= True
     # gb['rowStyle']=row_style_code
-    # gb['alwaysShowHorizontalScroll']=True
-    # gb['alwaysShowVerticalScroll']=True
+    gb['alwaysShowHorizontalScroll']=True
+    gb['alwaysShowVerticalScroll']=True
     gb['pagination']=True
-    # gb['paginationPageSize']=20
+    gb['paginationPageSize']=20
     # gb['rowClassRules']=row_style_code_2
 
     # gb['getRowId'] ='StartDateTime'
@@ -686,7 +677,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     InputActSumGrid_response = AgGrid(
         ActSum_DF, 
         gridOptions=gb,
-        height=500,
+        # height="100%",
         fit_columns_on_grid_load =True,
         # width=1300,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
@@ -701,7 +692,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     return InputActSumGrid_response
 
 
-def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False):
+def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False, showWarning=False):
     # ActSum_DF = ActSumData.Data
     datetime_renderer = JsCode('''
     class DatetimeCellRenderer {
@@ -741,7 +732,8 @@ def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False):
     gridOptions.configure_default_column(editable=False, autoHeaderHeight=True, autoHeight=True, wrapHeaderText=True)
     gb = gridOptions.build()
 
-    gb["columnDefs"] =([
+    
+    ColumnDefs = ([
         {"field":'status',                      "headerName":"Status", "width":130,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",                                                
                                                 },
         {"field":'StartDateTime',               "headerName":"Start", "width":140,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)","cellRenderer": datetime_renderer},
@@ -800,6 +792,23 @@ def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False):
     ]
         
         )
+    if showWarning:
+        highlight_style_code = JsCode("""
+        function(params) {
+            let api = params.api;
+            let currentData = api.getDisplayedRowAtIndex(params.rowIndex).data;
+            if (null !== (currentData.ErrorWarning)) {
+                return {
+                    'background-color': '#F0E68C',
+                };
+            } ;
+        }
+        """)
+        ColumnDefsWarning = [{"field":'ErrorWarning',"headerName":"Error Warning", "width":100,'editable':False,"filter":True,
+          "headerTooltip":"Please revise the inputed row",'cellStyle':highlight_style_code,}]
+    else:
+        ColumnDefsWarning = []
+    gb["columnDefs"] = ColumnDefsWarning + ColumnDefs
     gb['tooltipShowDelay']=100
     # gb['alwaysShowHorizontalScroll']=False
     # gb['alwaysShowVerticalScroll']=True

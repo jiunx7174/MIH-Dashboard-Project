@@ -6,7 +6,7 @@ from importlib import reload
 import pandas as pd 
 from streamlit_modal import Modal
 import time
-
+import numpy as np
 # @st.cache_data(experimental_allow_widgets=True)
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
     # return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
@@ -117,31 +117,40 @@ def checkActivityLog(ActivityLog_DF):
         
 
 def checkActSum(df):
-    df['StartDateTime'] = pd.to_datetime(df['StartDateTime'])
-    df['EndDateTime'] = pd.to_datetime(df['EndDateTime'])
+
+    df['StartDateTime'] = df['StartDateTime'].astype('datetime64[ns]')
+    df['EndDateTime'] = df['EndDateTime'].astype('datetime64[ns]')
+    df['Duration'] = df['Duration'].astype('float')
+    # df['Duration'] = pd.to_timedelta(df['Duration'], unit='minutes')
     df = df.sort_values('StartDateTime')
     df = df.reset_index(drop=True)
 
     df['Diff'] = df['StartDateTime'].shift(-1) - df['EndDateTime']
     # case if Diff > 0
-    df_out = df.copy()
+    # df_out = pd.DataFrame(df)
     idx_start = 0
     df_concat_list = []
+    
 
-    for idx,row in df[df['Diff'] > pd.Timedelta(0)]:
+    for idx,row in df[(df['Diff'] > pd.Timedelta(0))].iterrows():
+
         df_concat_list.append(df.loc[idx_start:idx])
         new_row = {
             "StartDateTime":row["EndDateTime"],
             "EndDateTime":df.loc[idx+1, 'StartDateTime'],
             "LABEL_SubActivity":"Look and Define",
         }
-        df_concat_list.append(pd.DataFrame(new_row))
+        # st.write(new_row)
+        df_concat_list.append(pd.DataFrame([new_row]))
         idx_start = idx
     df_concat_list.append(df.loc[idx:])
 
         
 
-    df_out = pd.concat(df_concat_list)
+    df_out = pd.concat(df_concat_list, ignore_index=True,axis=0).drop('Duration', axis=1)
+    print(df_out)
+    print(df_out.columns)
+    # st.write(df_out)
 
     # if negative-> overlap antara start dengan end 
     #     2 baris tersebut SubActivitynya jadi DateError-look and define
@@ -295,26 +304,9 @@ def App(UserAuthDict, SelectComp, SelectWell):
         #######
         ## ActSumTable
         #######
-        # if ("ActSum" not in st.session_state) or IsActSumReset or isActLogApply:
-        #     print("get activity summary")
-        #     # Init ActSumTable
-        #     st.session_state["ActSum"]= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
         
-        #     # generate both of FIRM and REVIEW ActSum
-        #     st.session_state["ActSum"].getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
-
-
-
-        #if IsActSumReset:
-        #    # Reset The ActSum
-        #    st.session_state["ActSum"] = st.session_state["ActSum_Preserve"]
-        #    # del st.session_state["ActSum"]
-        #    st.experimental_rerun()
-
         ActSumData = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
-        # ActSumData = st.session_state["ActSum"]
 
-        # st.stop()
         PopUpWindow = Modal("Confirmation", key='modal_test')
         if not PopUpWindow.is_open():
             print("model is closed")
@@ -328,7 +320,9 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
             # TODO build a ActSum Agrid Table 
             with st.container():
-                ActSumAgridOut = pd.DataFrame.from_dict(Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReset)['data'])
+                # outtest = 
+                ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReset)['data'])
+                # ActSumAgridOut = pd.DataFrame.from_dict(outtest['data'])
                 # pd.DataFrame.from_dict(ActSumAgridOut['data'])
 
             isActSumApply = st.form_submit_button("apply")
@@ -339,22 +333,42 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
             # st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['data'])
             # st.session_state['ActSumDF_Upload'] = pd.DataFrame.from_dict(ActSumAgridOut['data'])
+
+            # result = pd.DataFrame(checkActSum(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"].copy()))
+            # st.dataframe(result)
+            # st.dataframe(result)
+            # st.dataframe(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"])
+            st.session_state['ActSum']=(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
+            # ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
+
+
+
+
+
             st.session_state.sidebar_state = 'collapsed' if st.session_state.sidebar_state == 'expanded' else 'expanded'
-            PopUpWindow.open()
+            if not PopUpWindow.is_open():
+                PopUpWindow.open()
 
         if PopUpWindow.is_open():
-            
+            ActSumAgridOut = st.session_state['ActSum']
             with PopUpWindow.container():
                 st.markdown("### Please make sure or double check the following table is already correct.")
-                Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"])
+                print(ActSumAgridOut.columns)
+                print("ErrorWarning" in (ActSumAgridOut.columns))
+                if "ErrorWarning" in (ActSumAgridOut.columns):
+                    print('ErrorWarning')
+                    Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"], showWarning=True)
+                else:
+                    Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"])
+                    PopUpWindowCol = st.columns(15)
+                    isActSumUploadConfirm = PopUpWindowCol[14].button("Confirm", key="ActSumUploadConfirm")
+
                 # // Table.ActSumTableConfirmation_Agrid(st.session_state['ActSumDF_Upload'])
-                PopUpWindowCol = st.columns(15)
-                isActSumUploadConfirm = PopUpWindowCol[14].button("Confirm", key="ActSumUploadConfirm")
-                if isActSumUploadConfirm:
-                    st.success("The Activity Summary Table has already update")
-                    cache_DomeGetData_ActivitySummary.clear()
-                    time.sleep(5)
-                    PopUpWindow.close()
+                    if isActSumUploadConfirm:
+                        st.success("The Activity Summary Table has already update")
+                        cache_DomeGetData_ActivitySummary.clear()
+                        time.sleep(5)
+                        PopUpWindow.close()
 
 
 

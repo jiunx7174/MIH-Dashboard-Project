@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime,timedelta
 import requests
 import json
 from PDU_Func import IO_Data
@@ -825,3 +825,102 @@ def getActivityLabel (RTSensor_df, InputActivity_DB, UserDateRange="All"):
     
     return RTSensor_df
 # %%
+
+
+def checkActSumDF_old(df):
+    df['StartDateTime'] = df['StartDateTime'].astype('datetime64[ns]')
+    df['EndDateTime'] = df['EndDateTime'].astype('datetime64[ns]')
+    idx_start = 0
+    len_date_error = 0
+    df = df.reset_index(drop=True)
+    for idx,row in df[df['StartDateTime'] > df['EndDateTime']].iterrows():
+        df.loc[idx, 'LABEL_SubActivity'] = "Date Error, look and define"
+        df.loc[idx, 'LABEL_All'] = df.loc[idx, 'LABEL_SubActivity'] + "--" + df.loc[idx, 'LABEL_Activity']
+        len_date_error = len_date_error +1
+
+
+
+    df['Diff'] = (df['StartDateTime'].shift(-1) - df['EndDateTime']).dt.total_seconds().astype(float) -5
+
+    len_time_overlap = 0
+    for idx,row in df[(df['Diff'] < -5)].iterrows():
+        df.loc[idx, 'LABEL_SubActivity'] = "Date Overlap, look and define"
+        df.loc[idx+1, 'LABEL_SubActivity'] = "Date Overlap, look and define"
+        df.loc[idx, 'LABEL_All'] = df.loc[idx, 'LABEL_SubActivity'] + "--" + df.loc[idx, 'LABEL_Activity']
+        len_time_overlap = len_time_overlap+1
+
+    df = df.reset_index(drop=True)
+    idx_start = 0
+    df_concat_list = []
+    len_time_gap = 0
+    
+
+        
+    for idx,row in df[(df['Diff'] > 0)].iterrows():
+        df_concat_list.append(df.loc[idx_start:idx])
+        if  df.loc[idx+1, 'LABEL_SubActivity'] not in (["Date Error, look and define","Date Overlap, look and define"]):
+            new_row = {
+                "wid":row["wid"],
+                "Date":row["Date"],
+                "LABEL_Activity":row["LABEL_Activity"],
+                "StartDateTime":row["EndDateTime"]+ timedelta(seconds=5),
+                "EndDateTime":df.loc[idx+1, 'StartDateTime']- timedelta(seconds=5),
+                "LABEL_SubActivity":"Time Gap, look and define",
+            }
+            new_row = pd.DataFrame([new_row])
+            new_row['LABEL_All'] = new_row['LABEL_SubActivity'] + "--" + new_row['LABEL_Activity']
+
+            df_concat_list.append(new_row)
+            len_time_gap = len_time_gap + 1
+        idx_start = idx+1
+
+    df_concat_list.append(df.loc[idx_start:])
+
+        
+    dict_out = {
+        'len_date_error':len_date_error,
+        "len_time_overlap":len_time_overlap,
+        "len_time_gap":len_time_gap,
+    }
+    df_out = pd.concat(df_concat_list, ignore_index=True,axis=0).drop('Duration', axis=1)
+    df_out['StartDateTime'] = df_out['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    df_out['EndDateTime'] = df_out['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    return df_out,dict_out
+def checkActSumDF(df):
+    df['StartDateTime'] = df['StartDateTime'].astype('datetime64[ns]')
+    df['EndDateTime'] = df['EndDateTime'].astype('datetime64[ns]')
+    # df['ErrorWarning'] = ""
+    idx_start = 0
+    len_date_error = 0
+    df = df.reset_index(drop=True)
+    for idx,row in df[df['StartDateTime'] > df['EndDateTime']].iterrows():
+        df.loc[idx, 'ErrorWarning'] = "Date Error, look and define"
+        len_date_error = len_date_error +1
+    df['Diff'] = (df['StartDateTime'].shift(-1) - df['EndDateTime']).dt.total_seconds().astype(float) -5
+
+    len_time_overlap = 0
+    for idx,row in df[(df['Diff'] < -5)].iterrows():
+        df.loc[idx, 'ErrorWarning'] = "Date Overlap, look and define"
+        df.loc[idx+1, 'ErrorWarning'] = "Date Overlap, look and define"
+        len_time_overlap = len_time_overlap+1
+
+    df = df.reset_index(drop=True)
+    idx_start = 0
+    df_concat_list = []
+    len_time_gap = 0
+    
+
+        
+    for idx,row in df[(df['Diff'] > 0)].iterrows():
+
+        df.loc[idx,"ErrorWarning"] = "Time Gap, look and define",
+        df.loc[idx+1,"ErrorWarning"] = "Time Gap, look and define",
+        len_time_gap = len_time_gap+1
+  
+    # if (len_date_error ==0) and (len_time_overlap == 0) and (len_time_gap == 0):
+    #     print("Drop Error WArning")
+        # df = df.drop("ErrorWarning", axis=1)
+    df = df.drop("Diff", axis=1)
+    df['StartDateTime'] = df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    df['EndDateTime'] = df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    return df
