@@ -872,6 +872,7 @@ def RecalculateActSum(ActSum_df):
     ActSum_df = getStandLabel(ActSum_df)
     ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    ActSum_df['Date'] = ActSum_df['Date'].dt.date.astype(str)
 
 
     # ActSum_df['wid'] =  int(WellInfoDict['wid'])

@@ -189,7 +189,9 @@ def ReCalculateDuration(ActSumData):
 def updateActSum(ActivityLog_DF, UpdateActivityLog_DF, UpdateActivitysLog_DF):
     #The table should support the remove duplicate and any cleaning workflow
     pass
-
+def convert_df(df):
+     # IMPORTANT: Cache the conversion to prevent computation on every rerun
+    return df.to_csv(index = False).encode('utf-8')
 # def updateActivityLog(ActivityLog_DF, UpdateActivityLog_DF):
 #     old = ActivityLog_DF.set_index('DateTime')
 #     update = UpdateActivityLog_DF.set_index('DateTime')
@@ -323,7 +325,10 @@ def App(UserAuthDict, SelectComp, SelectWell):
         #######
         if 'ActSum' not in st.session_state:
             st.session_state['ActSum'] = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
-        
+            IsActSumReload = True
+        else:
+            IsActSumReload = False
+
         ActSumData = st.session_state['ActSum']
 
         
@@ -345,7 +350,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
             del st.session_state['ActSum']
             # cache_DomeGetData_ActivitySummary.clear()
             st.experimental_rerun()
-        IsActSumReload = IsActSumReset
+        # IsActSumReload = IsActSumReset
         # IsActSumRefresh = ActSumButtonCol[-1].button("Refresh", key="ActSumRefresh")
         with ActSumForm.form(key='ActSumTable_Agrid'):
             ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReload)['data'])
@@ -353,7 +358,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
 
         if isActSumApply :
-
+            ActSumAgridOut_Firm = ActSumAgridOut[ActSumAgridOut['status'] == "FIRM"]
             ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
             print(ActSumAgridOut.columns)
             if "ErrorWarning" in (ActSumAgridOut.columns):
@@ -362,13 +367,20 @@ def App(UserAuthDict, SelectComp, SelectWell):
                     Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['ErrorWarning'].notna()], showWarning=True)
             else:
                 
-                st.session_state['ActSum'].Data = (ActivitySummary.RecalculateActSum(ActSumAgridOut))
+                st.session_state['ActSum'].Data = pd.concat([ActSumAgridOut_Firm,ActivitySummary.RecalculateActSum(ActSumAgridOut)])
                 st.session_state['IsRecalculate'] = True
                 # st.stop()
         if st.session_state['IsRecalculate']:
             st.success("No Error Found")
             st.button("save the Activity Summary", key="saveActSum", on_click=showPopupWindow)
-            
+            st.download_button(
+                label="Download Activity Summary as CSV",
+                data=convert_df(st.session_state['ActSum'].Data),
+                file_name=SelectComp + "_"+ SelectWell + '_ActivitySummary.csv',
+                mime='text/csv',
+            )
+
+
 
             st.session_state['IsRecalculate'] = False
             
