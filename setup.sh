@@ -5,5 +5,5 @@ headless = true
 port = $PORT
 enableCORS = false
 [theme]
-base = "light"
+base = 'light'
 " > ~/.streamlit/config.toml
