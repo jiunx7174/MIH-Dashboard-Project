@@ -258,7 +258,8 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
 
     gridOptions.configure_default_column(editable=True)
     gb = gridOptions.build()
-    gb['autoSizeColumns ']=True
+    gb['pagination']=True
+    # gb['autoSizeColumns ']=True
     InputActivityGrid_response = AgGrid(
         ActivityLog_DF, 
         height=450,

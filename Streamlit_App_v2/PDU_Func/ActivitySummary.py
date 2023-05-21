@@ -826,6 +826,60 @@ def getActivityLabel (RTSensor_df, InputActivity_DB, UserDateRange="All"):
     return RTSensor_df
 # %%
 
+def RecalculateActSum(ActSum_df):
+    ActSum_df = ActSum_df.reset_index(drop=True)
+    ActSum_df['Date'] = ActSum_df['Date'].astype('datetime64[ns]')
+    ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].astype('datetime64[ns]')
+    ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].astype('datetime64[ns]')
+    ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
+    # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
+    idx_same = ActSum_df.index[
+        ((ActSum_df['LABEL_SubActivity']=="Look and define") | (ActSum_df['LABEL_SubActivity']=="FALSE/Check")) & (ActSum_df['Duration'] <= 1)
+        ]
+    idx_before = idx_same - 1
+
+    idx_same = idx_same[idx_before>=0]
+    idx_before = idx_before[idx_before>=0]
+    
+    ActSum_df.loc[idx_same, 'LABEL_SubActivity'] = ActSum_df.loc[idx_before, 'LABEL_SubActivity'].values
+    ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
+
+    ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
+    {
+    'wid':'first',
+    'Date': 'max',
+    'StartDateTime': 'min',
+    'EndDateTime': 'max',
+    'Duration': 'sum',
+    'Hole_Depth_max': 'max',
+    'Bit_Depth_avg': 'mean',
+    'DrillingMeterage': 'sum',
+    'RotateDrillingDuration': 'sum',
+    'SlideDrillingDuration': 'sum',
+    'ReamingDuration': 'sum',
+    'ConnectionDuration': 'sum',
+    'LABEL_SubActivity': 'first',
+    'LABEL_Activity': 'first',
+    'LABEL_All': 'first',
+    'PIC': 'first',
+    'InSlip_Treshold': 'first',
+    'Remarks': 'first',
+    'Section': 'first'}
+    )
+
+    #_________________________________________________
+    # label the group stand, this function are useful to determine the lv.2 aggregate
+    ActSum_df = getStandLabel(ActSum_df)
+    ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
+    # ActSum_df['wid'] =  int(WellInfoDict['wid'])
+    ActSum_df['status'] =  "REVIEW"
+
+    return ActSum_df
+    # self.Data= pd.concat([self.Data, ActSum_df])
+
 
 def checkActSumDF_old(df):
     df['StartDateTime'] = df['StartDateTime'].astype('datetime64[ns]')
@@ -921,6 +975,12 @@ def checkActSumDF(df):
     #     print("Drop Error WArning")
         # df = df.drop("ErrorWarning", axis=1)
     df = df.drop("Diff", axis=1)
+    error_list = ['FALSE/Check', "Look and define"]
+
+    if df['LABEL_SubActivity'].isin(error_list).any():
+        df.loc[df['LABEL_SubActivity'].isin(error_list), 'ErrorWarning'] = df.loc[df['LABEL_SubActivity'].isin(error_list), 'LABEL_SubActivity']
+
+
     df['StartDateTime'] = df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     df['EndDateTime'] = df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     return df
