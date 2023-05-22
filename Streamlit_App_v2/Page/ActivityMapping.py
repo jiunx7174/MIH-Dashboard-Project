@@ -186,9 +186,23 @@ def ReCalculateDuration(ActSumData):
 
 # TODO
 # Build Case #1 ActivitySummary CRUD function
-def updateActSum(ActivityLog_DF, UpdateActivityLog_DF, UpdateActivitysLog_DF):
-    #The table should support the remove duplicate and any cleaning workflow
-    pass
+def UploadActSum(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
+        ## Insert
+        for  i,row in UpdateActivityLog_DF.iterrows():            
+            dict_temp = {
+                
+                    'wid':WellInfoDict['wid'],
+                    'dt':str(row['Date']) + " "+str(row['Time']),
+                    'date':str(row['Date']),
+                    'time':str(row['Time']),
+                    'activity':row['Activity'],
+                    'in_slip_threshold':row['In-Slip Threshold'],
+                    'remarks' : row['Remarks'],
+                    'pic' : row['PIC'],
+                    'section':row['Section Size']
+                    
+                }
+            print(IO_Data.DomeInsertData(dict_temp, table_type="ActivityLogTable"))
 def convert_df(df):
      # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv(index = False).encode('utf-8')
