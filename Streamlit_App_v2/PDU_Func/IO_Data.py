@@ -503,8 +503,13 @@ def DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange, hours=0.5):
             raise KeyError (WellData['message'])
         
         Realtime_DF_temp = pd.json_normalize((WellData), record_path='result')
-        Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
-        Realtime_List.append(Realtime_DF_temp)
+        try:
+            Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
+            Realtime_List.append(Realtime_DF_temp)
+        except Exception as e:
+            print("error")
+            print(e)
+            print(Realtime_DF_temp)
         loopEndTime = time.time()
         i=i+1
         time_elapsed.append(loopEndTime-loopStartTime)

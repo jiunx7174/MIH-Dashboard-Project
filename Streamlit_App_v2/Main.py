@@ -2,7 +2,8 @@ import streamlit as st
 from PDU_Func import Authentification, IO_Data
 from Page import ActivityMapping, ActivityDatabase, ActivityVisualization
 from Page import Welcome, PageNotFound
-
+from importlib import reload
+reload(ActivityMapping)
 
 from streamlit_extras.no_default_selectbox import selectbox as ext_selectbox
 from streamlit_option_menu import option_menu

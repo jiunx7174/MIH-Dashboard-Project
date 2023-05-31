@@ -7,6 +7,7 @@ import pandas as pd
 from streamlit_modal import Modal
 import time
 import numpy as np
+reload(IO_Data)
 # @st.cache_data(experimental_allow_widgets=True)
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
     # return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
