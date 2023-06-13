@@ -63,7 +63,7 @@ showUserInfo(UserAuthDict['data'], UserInfoContainer)
 PageAppDict={
     # "-":Welcome.App,
     "Activity Mapping Module": ActivityMapping.App,
-    # "Activity Database Module":ActivityDatabase.App,
+    "Activity Database Module":ActivityDatabase.App,
     # "Activity Visualization Module":ActivityVisualization.App,
 }
 

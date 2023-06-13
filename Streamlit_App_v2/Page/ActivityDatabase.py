@@ -1,9 +1,14 @@
 import streamlit as st
 import pandas as pd
-from PDU_Func import Authentification, IO_Data
+from PDU_Func import Authentification, IO_Data, Table, ActivitySummary
 import time
+from datetime import datetime
 import base64
-def uploadActivityLog(ActivityLog_DF, WellInfoDict):
+from importlib import reload
+reload(IO_Data)
+reload(Table)
+
+def uploadActivityLog(ActivityLog_DF, WellInfoDict, UserDateRange):
     with st.spinner("Uploading your Activity Log Data"):
         for i,row in ActivityLog_DF.iterrows():
             
@@ -28,14 +33,48 @@ def getExampleExcelFileUrl():
     file_url = f"<a href='data:file/txt;base64,{base64.b64encode(open(file_path,'rb').read()).decode()}' download='example.xlsx'>Download Example file</a>"
     return file_url
 
+@st.cache_data
+def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
+    return (IO_Data.DomeGetData(WellInfoDict, (UserDateRange), table_type="ActivityLogTable"))
 
+
+
+@st.cache_data
+def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange):
+    print("Get ActSum Data")
+    ActSumData= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
+        
+            # generate both of FIRM and REVIEW ActSum
+    ActSumData.getActivitySummary_Firm()
+    return ActSumData.Data
 
 def App(UserAuthDict, SelectComp, SelectWell):
-    UserAuthDict = st.session_state['UserAuthDict']
-    WellInfoDict = st.session_state['WellInfoDict']
+    UserDateRange = {
+        "StartDate":datetime.strptime('31-07-1990', '%d-%m-%Y').date(),
+
+        "StartTime":datetime.strptime('00:00', '%H:%M').time(),
+
+        "EndDate":datetime.strptime('01-08-2100', '%d-%m-%Y').date(),
+        "EndTime":datetime.strptime('23:59', '%H:%M').time(),
+        }
+    UserAuthDict = Authentification.getUserID()
+    # "datetime.date(2021, 7, 31)"
+    # WellInfoDict = st.session_state['WellInfoDict']
+    WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
+    ActivityLog_DF = cache_DomeGetData_ActivityLog(WellInfoDict,UserDateRange)
+
+    st.markdown("# RTDC Database")
+    st.markdown("## Activity Log")
+    st.button("Refresh Activity Log Data", key="RefreshActLog", on_click=cache_DomeGetData_ActivityLog.clear)
+    Table.ActivityLogTableDatabase_Agrid(ActivityLog_DF, reload=True,)
+    # st.dataframe(ActivityLog_DF)
+    st.markdown("## Activity Summary")
+    # Table.ActivityLogTableDatabase_Agrid(ActivityLog_DF, reload=True,)
+    ActSum_DF = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange)
+    Table.ActSumTableDatabase_Agrid(ActSum_DF, reload=False,)
+    # st.dataframe(ActSum_DF)
 
 
-    st.text("Activity Database")
 
     with st.expander("Activity Log Upload"):
         st.markdown(getExampleExcelFileUrl(), unsafe_allow_html=True)
@@ -68,3 +107,5 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
             except Exception as error_msg:
                 ActivityLogTableContainer.error(str(error_msg) + " | Please check your excel file")
+    
+

@@ -359,6 +359,66 @@ class ActivitySummaryTable:
 
         self.Data= pd.concat([self.Data, ActSum_df])
 
+    ## Fill Gap function
+    def getActivitySummary_Firm(self):
+        """
+        download the activity summary table from existing server
+        there's 3 major funciton in general
+        # getGroupDuration
+        ## Aggregate lv.1, keep it as it is
+        -datetime start 
+        -datetime end 
+        -date 
+        -well name
+        -activity
+        -sub-activity
+        -section size
+        -PIC
+        -in-slip threshold
+        -remarks
+
+        ## Aggregate lv.1, calculate duration
+        -Duration 
+        -Hole Depth 
+        -Bit Depth 
+        -Drilling Meterage
+        -Rotate Drilling Duration
+        -Slide Drilling Duration
+        -Reaming Duration
+        -Connection Duration
+
+        # LabelStand
+        ## Aggregate lv.2
+        # Connection Activity
+        # On Bottom Duration 
+        # Stand Duration 
+        """
+        UserDateRange = self.UserDateRange
+        WellInfoDict = self.WellInfoDict
+
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        StartDateTime = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+        EndDateTime = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+        
+        # get the ActivitySummaryTable data between the UserDateRange
+        temp_ActSum_df = IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="Activity Summary")
+        
+        # If the ActivitySummaryTable between the UserDateRange is exist or partially exist
+        # TODO, if we want to fill out a "Gap" ActSumTable case
+
+        if list(temp_ActSum_df.columns) != []:
+            self.Data[list(temp_ActSum_df.columns)] = temp_ActSum_df[list(temp_ActSum_df.columns)]
+            self.Data['wid'] =  int(WellInfoDict['wid'])
+            self.Data['status'] =  "FIRM"
+            self.Data['LABEL_All'] = self.Data['LABEL_Activity'] + "--" + self.Data['LABEL_SubActivity']
+            # StartDateTime = self.Data['time_end'].max()
+            # st.write(self.Data)
+            # st.write(self.Data.dtypes)
+            # st.text(StartDateTime)
+
 
         
 

@@ -291,6 +291,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
             value = datetime.strptime('23:59', '%H:%M').time(),
             key="EndTimeValues"))
         }
+        # st.json(UserDateRange)
 
 
         st.form_submit_button(on_click=IsSubmitFormTrue)

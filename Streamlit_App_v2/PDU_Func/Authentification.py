@@ -1,7 +1,6 @@
 import streamlit as st 
 import requests
 
-# @st.cache_data
 def getUserID():
     UserDict = st.experimental_get_query_params()
     print(UserDict)

@@ -222,7 +222,7 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
                         'STUCK PIPE','TRIP IN','TRIP OUT','WAIT ON CEMENT','CIRCULATION','RIG REPAIR','WIPER TRIP'
         ]
     if SectionSizeList == 'default':
-        SectionSizeList=['26"','17-1/2"','12-1/4"','9-3/4"']
+        SectionSizeList=['26"','17-1/2"','12-1/4"','9-7/8"', '7-7/8"', '8.5"','6-3/4"', '6-1/8"','6"', ]
     gridOptions  = GridOptionsBuilder.from_dataframe(ActivityLog_DF.drop(columns=['id','DateTime']))
     # gridOptions  = GridOptionsBuilder.from_dataframe(ActivityLog_DF.drop(['DateTime'], 1))
     gridOptions.configure_selection('single')
@@ -267,6 +267,74 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
+        allow_unsafe_jscode=True,
+        enable_enterprise_modules=False,
+        reload_data =reload)
+    return InputActivityGrid_response
+
+
+def ActivityLogTableDatabase_Agrid(ActivityLog_DF, reload=False,):
+    css = """
+    .custom-rich-select-editor {
+    display: inline-block;
+    width: 100%;
+    }
+
+    .custom-rich-select-wrapper {
+    position: relative;
+    }
+
+    .custom-rich-select {
+    width: 100%;
+    padding: 8px 16px;
+    font-family: Arial;
+    font-size: 14px;
+    border: 1px solid #bdbdbd;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #333;
+    }
+
+    .custom-rich-select:focus {
+    outline: none;
+    border-color: #1976d2;
+    }
+
+
+    """
+    st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+
+
+    gridOptions  = GridOptionsBuilder.from_dataframe(ActivityLog_DF.drop(columns=['id','DateTime']))
+    # gridOptions  = GridOptionsBuilder.from_dataframe(ActivityLog_DF.drop(['DateTime'], 1))
+    # gridOptions.configure_selection('single')
+
+
+    gridOptions.configure_column('Date', width=100, autoHeight=True,
+                                #  cellEditor=customDateEditor,
+                                #  cellEditorPopup=True
+                             )
+    gridOptions.configure_column('Time', width=90, autoHeight=True, )
+    gridOptions.configure_column('Activity', width=175, autoHeight=True, 
+                                 )
+    gridOptions.configure_column('Section Size', width=175, autoHeight=True, 
+                                 )
+    gridOptions.configure_column('In-Slip Threshold', width=120, autoHeaderHeight=True, wrapHeaderText=True,)
+    gridOptions.configure_column('Remarks', width=200, autoHeight=True,cellEditorPopup=True, cellEditor='agLargeTextCellEditor',)
+    gridOptions.configure_column('PIC', width=80, autoHeight=True, )
+
+
+    gridOptions.configure_default_column(editable=False)
+    gb = gridOptions.build()
+    gb['pagination']=True
+    # gb['autoSizeColumns ']=True
+    InputActivityGrid_response = AgGrid(
+        ActivityLog_DF, 
+        height=450,
+        gridOptions=gb,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
+        update_mode=(GridUpdateMode.NO_UPDATE),
+        # update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
         allow_unsafe_jscode=True,
         enable_enterprise_modules=False,
         reload_data =reload)
@@ -684,6 +752,201 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
+        allow_unsafe_jscode=True,
+        enable_enterprise_modules=False,
+        # on_ready=preselect_rows,
+        # preselected_rows=[24,25],
+        # on_edit_done=disable_checkboxes,
+        reload_data =reload)
+    return InputActSumGrid_response
+
+def ActSumTableDatabase_Agrid(ActSum_DF, reload=False):
+    # ActSum_DF = ActSumData.Data
+    css = """
+    .custom-rich-select-editor {
+    display: inline-block;
+    width: 100%;
+    }
+
+    .custom-rich-select-wrapper {
+    position: relative;
+    }
+
+    .custom-rich-select {
+    width: 100%;
+    padding: 8px 16px;
+    font-family: Arial;
+    font-size: 14px;
+    border: 1px solid #bdbdbd;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #333;
+    }
+
+    .custom-rich-select:focus {
+    outline: none;
+    border-color: #1976d2;
+    }
+
+    """
+    st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+    datetime_renderer = JsCode('''
+    class DatetimeCellRenderer {
+        init(params) {
+            this.params = params;
+            this.eGui = document.createElement('div');
+            this.eGui.innerHTML = `
+                <span>
+                    <style>
+                    .date {
+                        font-style: oblique;
+                        font-weight: lighter;
+                        color: #696969;
+                    //    font-size: larger;
+                    }
+
+                    .time {
+                        font-weight: bolder;
+                        color: #696969;
+                    //    font-style: oblique;
+                    }
+                    </style>
+                    <span class="date">${params.value.split(' ')[0]}</span>
+                    <span class="time">${params.value.split(' ')[1]}</span>
+                </span>
+            `;
+        }
+
+        getGui() {
+            return this.eGui;
+        }
+    }
+    ''')
+
+    status_style_code = JsCode("""
+    function(params) {
+        if (params.value === 'REVIEW') {
+            return {
+                'background-color': '#E9967A',
+                'color': '#F8F8FF',
+
+            };
+        } else {
+            return {
+                'background-color': '#2E8B57',
+                'color': '#F8F8FF',
+
+            };
+        }
+    }
+    """)
+    highlight_style_code = JsCode("""
+    function(params) {
+        let api = params.api;
+        let currentData = api.getDisplayedRowAtIndex(params.rowIndex).data;
+        if (['FALSE/Check', 'Look and define'].includes(currentData.LABEL_SubActivity)) {
+            return {
+                'background-color': '#F0E68C',
+
+            };
+        } ;
+    }
+    """)
+
+    gridOptions  = GridOptionsBuilder.from_dataframe(ActSum_DF)
+
+
+    
+    gridOptions.configure_default_column(editable=False, autoHeaderHeight=True, wrapHeaderText=True)
+
+    gb = gridOptions.build()
+
+    gb["columnDefs"] =([
+        {"field":'status',                      "headerName":"Status", "width":160,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",
+                                                'headerCheckboxSelection': True,
+                                                'checkboxSelection': True,
+                                                # 'showDisabledCheckboxes':False,
+                                                'cellStyle':status_style_code,
+                                                },
+        {"field":'StartDateTime',               "headerName":"Start", "width":160,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)",
+                                                    "cellRenderer": datetime_renderer,'cellStyle':highlight_style_code,
+                                                },
+        {"field":'EndDateTime',                 "headerName":"End", "width":160,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity end \n(YYYY:MM:DD hh:mm:ss)" ,
+                                                "cellRenderer": datetime_renderer,'cellStyle':highlight_style_code,
+                                                },
+        {"field":'LABEL_Activity',              "headerName":"Activity", "width":180,'editable':False,"filter":True,"headerTooltip":"Major Activity",
+                                                'cellStyle':highlight_style_code,
+                                                },
+        {"field":'LABEL_SubActivity',           "headerName":"SubActivity", "width":140,'editable':False,"filter":True,
+                                                'editable':True,
+                                                "headerTooltip":"SubActivity",
+                                                'cellStyle':highlight_style_code,
+                                                # 'cellEditor':customCellEditor,
+                                                # 'cellEditorPopup':True,
+                                                # 'cellEditorParams':customCellEditorParams
+                                                # 'cellEditorParams':{'values': DrillSubActivityList}
+
+                                                },
+        {"field":'LABEL_ConnectionActivity',    "headerName":"Connection Activity", "width":140,'editable':False,"filter":True,"headerTooltip":"Date Time when the activity start"},
+        {"headerName": "Activity Duration","width":200,
+         "children":[
+            {"field":'Duration',                    "headerName":"Duration (Minutes)","width":170, 'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'closed',},
+            {"field":'Duration',                    "headerName":"Duration (Minutes)","width":100, 'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'RotateDrillingDuration',  "headerName":"Rotate Drilling Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'SlideDrillingDuration',   "headerName":"Slide Drilling Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'ReamingDuration',         "headerName":"Reaming Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'ConnectionDuration',      "headerName":"Connection Duration","width":105,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+         ]},
+        {"headerName": "Activity Meterage",
+         "children":[
+            {'field':'DrillingMeterage',        "headerName":"Drilling Meterage","width":170,'editable':False,"filter":True,"headerTooltip":"(Meter)",'columnGroupShow': 'closed',},
+            {'field':'DrillingMeterage',        "headerName":"Drilling Meterage","width":95,'editable':False,"filter":True,"headerTooltip":"(Meter)",'columnGroupShow': 'open',},
+            {'field':'Hole_Depth_max',          "headerName":"Hole Depth","width":90,'editable':False,"filter":True,"headerTooltip":"Max. (Meter)",'columnGroupShow': 'open',},
+            {'field':'Bit_Depth_avg',           "headerName":"Bit Depth","width":90,'editable':False,"filter":True,"headerTooltip":"Avg. (Meter)",'columnGroupShow': 'open',},
+         ]},
+
+        {"headerName": "Stand Duration & Meterage",'columnGroupShow': 'closed',
+         "children":[
+            {"field":'Stand Group_Pred',            "headerName":"Stand Number","width":150,'editable':False,"filter":True,'columnGroupShow': 'closed',},
+            {"field":'Stand Group_Pred',            "headerName":"Stand Number","width":100,'editable':False,"filter":True,'columnGroupShow': 'open',},
+            {"field":'OnBottomDurationPerStand',    "headerName":"On Bottom Duration (Minutes)","width":100,'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'StandDuration',               "headerName":"Stand Duration (Minutes)","width":100,'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'DrillingMeteragePerStand',    "headerName":"Drilling Meterage per stand (Minutes)",'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+         ]},
+
+    ]
+        
+        )
+    gb['rowSelection']='multiple'
+    # gb['isRowSelectable']=is_row_selectable
+    gb['tooltipShowDelay']=800
+    gb['enableRangeSelection']= True
+    # gb['rowStyle']=row_style_code
+    gb['alwaysShowHorizontalScroll']=True
+    gb['alwaysShowVerticalScroll']=True
+    gb['pagination']=True
+    gb['paginationPageSize']=20
+    # gb['rowClassRules']=row_style_code_2
+
+    # gb['getRowId'] ='StartDateTime'
+    # gridOptions_dict = {
+    # 'alwaysShowHorizontalScroll': True,
+    # 'alwaysShowVerticalScroll': True,
+    # # 'pagination': True,
+    # # 'paginationPageSize': 15,
+    # }
+    # for keys in gridOptions_dict.keys():
+    #     gb[keys] = gridOptions_dict[keys]
+
+    InputActSumGrid_response = AgGrid(
+        ActSum_DF, 
+        gridOptions=gb,
+        # height="100%",
+        fit_columns_on_grid_load =True,
+        # width=1300,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
+        # update_mode=(GridUpdateMode.NO_UPDATE),
+        update_mode=(GridUpdateMode.SELECTION_CHANGED) ,
         allow_unsafe_jscode=True,
         enable_enterprise_modules=False,
         # on_ready=preselect_rows,
