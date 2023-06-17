@@ -347,7 +347,7 @@ def datetime_renderer(params):
     formatted_value = f"<span style='font-style: italic;'>{date_str}</span><br><span style='font-weight: bold; font-size: 16px;'>{time_str}</span>"
     return formatted_value
 
-def ActSumTable_Agrid(ActSum_DF, reload=False):
+def ActSumTable_Agrid(ActSum_DF, reload=False, key='ActSumTable'):
     # ActSum_DF = ActSumData.Data
     css = """
     .custom-rich-select-editor {
@@ -358,6 +358,9 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     .custom-rich-select-wrapper {
     position: relative;
     }
+
+    
+
 
     .custom-rich-select {
     width: 100%;
@@ -370,13 +373,15 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     color: #333;
     }
 
+
+
     .custom-rich-select:focus {
     outline: none;
     border-color: #1976d2;
     }
 
     """
-    st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+    # st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
     datetime_renderer = JsCode('''
     class DatetimeCellRenderer {
         init(params) {
@@ -651,6 +656,28 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
                                                 # 'showDisabledCheckboxes':False,
                                                 'cellStyle':status_style_code,
                                                 },
+        {"field":'Insert', 
+            "headerTooltip":'Click on Button to add new row',
+            'editable':False,
+            "filter":False,
+            "onCellClicked":JsCode(string_to_add_row), 
+            "cellRenderer":cell_button_add,
+            # "autoHeight":True, 
+            "wrapText":True, 
+            "suppressMovable":True,
+            "width":110,
+            'pinned': 'left',
+        },
+        {"field":'Delete',
+            "headerTooltip":'Click on Button to remove row',
+            "editable":False, 
+            "filter":False, 
+            "onCellClicked":JsCode(string_to_delete),
+            "cellRenderer":cell_button_delete,
+            # "autoHeight":True, 
+            "width":110,
+            'pinned': 'left',
+        },
         {"field":'StartDateTime',               "headerName":"Start", "width":160,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)",
                                                     "cellRenderer": datetime_renderer,'cellStyle':highlight_style_code,
                                                 },
@@ -697,28 +724,6 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
             {"field":'DrillingMeteragePerStand',    "headerName":"Drilling Meterage per stand (Minutes)",'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
          ]},
 
-        {"field":'Insert', 
-            "headerTooltip":'Click on Button to add new row',
-            'editable':False,
-            "filter":False,
-            "onCellClicked":JsCode(string_to_add_row), 
-            "cellRenderer":cell_button_add,
-            "autoHeight":True, 
-            "wrapText":True, 
-            "suppressMovable":True,
-            "width":110,
-            'pinned': 'right',
-        },
-        {"field":'Delete',
-            "headerTooltip":'Click on Button to remove row',
-            "editable":False, 
-            "filter":False, 
-            "onCellClicked":JsCode(string_to_delete),
-            "cellRenderer":cell_button_delete,
-            "autoHeight":True, 
-            "width":110,
-            'pinned': 'right',
-        }
     ]
         
         )
@@ -728,7 +733,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     gb['enableRangeSelection']= True
     # gb['rowStyle']=row_style_code
     gb['alwaysShowHorizontalScroll']=True
-    gb['alwaysShowVerticalScroll']=True
+    # gb['alwaysShowVerticalScroll']=True
     gb['pagination']=True
     gb['paginationPageSize']=20
     # gb['rowClassRules']=row_style_code_2
@@ -746,14 +751,15 @@ def ActSumTable_Agrid(ActSum_DF, reload=False):
     InputActSumGrid_response = AgGrid(
         ActSum_DF, 
         gridOptions=gb,
-        # height="100%",
-        fit_columns_on_grid_load =True,
+        # height=600,
+        # fit_columns_on_grid_load =True,
         # width=1300,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
         allow_unsafe_jscode=True,
         enable_enterprise_modules=False,
+        key=key,
         # on_ready=preselect_rows,
         # preselected_rows=[24,25],
         # on_edit_done=disable_checkboxes,

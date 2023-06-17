@@ -8,6 +8,7 @@ from streamlit_modal import Modal
 import time
 import numpy as np
 reload(IO_Data)
+reload(Table)
 # @st.cache_data(experimental_allow_widgets=True)
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
     # return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
@@ -177,13 +178,7 @@ def checkActSum(df):
     # -empty columns values
 
     return df_out
-def ReCalculateDuration(ActSumData):
-    # TODO
-    # create an activity log input check
-    # -Duplicate Date Time
-    # -empty columns values
 
-    return ActSumData
 
 # TODO
 # Build Case #1 ActivitySummary CRUD function
@@ -341,9 +336,10 @@ def App(UserAuthDict, SelectComp, SelectWell):
         #######
         if 'ActSum' not in st.session_state:
             st.session_state['ActSum'] = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
-            IsActSumReload = True
-        else:
-            IsActSumReload = False
+            st.session_state['IsActSumReload'] = True
+            st.session_state['isActSumApply'] = False
+        # else:
+        #     st.session_state['IsActSumReload'] = False
 
         ActSumData = st.session_state['ActSum']
 
@@ -369,11 +365,21 @@ def App(UserAuthDict, SelectComp, SelectWell):
         # IsActSumReload = IsActSumReset
         # IsActSumRefresh = ActSumButtonCol[-1].button("Refresh", key="ActSumRefresh")
         with ActSumForm.form(key='ActSumTable_Agrid'):
-            ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=IsActSumReload)['data'])
+            ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=st.session_state['IsActSumReload'])['data'])
+            st.session_state['ActSum'].Data = ActivitySummary.RecalculateActSum(ActSumAgridOut, IsStatusOverride=False)
+            st.write("---")
             isActSumApply = st.form_submit_button("apply")
 
-
         if isActSumApply :
+            st.session_state['IsActSumReload'] = True
+            st.session_state['isActSumApply'] = True
+            st.experimental_rerun()
+
+
+
+        if st.session_state['isActSumApply']:
+            st.session_state['IsActSumReload'] = False
+            st.session_state['isActSumApply'] = False
             ActSumAgridOut_Firm = ActSumAgridOut[ActSumAgridOut['status'] == "FIRM"]
             ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
             print(ActSumAgridOut.columns)
