@@ -1,8 +1,8 @@
 import streamlit as st 
 import requests
 
-def getUserID():
-    UserDict = st.experimental_get_query_params()
+def getUserID(UserDict):
+    # UserDict = st.experimental_get_query_params()
     print(UserDict)
     if UserDict == {}:
         UserLogin_dict = {

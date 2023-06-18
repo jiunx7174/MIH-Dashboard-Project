@@ -120,7 +120,7 @@ def CheckCreateTable(WellInfoDict):
 def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
     return (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(UserDateRange.copy()), table_type="ActivityLogTable"))
 
-@st.cache_data
+@st.cache_data(show_spinner=False, ttl=timedelta(hours=2))
 def cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange):
     return IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
 # @st.cache_data
@@ -330,9 +330,10 @@ def showPopupWindow():
 def ConfirmToSave():
     with st.session_state['PopUpWindow'].container():
         with st.empty():
+            ActivitySummary.UploadActivitySummary(st.session_state['ActSum'].Data)
             st.session_state['PopUpWindow'].close()
-            st.success("The Activity Summary Table has already update")
-            del st.session_state['ActSum']
+            
+            ActSumClear()
             time.sleep(5)
 
 
@@ -459,15 +460,8 @@ def App(UserAuthDict, SelectComp, SelectWell):
         ActSumButtonCol = ActSumContainer.columns(3)
         ActSumForm = ActSumContainer.container()
 
-        IsActSumReset = ActSumButtonCol[0].button("Reset Activity Summary Table", key="ActSumReset")
-        # IsActSumRecalculate = ActSumButtonCol[0].button("Recalculate Activity Summary Table", key="IsActSumRecalculate")
-        if IsActSumReset:
-            print("reset")
-            del st.session_state['ActSum']
-            # cache_DomeGetData_ActivitySummary.clear()
-            st.experimental_rerun()
-        # IsActSumReload = IsActSumReset
-        # IsActSumRefresh = ActSumButtonCol[-1].button("Refresh", key="ActSumRefresh")
+        ActSumButtonCol[0].button("Refresh", key="Refresh")
+
         with ActSumForm.form(key='ActSumTable_Agrid'):
             ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=st.session_state['IsActSumReload'])['data'])
             ActSumAgridOut = ActivitySummary.RecalculateActSum(ActSumAgridOut, IsStatusOverride=False)
@@ -475,6 +469,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
             # st.write("---")
             isActSumApply = st.form_submit_button("apply")
         # tes_df = ActSumAgridOut.
+        # ActivitySummary.UploadActivitySummary(st.session_state['ActSum'].Data)
 
         if isActSumApply :
             st.session_state['IsActSumReload'] = True

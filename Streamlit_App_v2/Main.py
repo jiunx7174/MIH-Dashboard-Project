@@ -7,7 +7,9 @@ reload(ActivityMapping)
 
 from streamlit_extras.no_default_selectbox import selectbox as ext_selectbox
 from streamlit_option_menu import option_menu
-
+# def updateQuery(updatedict):
+#     for 
+#     st.session_state['QueryParams']
 def showUserInfo(UserAuthDict, container):
     container.markdown("# RTDC App")
 
@@ -49,7 +51,9 @@ st.set_page_config(page_title="Realtime Activity Mapping",initial_sidebar_state=
 # * get User Authentification
 # st.session_state['UserAuthDict'] = Authentification.getUserID()
 # UserAuthDict = st.session_state['UserAuthDict']
-UserAuthDict = Authentification.getUserID()
+st.session_state['QueryParams'] = st.experimental_get_query_params()
+
+UserAuthDict = Authentification.getUserID(st.session_state['QueryParams'])
 if UserAuthDict['verification'] != 'verified':
     PageNotFound.App()
     st.stop()
@@ -70,14 +74,20 @@ PageAppDict={
 
 if "IsFormSubmit" not in st.session_state:
     st.session_state['IsFormSubmit'] = False
+
+
+ 
 # ModuleSidebarContainer = st.sidebar.container()
 SidebarContainer = st.sidebar.container()
 
 # with SidebarContainer:
+
 SelectComp = SidebarContainer.selectbox("Select Company",['-'] + IO_Data.getAvailableCompanyDF(UserAuthDict)['company_name'].tolist(), key='SelectCompany')
 
 # st.dataframe( IO_Data.getAvailableCompanyDF(UserAuthDict))
 if SelectComp != '-':
+
+    
     SelectWell = SidebarContainer.selectbox("Select Well",['-'] + IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)['well_name'].tolist(), key='SelectWell')
     # st.text(SelectWell)
     # st.dataframe( IO_Data.getAvailableWellDF(SelectComp, UserAuthDict))

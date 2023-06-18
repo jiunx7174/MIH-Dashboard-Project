@@ -6,6 +6,7 @@ import json
 from PDU_Func import IO_Data
 import matplotlib.pyplot as plt
 import streamlit as st
+import time
 def test():
     print("Wakwaw")
 
@@ -108,7 +109,7 @@ def _ActivitySummaryColumnRenameDict():
                             "section":"Section",
                             "remark":"Remarks",
                             "stand_group":"Stand Group_Pred",
-                            }.values(),
+                            },
         "DataTypeDict":{
                     "wid": 'int',
                     "Date": "datetime64",
@@ -142,7 +143,7 @@ class ActivitySummaryTable:
     def __init__(self, WellInfoDict:dict, UserDateRange:dict):
         ColumProperty = _ActivitySummaryColumnRenameDict()
         self.Data = pd.DataFrame(
-                    columns = ColumProperty['ColumnName'],
+                    columns = ColumProperty['ColumnName'].values(),
                     # dtype=ColDataType,
                     )
         self.Data = self.Data.astype(ColumProperty['DataTypeDict'])
@@ -486,7 +487,7 @@ def getStandLabel(ActSum_df):
             idx_start = idx + 1
 
         ii = ii + 1
-
+    
     
     # ActSum_df['Time_start'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_start'], format='%Y-%m-%d %H:%M:%S')
     # ActSum_df['Time_end'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_end'])
@@ -494,6 +495,9 @@ def getStandLabel(ActSum_df):
 
 # TODO, plot the comparison result of cleanFalseSensor Algorithm using _plotFalseSensor()
 def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=1):
+    if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
+        ActSum_df['LABEL_ConnectionActivity']  = ''
+    ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('-')
     for iter in range(CleaningIteration):
         ActSum_df = ActSum_df.reset_index(drop=True)
         # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
@@ -523,6 +527,7 @@ def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=1):
         'LABEL_SubActivity': 'first',
         'LABEL_Activity': 'first',
         'LABEL_All': 'first',
+        'LABEL_ConnectionActivity': _first_non_empty,
         'PIC': 'first',
         'InSlip_Treshold': 'first',
         'Remarks': 'first',
@@ -628,6 +633,8 @@ def getGroupDuration(RTSensor_df , DrillActivityList='default'):
             }
         )
     ActSum_df = pd.DataFrame.from_dict(list_dict_out,orient='columns')
+
+    
     listSetDecimals = ['Duration','Hole_Depth_max','Bit_Depth_avg','DrillingMeterage',
                        'RotateDrillingDuration','SlideDrillingDuration','ReamingDuration',
                        'ConnectionDuration','InSlip_Treshold',]
@@ -903,6 +910,9 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     ActSum_df = ActSum_df.reset_index(drop=True)
 
     ConversionDict = _ActivitySummaryColumnRenameDict()
+    if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
+        ActSum_df['LABEL_ConnectionActivity']  = '-'
+    ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('')
     ActSum_df = ActSum_df.astype(ConversionDict['DataTypeDict'])
     
     # ActivitySummaryColumnRenameDict = _ActivitySummaryColumnRenameDict()
@@ -921,8 +931,6 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     ActSum_df['LABEL_All'] = ActSum_df['LABEL_Activity'] + '--' + ActSum_df['LABEL_SubActivity']
     
     ActSum_df['LABEL_All'] = ActSum_df['LABEL_All'].astype(object)
-    if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
-        ActSum_df['LABEL_ConnectionActivity']  = ''
     # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
     idx_same = ActSum_df.index[
         ((ActSum_df['LABEL_SubActivity']=="Look and define") | (ActSum_df['LABEL_SubActivity']=="FALSE/Check")) & (ActSum_df['Duration'] <= 1)
@@ -997,7 +1005,7 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     ActSum_df['Date'] = ActSum_df['Date'].dt.date.astype(str)
-    ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('')
+    
 
 
     # ActSum_df['wid'] =  int(WellInfoDict['wid'])
@@ -1008,8 +1016,41 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     return ActSum_df
     # self.Data= pd.concat([self.Data, ActSum_df])
 
-def UploadActivitySummary(ActSumdf):
-    pass
+def UploadActivitySummary(ActSumdf, progressbar=False):
+    # st.write(ActSumdf.dtypes)
+    ConversionDict = _ActivitySummaryColumnRenameDict()
+    ActSumdf = ActSumdf[ActSumdf['status'] =='REVIEW']
+    ActSumdf = ActSumdf.drop(['LABEL_All','status'], axis=1)
+    ActSumdf = ActSumdf.rename(
+        columns={value: key for key, value in ConversionDict['ColumnName'].items()}
+    )
+    ActSumdf = ActSumdf.astype('string')
+    i = 0
+    i_end = len(ActSumdf)
+    if progressbar:
+        ProgressBarContainer = st.session_state['PopUpWindow'].empty()
+        ProgressBarContainer.progress(0.0)
+
+    for idx,row in ActSumdf.iterrows():
+        i = i+1
+        dict_row = row.to_dict()
+        print(dict_row)
+        IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
+        if progressbar:
+            ProgressBarContainer.progress(np.round(i/i_end,2), text=f"Download Realtime Sensor Data, {np.round(i/i_end,2)*100} % Complete")
+    
+    if progressbar:
+        ProgressBarContainer.progress(1)
+        ProgressBarContainer.success("Upload Success!")
+        time.sleep(3)
+        ProgressBarContainer.empty()
+        # tes_df = ActSumdf.astype('string').iloc[24,:]
+
+    # dict_row = tes_df.to_dict()
+    # st.json(tes_df.to_dict())
+    # st.write(IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable'))
+    # st.stop()
+    # pass
 
 
     # IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
