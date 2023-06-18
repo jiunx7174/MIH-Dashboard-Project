@@ -250,8 +250,8 @@ def DomeDeleteData(dict_row, table_type="ActivityLogTable"):
 
 def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
     # TODO: simplify the column name in activity log, make it only 2 type colname, for calculation and display
-    st.write(1)
-    st.write(UserDateRange)
+    # st.write(1)
+    # st.write(UserDateRange)
     ActivitySummaryColumnRenameDict = {"wid":"wid",
                             "date":"Date",
                             "time_start":"StartDateTime",
@@ -306,7 +306,7 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         "EndTime": UserDateRange['EndTime'].strftime('%H:%M:%S'),
         }
     # st.write(UserDateRange)
-    st.write(UserDateRange)
+    # st.write(UserDateRange)
     if table_type=="ActivityLogTable":
         
 
