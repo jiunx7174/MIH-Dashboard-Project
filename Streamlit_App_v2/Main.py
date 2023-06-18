@@ -81,18 +81,18 @@ if "IsFormSubmit" not in st.session_state:
 SidebarContainer = st.sidebar.container()
 
 # with SidebarContainer:
-
-SelectComp = SidebarContainer.selectbox("Select Company",['-'] + IO_Data.getAvailableCompanyDF(UserAuthDict)['company_name'].tolist(), key='SelectCompany')
+AvailComp_DF = IO_Data.getAvailableCompanyDF(UserAuthDict)
+SelectComp = SidebarContainer.selectbox("Select Company",['-'] + AvailComp_DF['company_name'].tolist(), key='SelectCompany')
 
 # st.dataframe( IO_Data.getAvailableCompanyDF(UserAuthDict))
 if SelectComp != '-':
 
-    
-    SelectWell = SidebarContainer.selectbox("Select Well",['-'] + IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)['well_name'].tolist(), key='SelectWell')
+    AvailWell_DF = IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)
+    SelectWell = SidebarContainer.selectbox("Select Well",['-'] + AvailWell_DF['well_name'].tolist(), key='SelectWell')
     # st.text(SelectWell)
     # st.dataframe( IO_Data.getAvailableWellDF(SelectComp, UserAuthDict))
     if SelectWell != '-':
-        SelectPageApp = SidebarContainer.selectbox("Select Module",['-']+list(PageAppDict.keys()), key='SelectModule')
+        SelectPageApp = SidebarContainer.selectbox("Select Module",['-']+list(PageAppDict.keys()), key='SelectModule', on_change=st.cache_data.clear)
         
         
         if SelectPageApp != '-':

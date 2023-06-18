@@ -5,7 +5,7 @@ import numpy as np
 import json
 import time
 from Page import Welcome
-from datetime import datetime
+from datetime import datetime,timedelta
 from stqdm import stqdm
 # import datetime
 def getColumnRename(Table='ActivityLogTable', scheme="API_To_DF"):
@@ -222,8 +222,30 @@ def DomeDeleteData(dict_row, table_type="ActivityLogTable"):
             )
             
             return dict(response.json())
-        else:
-            return error_msg
+    elif table_type=="ActivitySummaryTable":
+        DeleteRowAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/delete"
+        error_msg = ""
+        keys_list = ["wid", "time_start"]
+
+        
+        for keys_name in keys_list:
+            if keys_name not in dict_row.keys():
+                error_msg = error_msg + keys_name + ", "
+        if error_msg == "":
+            json_queries = json.dumps(
+                dict_row,
+                indent = 4
+            )
+            response = (
+                requests.post(
+                    DeleteRowAPI, data=json_queries 
+                )
+            )
+            
+            return dict(response.json())
+            # return error_msg
+    else:
+        pass
 
 
 def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
@@ -362,6 +384,7 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         # print((response.json()))
         ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
         ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict, inplace = True)
+        ActivitySummary_DF = ActivitySummary_DF.sort_values(by='StartDateTime')
 
 
         

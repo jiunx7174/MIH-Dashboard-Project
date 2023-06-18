@@ -116,7 +116,7 @@ def CheckCreateTable(WellInfoDict):
     if IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type ="ActivitySummaryTable")['table']==0:
         IO_Data.DomeCreateTable(WellInfoDict['wid'], table_type ="ActivitySummaryTable")
 
-@st.cache_data
+@st.cache_data(ttl=timedelta(hours=1))
 def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
     return (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(UserDateRange.copy()), table_type="ActivityLogTable"))
 
@@ -129,7 +129,8 @@ def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF
     ActSumData= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
         
             # generate both of FIRM and REVIEW ActSum
-    ActSumData.getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
+    # ActSumData.getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
+    ActSumData.getActivitySummary_v2(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
     return ActSumData
 
 def AllDateTime():
@@ -207,6 +208,7 @@ def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
                     'section':row['Section Size']
                     
                 }
+            print('ActLog REsult')
             print(IO_Data.DomeInsertData(dict_temp, table_type="ActivityLogTable"))
 
 
@@ -331,20 +333,21 @@ def ConfirmToSave():
     with st.session_state['PopUpWindow'].container():
         with st.empty():
             ActivitySummary.UploadActivitySummary(st.session_state['ActSum'].Data)
-            st.session_state['PopUpWindow'].close()
             
             ActSumClear()
+            st.success("Actitivity Summary Update successfully, please wait while the page is refreshes")
             time.sleep(5)
+            st.session_state['PopUpWindow'].close()
 
 
 def ActLogApply(ActLogAgridOut,WellInfoDict,UserDateRange):
     ActLogApplyButtonSontainer = st.empty()
-    ActSumClear()
-    ActivityLog_DF_Upload = checkActivityLog(ActLogAgridOut['data'])
+    # ActivityLog_DF_Upload = checkActivityLog(ActLogAgridOut['data'])
 
-    updateActivityLog(WellInfoDict,ActivityLog_DF_Upload,UserDateRange)
-    cache_DomeGetData_ActivityLog.clear()
+    updateActivityLog(WellInfoDict,ActLogAgridOut['data'],UserDateRange)
+    del st.session_state['ActLog']
     ActLogApplyButtonSontainer.success("Activity Log Updated")
+    ActSumClear()
     time.sleep(2)
     ActLogApplyButtonSontainer.empty()
 
@@ -419,21 +422,30 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
         with ActLogContainer:
             RTSensor_df = cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
-        ActivityLog_DF = cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange)
+    # if 'ActLog' not in st.session_state:
+        ActLogDF = cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange)
+
+
+
 
         with ActLogContainer.form(key='ActivityLogTable_Agrid'):
             st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 2px;">Major Activity Log Table</h1>', unsafe_allow_html=True)
-            with st.container():
+            ActivityLog_DF = Table.ActivityLogTable_Agrid(ActLogDF, reload=True)['data']
+            isActLogApply = st.form_submit_button("apply")
 
-                ActLogAgridOut = Table.ActivityLogTable_Agrid(ActivityLog_DF, reload=True)
-
-
-            isActLogApply = st.form_submit_button("apply", on_click=ActLogApply, args=(ActLogAgridOut,WellInfoDict,UserDateRange))
-        
+        if isActLogApply:
+            updateActivityLog(WellInfoDict,ActivityLog_DF,UserDateRange)
+            cache_DomeGetData_ActivityLog.clear()
+            ActLogContainer.success("Activity Log successfully updated. Please wait for the page to refresh.")
+            time.sleep(1)
+            ActSumClear()
+            st.experimental_rerun()
+        # if 
         # retrieve Realtime Sensor Data
         print("GetRealtimeData")
         print(UserDateRange)
         print("-----")
+        
 
 
         #######
@@ -461,9 +473,12 @@ def App(UserAuthDict, SelectComp, SelectWell):
         ActSumForm = ActSumContainer.container()
 
         ActSumButtonCol[0].button("Refresh", key="Refresh")
+        
 
         with ActSumForm.form(key='ActSumTable_Agrid'):
-            ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=st.session_state['IsActSumReload'])['data'])
+            # ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=st.session_state['IsActSumReload'])['data'])
+            # ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.getActivitySummary_v2(ActivityLog_DF, RTSensor_df), reload=st.session_state['IsActSumReload'], key='actsumtable_v2')['data'])
+            ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=st.session_state['IsActSumReload'], key='actsumtable_v2')['data'])
             ActSumAgridOut = ActivitySummary.RecalculateActSum(ActSumAgridOut, IsStatusOverride=False)
             st.session_state['ActSum'].Data = ActSumAgridOut
             # st.write("---")
@@ -477,12 +492,13 @@ def App(UserAuthDict, SelectComp, SelectWell):
             st.experimental_rerun()
 
 
-
+        # st.stop()
         if st.session_state['isActSumApply']:
             st.session_state['IsActSumReload'] = False
             st.session_state['isActSumApply'] = False
-            ActSumAgridOut_Firm = ActSumAgridOut[ActSumAgridOut['status'] == "FIRM"]
-            ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
+            # ActSumAgridOut_Firm = ActSumAgridOut[ActSumAgridOut['status'] == "FIRM"]
+            ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut))
+            # ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
             print(ActSumAgridOut.columns)
             if "ErrorWarning" in (ActSumAgridOut.columns):
                 st.warning("Found some Error")
@@ -491,7 +507,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
                     Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['ErrorWarning'].notna()], showWarning=True)
             else:
                 
-                st.session_state['ActSum'].Data = pd.concat([ActSumAgridOut_Firm,ActivitySummary.RecalculateActSum(ActSumAgridOut)])
+                # st.session_state['ActSum'].Data = pd.concat([ActSumAgridOut_Firm,ActivitySummary.RecalculateActSum(ActSumAgridOut)])
                 st.session_state['IsActSumNoError'] = True
                 # st.stop()
         ActSumButtonColumn = st.columns(8)
@@ -528,14 +544,14 @@ def App(UserAuthDict, SelectComp, SelectWell):
             ActSumAgridOut = st.session_state['ActSum'].Data
             with st.session_state['PopUpWindow'].container():
                 st.markdown("### Please make sure or double check the following table is already correct.")
-                print("ErrorWarning" in (ActSumAgridOut.columns))
-                if "ErrorWarning" in (ActSumAgridOut.columns):
-                    print('ErrorWarning')
-                    Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"], showWarning=True)
-                else:
-                    Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"])
-                    PopUpWindowCol = st.columns(15)
-                    isActSumUploadConfirm = PopUpWindowCol[14].button("Confirm", key="ActSumUploadConfirm", on_click=ConfirmToSave)
+                # print("ErrorWarning" in (ActSumAgridOut.columns))
+                # if "ErrorWarning" in (ActSumAgridOut.columns):
+                #     print('ErrorWarning')
+                #     Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"], showWarning=True)
+                # else:
+                Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"])
+                PopUpWindowCol = st.columns(15)
+                isActSumUploadConfirm = PopUpWindowCol[14].button("Confirm", key="ActSumUploadConfirm", on_click=ConfirmToSave)
 
                 # // Table.ActSumTableConfirmation_Agrid(st.session_state['ActSumDF_Upload'])
                     # if isActSumUploadConfirm:

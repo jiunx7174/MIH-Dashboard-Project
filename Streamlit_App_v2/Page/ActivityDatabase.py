@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from PDU_Func import Authentification, IO_Data, Table, ActivitySummary
+from streamlit_toggle import st_toggle_switch
 import time
 from datetime import datetime
 import base64
@@ -39,7 +41,7 @@ def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
 
 
 
-@st.cache_data
+# @st.cache_data
 def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange):
     print("Get ActSum Data")
     ActSumData= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
@@ -47,6 +49,11 @@ def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange):
             # generate both of FIRM and REVIEW ActSum
     ActSumData.getActivitySummary_Firm()
     return ActSumData.Data
+def refreshAll():
+    cache_DomeGetData_ActivityLog.clear()
+    if 'ActSum_df_Database' not in st.session_state:
+        del st.session_state['ActSum_df_Database'] 
+
 
 def App(UserAuthDict, SelectComp, SelectWell):
     UserDateRange = {
@@ -57,23 +64,20 @@ def App(UserAuthDict, SelectComp, SelectWell):
         "EndDate":datetime.strptime('01-08-2100', '%d-%m-%Y').date(),
         "EndTime":datetime.strptime('23:59', '%H:%M').time(),
         }
-    UserAuthDict = Authentification.getUserID()
+    # UserAuthDict = Authentification.getUserID()
     # "datetime.date(2021, 7, 31)"
     # WellInfoDict = st.session_state['WellInfoDict']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
+    # st.write(WellInfoDict)
     ActivityLog_DF = cache_DomeGetData_ActivityLog(WellInfoDict,UserDateRange)
 
     st.markdown("# RTDC Database")
     st.markdown("## Activity Log")
-    st.button("Refresh Activity Log Data", key="RefreshActLog", on_click=cache_DomeGetData_ActivityLog.clear)
+    st.sidebar.button("Refresh Page", key="RefreshAll", on_click=refreshAll)
     Table.ActivityLogTableDatabase_Agrid(ActivityLog_DF, reload=True,)
     # st.dataframe(ActivityLog_DF)
-    st.markdown("## Activity Summary")
-    # Table.ActivityLogTableDatabase_Agrid(ActivityLog_DF, reload=True,)
-    ActSum_DF = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange)
-    Table.ActSumTableDatabase_Agrid(ActSum_DF, reload=False,)
-    # st.dataframe(ActSum_DF)
 
+    
 
 
     with st.expander("Activity Log Upload"):
@@ -109,3 +113,52 @@ def App(UserAuthDict, SelectComp, SelectWell):
                 ActivityLogTableContainer.error(str(error_msg) + " | Please check your excel file")
     
 
+    st.markdown("## Activity Summary")
+    # Table.ActivityLogTableDatabase_Agrid(ActivityLog_DF, reload=True,)
+    if 'ActSum_df_Database' not in st.session_state:
+        st.session_state['ActSum_df_Database'] = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange)
+        st.session_state['IsReloadActSumTable'] = True
+
+    IsActSumDelete = st_toggle_switch(
+        label="Delete Activity Summary",
+        key="switch_1",
+        default_value=False,
+        label_after=False,
+        # inactive_color="#D3D3D3",  # optional
+        # active_color="#11567f",  # optional
+        # track_color="#29B5E8",  # optional
+    )
+    if IsActSumDelete:
+        with st.form("ActSum"):
+            Out = Table.ActSumTableDatabase_Agrid(st.session_state['ActSum_df_Database'], reload=st.session_state['IsReloadActSumTable'],)
+            IsActSumDeleteApply = st.form_submit_button("Delete Selected Rows")
+        if st.session_state['IsReloadActSumTable']:
+            st.session_state['IsReloadActSumTable'] = False
+        if IsActSumDeleteApply:
+            ActSumDeleteProgress = st.empty()
+            # st.write(Out)
+            # out_dict = {}
+            ActSumDeleteProgress.progress(0.0)
+            i_end = len(Out['selected_rows'])
+            for i,dict_temp in enumerate(Out['selected_rows']):
+
+                del dict_temp["_selectedRowNodeInfo"]
+                # st.write(dict_temp['StartDateTime'])
+                print(IO_Data.DomeDeleteData({
+                        'wid':WellInfoDict['wid'],
+                        'time_start':dict_temp['StartDateTime'],
+                    },table_type="ActivitySummaryTable")
+                )
+
+                ActSumDeleteProgress.progress(i/i_end, text=f"Delete Activity, {np.round(i/i_end,2)} % complete")
+                # time.sleep(0.5)
+            ActSumDeleteProgress.progress(1.)
+            ActSumDeleteProgress.warning("Activity Successfully deleted, please wait while the page is refreshes")
+            del st.session_state['ActSum_df_Database']
+            time.sleep(2)
+            ActSumDeleteProgress.empty()
+
+            st.experimental_rerun()
+
+    else:
+        Table.ActSumTableDatabase_Agrid(st.session_state['ActSum_df_Database'], reload=True,RowSelection=False)

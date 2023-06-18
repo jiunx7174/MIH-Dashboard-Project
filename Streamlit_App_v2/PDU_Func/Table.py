@@ -39,7 +39,7 @@ def add_row_func():
 
 
 
-def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default', SectionSizeList='default'):
+def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default', SectionSizeList='default', key='ActLogInput'):
     css = """
     .custom-rich-select-editor {
     display: inline-block;
@@ -265,6 +265,7 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
         height=450,
         gridOptions=gb,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
+        key=key,
         # update_mode=(GridUpdateMode.NO_UPDATE),
         update_mode=(GridUpdateMode.VALUE_CHANGED) | (GridUpdateMode.SELECTION_CHANGED) ,
         allow_unsafe_jscode=True,
@@ -766,7 +767,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False, key='ActSumTable'):
         reload_data =reload)
     return InputActSumGrid_response
 
-def ActSumTableDatabase_Agrid(ActSum_DF, reload=False):
+def ActSumTableDatabase_Agrid(ActSum_DF, reload=False, RowSelection=True, key='ActSumTableDatabase'):
     # ActSum_DF = ActSumData.Data
     css = """
     .custom-rich-select-editor {
@@ -869,8 +870,8 @@ def ActSumTableDatabase_Agrid(ActSum_DF, reload=False):
 
     gb["columnDefs"] =([
         {"field":'status',                      "headerName":"Status", "width":160,'editable':False,"filter":True,"headerTooltip":"Activity Finalization Status",
-                                                'headerCheckboxSelection': True,
-                                                'checkboxSelection': True,
+                                                'headerCheckboxSelection': RowSelection,
+                                                'checkboxSelection': RowSelection,
                                                 # 'showDisabledCheckboxes':False,
                                                 'cellStyle':status_style_code,
                                                 },
@@ -884,7 +885,7 @@ def ActSumTableDatabase_Agrid(ActSum_DF, reload=False):
                                                 'cellStyle':highlight_style_code,
                                                 },
         {"field":'LABEL_SubActivity',           "headerName":"SubActivity", "width":140,'editable':False,"filter":True,
-                                                'editable':True,
+                                                'editable':False,
                                                 "headerTooltip":"SubActivity",
                                                 'cellStyle':highlight_style_code,
                                                 # 'cellEditor':customCellEditor,
@@ -923,15 +924,16 @@ def ActSumTableDatabase_Agrid(ActSum_DF, reload=False):
     ]
         
         )
-    gb['rowSelection']='multiple'
+    if RowSelection:
+        gb['rowSelection']='multiple'
+        gb['enableRangeSelection']= RowSelection
     # gb['isRowSelectable']=is_row_selectable
     gb['tooltipShowDelay']=800
-    gb['enableRangeSelection']= True
     # gb['rowStyle']=row_style_code
     gb['alwaysShowHorizontalScroll']=True
     gb['alwaysShowVerticalScroll']=True
     gb['pagination']=True
-    gb['paginationPageSize']=20
+    gb['paginationPageSize']=30
     # gb['rowClassRules']=row_style_code_2
 
     # gb['getRowId'] ='StartDateTime'
@@ -949,6 +951,7 @@ def ActSumTableDatabase_Agrid(ActSum_DF, reload=False):
         gridOptions=gb,
         # height="100%",
         fit_columns_on_grid_load =True,
+        key=key,
         # width=1300,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         # update_mode=(GridUpdateMode.NO_UPDATE),
