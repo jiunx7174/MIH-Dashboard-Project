@@ -116,9 +116,11 @@ def CheckCreateTable(WellInfoDict):
     if IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type ="ActivitySummaryTable")['table']==0:
         IO_Data.DomeCreateTable(WellInfoDict['wid'], table_type ="ActivitySummaryTable")
 
-@st.cache_data(ttl=timedelta(hours=1))
+# @st.cache_data(ttl=timedelta(hours=1))
 def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
-    return (IO_Data.DomeGetData(WellInfoDict, ExtendDateTime(UserDateRange.copy()), table_type="ActivityLogTable"))
+    UserDateRange_Ext = ExtendDateTime(UserDateRange.copy())
+    st.write(UserDateRange_Ext)
+    return (IO_Data.DomeGetData(WellInfoDict, UserDateRange_Ext, table_type="ActivityLogTable"))
 
 @st.cache_data(show_spinner=False, ttl=timedelta(hours=2))
 def cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange):
@@ -146,6 +148,7 @@ def ExtendDateTime(DateRange):
     Extend the date time by backdate by 1 day in the StartDate
     """
     DateRange['StartDate'] = DateRange['StartDate'] - timedelta(days=14)
+    DateRange['EndDate'] = DateRange['EndDate'] + timedelta(days=14)
     # DateRange['EndDate'] = DateRange['EndDate'] - timedelta(days=1)
 
     return DateRange
@@ -189,9 +192,9 @@ def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
             'wid':WellInfoDict['wid'],
             'id':str(row['id']),
             }
-            print(dict_temp)
+            # print(dict_temp)
             # st.json(input_dict_temp)
-            print(IO_Data.DomeDeleteData(dict_temp, table_type="ActivityLogTable"))
+            (IO_Data.DomeDeleteData(dict_temp, table_type="ActivityLogTable"))
 
         ## Insert
         for  i,row in UpdateActivityLog_DF.iterrows():            
@@ -208,7 +211,7 @@ def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
                     'section':row['Section Size']
                     
                 }
-            print('ActLog REsult')
+            print(dict_temp['dt'])
             print(IO_Data.DomeInsertData(dict_temp, table_type="ActivityLogTable"))
 
 
@@ -416,26 +419,31 @@ def App(UserAuthDict, SelectComp, SelectWell):
     # st.json(UserDateRange)
     
 
-
+    
 
     if st.session_state['IsFormSubmit']:
+        if 'ActLogDF' not in st.session_state:
+            st.session_state['ActLogDF'] = cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange)
+            st.session_state['IsActLogTableReload'] = True
+
 
         with ActLogContainer:
             RTSensor_df = cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
-    # if 'ActLog' not in st.session_state:
-        ActLogDF = cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange)
 
+        # st.write()
 
-
-
+        # st.write(UserDateRangeJSON)
+        st.write(st.session_state['ActLogDF'])
+        ActLogDF = st.session_state['ActLogDF']
         with ActLogContainer.form(key='ActivityLogTable_Agrid'):
             st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 2px;">Major Activity Log Table</h1>', unsafe_allow_html=True)
-            ActivityLog_DF = Table.ActivityLogTable_Agrid(ActLogDF, reload=True)['data']
+            ActivityLog_DF = Table.ActivityLogTable_Agrid(ActLogDF, reload=st.session_state['IsActLogTableReload'])['data']
             isActLogApply = st.form_submit_button("apply")
-
+        st.session_state['IsActLogTableReload'] = False
         if isActLogApply:
-            updateActivityLog(WellInfoDict,ActivityLog_DF,UserDateRange)
-            cache_DomeGetData_ActivityLog.clear()
+            updateActivityLog(WellInfoDict,ActivityLog_DF,ExtendDateTime(UserDateRange.copy()))
+            # cache_DomeGetData_ActivityLog.clear()
+            del st.session_state['ActLogDF']
             ActLogContainer.success("Activity Log successfully updated. Please wait for the page to refresh.")
             time.sleep(1)
             ActSumClear()

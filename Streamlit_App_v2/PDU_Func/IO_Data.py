@@ -250,7 +250,8 @@ def DomeDeleteData(dict_row, table_type="ActivityLogTable"):
 
 def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
     # TODO: simplify the column name in activity log, make it only 2 type colname, for calculation and display
-    
+    st.write(1)
+    st.write(UserDateRange)
     ActivitySummaryColumnRenameDict = {"wid":"wid",
                             "date":"Date",
                             "time_start":"StartDateTime",
@@ -275,29 +276,6 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
                             "remark":"Remarks",
                             "stand_group":"Stand Group_Pred",
                             }
-    # ActivitySummaryColumnRenameDict = {'wid': 'wid',
-    #                     'date': 'Date',
-    #                     'time_start': 'Start Time',
-    #                     'time_end': 'End Time',
-    #                     'duration_minutes': 'Duration (Minutes)',
-    #                     'label_subactivity': 'SUB-ACTIVITY',
-    #                     'label_activity': 'ACTIVITY',
-    #                     'stand_durationx': 'CONNECTION-ACTIVITY',
-    #                     'hole_depth': 'Hole Depth (Max)',
-    #                     'bit_depth': 'Bit Depth(mean)',
-    #                     'meterage_drilling': 'Drilling Meterage (m)',
-    #                     'rotate_drilling_time': 'Rotate Drilling Time (Minutes)',
-    #                     'slide_drilling_time': 'Slide Drilling Time (Minutes)',
-    #                     'reaming_time': 'Reaming Time (Minutes)',
-    #                     'connection_time': 'Connection Time (Minutes)',
-    #                     'on_bottom_hours': 'On Bottom state (hrs)',
-    #                     'stand_duration': 'Total Stand Duration (hrs)',
-    #                     'stand_meterage_drilling': 'Total Stand Drilling Meterage (m)',
-    #                     'stand_group': 'Stand Group',
-    #                     'pic': 'PIC',
-    #                     'section': 'Section',
-    #                     'remark': 'Remarks',
-    #                     'stand_on_bottom': 'zeros'}
     ActivityLogColumnRenameDict = {
                             'id': 'id',
                             'dt': 'DateTime',
@@ -327,6 +305,8 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         "EndDate": UserDateRange['EndDate'].strftime('%Y-%m-%d'),
         "EndTime": UserDateRange['EndTime'].strftime('%H:%M:%S'),
         }
+    # st.write(UserDateRange)
+    st.write(UserDateRange)
     if table_type=="ActivityLogTable":
         
 
