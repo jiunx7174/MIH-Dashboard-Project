@@ -81,7 +81,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
 
     with st.expander("Activity Log Upload"):
-        st.markdown(getExampleExcelFileUrl(), unsafe_allow_html=True)
+        # st.markdown(getExampleExcelFileUrl(), unsafe_allow_html=True)
         ActivityLogUploadContainer = st.container()
         ActivityLogTableContainer = st.container()
 
