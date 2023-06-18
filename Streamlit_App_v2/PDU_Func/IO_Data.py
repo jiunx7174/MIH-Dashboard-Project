@@ -478,7 +478,8 @@ def DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange, hours=0.5):
     time_elapsed = []
     i = 0
     StartEndList=list(zip(StartDateTimeList,EndDateTimeList))
-    my_bar = st.progress(0.0,)
+    ProgressContainer = st.empty()
+    my_bar = ProgressContainer.progress(0.0,)
 
     for ii in range(len((StartEndList))):
         my_bar.progress(np.round(ii/len(StartEndList),2), text=f"Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
@@ -522,4 +523,5 @@ def DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange, hours=0.5):
     filtered_DF = Realtime_DF[mask]
     print( np.mean(time_elapsed))
     my_bar.progress(1.0)
+    ProgressContainer.empty()
     return filtered_DF[column_list]

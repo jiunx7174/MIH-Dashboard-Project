@@ -291,6 +291,7 @@ class ActivitySummaryTable:
         UserDateRange = self.UserDateRange
         WellInfoDict = self.WellInfoDict
 
+
         # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
         # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
         # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
@@ -300,6 +301,8 @@ class ActivitySummaryTable:
         
         # get the ActivitySummaryTable data between the UserDateRange
         temp_ActSum_df = IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="Activity Summary")
+
+    
         
         # If the ActivitySummaryTable between the UserDateRange is exist or partially exist
         # TODO, if we want to fill out a "Gap" ActSumTable case
@@ -356,8 +359,11 @@ class ActivitySummaryTable:
         ActSum_df['wid'] =  int(WellInfoDict['wid'])
         ActSum_df['status'] =  "REVIEW"
 
+        ConversionDict = _ActivitySummaryColumnRenameDict()
+        self.Data = pd.concat([self.Data, ActSum_df])
+        self.Data = self.Data.astype(ConversionDict['DataTypeDict'])
 
-        self.Data= pd.concat([self.Data, ActSum_df])
+         
 
     ## Fill Gap function
     def getActivitySummary_Firm(self):
@@ -890,19 +896,31 @@ def getActivityLabel (RTSensor_df, InputActivity_DB, UserDateRange="All"):
     
     return RTSensor_df
 
-
+def _first_non_empty(x):
+    non_empty_values = x[x != ''].tolist()
+    return non_empty_values[0] if non_empty_values else ''
 def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     ActSum_df = ActSum_df.reset_index(drop=True)
+
+    ConversionDict = _ActivitySummaryColumnRenameDict()
+    ActSum_df = ActSum_df.astype(ConversionDict['DataTypeDict'])
+    
     # ActivitySummaryColumnRenameDict = _ActivitySummaryColumnRenameDict()
     # ActSum_df = ActSum_df[ActivitySummaryColumnRenameDict['ColumnName'].values]
 
-    ActSum_df['Date'] = ActSum_df['Date'].astype('datetime64[ns]')
-    ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].astype('datetime64[ns]')
-    ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].astype('datetime64[ns]')
-    ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
-    ActSum_df['Hole_Depth_max'] = ActSum_df['Hole_Depth_max'].astype('float')
-    ActSum_df['Bit_Depth_avg'] = ActSum_df['Bit_Depth_avg'].astype('float')
+    # ActSum_df['Date'] = ActSum_df['Date'].astype('datetime64[ns]')
+    # ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].astype('datetime64[ns]')
+    # ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].astype('datetime64[ns]')
+    # ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
+    # ActSum_df['Hole_Depth_max'] = ActSum_df['Hole_Depth_max'].astype('float')
+    # ActSum_df['Bit_Depth_avg'] = ActSum_df['Bit_Depth_avg'].astype('float')
+
+
+
+
     ActSum_df['LABEL_All'] = ActSum_df['LABEL_Activity'] + '--' + ActSum_df['LABEL_SubActivity']
+    
+    ActSum_df['LABEL_All'] = ActSum_df['LABEL_All'].astype(object)
     if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
         ActSum_df['LABEL_ConnectionActivity']  = ''
     # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
@@ -917,55 +935,61 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     ActSum_df.loc[idx_same, 'LABEL_SubActivity'] = ActSum_df.loc[idx_before, 'LABEL_SubActivity'].values
     ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
 
-    if IsStatusOverride:
-        ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
-        {
-        'wid':'first',
-        'Date': 'max',
-        'StartDateTime': 'min',
-        'EndDateTime': 'max',
-        'Duration': 'sum',
-        'Hole_Depth_max': 'max',
-        'Bit_Depth_avg': 'mean',
-        'DrillingMeterage': 'sum',
-        'RotateDrillingDuration': 'sum',
-        'SlideDrillingDuration': 'sum',
-        'ReamingDuration': 'sum',
-        'ConnectionDuration': 'sum',
-        'LABEL_SubActivity': 'first',
-        'LABEL_Activity': 'first',
-        'LABEL_All': 'first',
-        'PIC': 'first',
-        'InSlip_Treshold': 'first',
-        'Remarks': 'first',
-        'Section': 'first'}
-        )
-    else:
-        ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
-        {
-        'wid':'first',
-        'Date': 'max',
-        'StartDateTime': 'min',
-        'EndDateTime': 'max',
-        'Duration': 'sum',
-        'Hole_Depth_max': 'max',
-        'Bit_Depth_avg': 'mean',
-        'DrillingMeterage': 'sum',
-        'RotateDrillingDuration': 'sum',
-        'SlideDrillingDuration': 'sum',
-        'ReamingDuration': 'sum',
-        'ConnectionDuration': 'sum',
-        'LABEL_SubActivity': 'first',
-        'LABEL_Activity': 'first',
-        'LABEL_All': 'first',
-        'PIC': 'first',
-        'InSlip_Treshold': 'first',
-        'Remarks': 'first',
-        'Section': 'first',
-        'status':'first',
-        }
-        )
-        pass
+
+    # if IsStatusOverride:
+        # st.write("true")
+    ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
+    {
+    'wid':'first',
+    'Date': 'max',
+    'StartDateTime': 'min',
+    'EndDateTime': 'max',
+    'Duration': 'sum',
+    'Hole_Depth_max': 'max',
+    'Bit_Depth_avg': 'mean',
+    'DrillingMeterage': 'sum',
+    'RotateDrillingDuration': 'sum',
+    'SlideDrillingDuration': 'sum',
+    'ReamingDuration': 'sum',
+    'ConnectionDuration': 'sum',
+    'LABEL_SubActivity': 'first',
+    'LABEL_Activity': 'first',
+    'LABEL_All': 'first',
+    'LABEL_ConnectionActivity': _first_non_empty,
+    'PIC': 'first',
+    'InSlip_Treshold': 'first',
+    'Remarks': 'first',
+    'status':'first',
+    'Section': 'first'}
+    )
+    # else:
+    #     st.write("false")
+    #     ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
+    #     {
+    #     'wid':'first',
+    #     'Date': 'max',
+    #     'StartDateTime': 'min',
+    #     'EndDateTime': 'max',
+    #     'Duration': 'sum',
+    #     'Hole_Depth_max': 'max',
+    #     'Bit_Depth_avg': 'mean',
+    #     'DrillingMeterage': 'sum',
+    #     'RotateDrillingDuration': 'sum',
+    #     'SlideDrillingDuration': 'sum',
+    #     'ReamingDuration': 'sum',
+    #     'ConnectionDuration': 'sum',
+    #     'LABEL_SubActivity': 'first',
+    #     'LABEL_Activity': 'first',
+    #     'LABEL_All': 'first',
+    #     'PIC': 'first',
+    #     'InSlip_Treshold': 'first',
+    #     'Remarks': 'first',
+    #     'Section': 'first',
+    #     'status':'first',
+    #     }
+    #     )
+    #     # pass
+
 
     #_________________________________________________
     # label the group stand, this function are useful to determine the lv.2 aggregate
@@ -973,6 +997,7 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     ActSum_df['Date'] = ActSum_df['Date'].dt.date.astype(str)
+    ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('')
 
 
     # ActSum_df['wid'] =  int(WellInfoDict['wid'])
@@ -982,6 +1007,16 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
 
     return ActSum_df
     # self.Data= pd.concat([self.Data, ActSum_df])
+
+def UploadActivitySummary(ActSumdf):
+    pass
+
+
+    # IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
+
+
+
+
 
 
 def checkActSumDF_old(df):

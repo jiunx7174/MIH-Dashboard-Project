@@ -9,12 +9,106 @@ import time
 import numpy as np
 reload(IO_Data)
 reload(Table)
+reload(ActivitySummary)
 # @st.cache_data(experimental_allow_widgets=True)
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
     # return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
     return IO_Data.DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange)
+def ActivitySummaryColumnRenameDict():
+    ActivitySummaryColumnRenameDict = {"wid":"wid",
+                            "date":"Date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            # "stand_on_bottom":"OnBottomDurationPerStand",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            }
+    out= {
+        "ColumnName":{"wid":"wid",
+                            "date":"Date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            # "stand_on_bottom":"OnBottomDurationPerStand",
+                            "stand_on_bottom":"LABEL_ConnectionActivity",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            },
+        "DataTypeDict":{
+                    "wid": 'int',
+                    "Date": "datetime64",
+                    "StartDateTime": "datetime64",
+                    "EndDateTime": "datetime64",
+                    "Duration": "float",
+                    "Hole_Depth_max": "float",
+                    "Bit_Depth_avg": "float",
+                    "DrillingMeterage": "float",
+                    "RotateDrillingDuration": "float",
+                    "SlideDrillingDuration": "float",
+                    "ReamingDuration": "float",
+                    "ConnectionDuration": "float",
+                    "OnBottomDurationPerStand": "float",
+                    "StandDuration": "float",
+                    "LABEL_SubActivity": "string",
+                    "LABEL_Activity": "string",
+                    "DrillingMeteragePerStand": "float",
+                    "InSlip_Treshold": "float",
+                    "PIC": "string",
+                    "Section": "string",
+                    "Remarks": "string",
+                    "Stand Group_Pred": "string",
+                    "LABEL_ConnectionActivity":"string",
+                    # stand_on_bottom:
+                    },
+
+    }
+    return out
 
 
+def UploadActivitySummary(ActSumDF):
+    ConversionDict = ActivitySummaryColumnRenameDict()
+    swapped_dict = {value: key for key, value in ConversionDict['ColumnName'].items()}
+    ActSumDF = ActSumDF.astype(ConversionDict['DataTypeDict'])
+    ActSumDF = ActSumDF.astype('str')
+    # ActSumDF.fillna(0)
+    ActSumDF = ActSumDF[ConversionDict['DataTypeDict'].keys()]
+    tes_df = ActSumDF.rename(columns=swapped_dict).iloc[40,:]
+    # st.write(ActSumDF.rename(columns=swapped_dict))
+    tobeupload_testa = tes_df.to_dict()
+
+
+    return tobeupload_testa
 @st.cache_resource
 def CheckCreateTable(WellInfoDict):
     if IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type ="ActivityLogTable")['table']==0:
@@ -56,9 +150,12 @@ def ExtendDateTime(DateRange):
     return DateRange
 def IsSubmitFormTrue():
     st.session_state['IsFormSubmit'] = True
+    ActSumClear()
+
+def ActSumClear():
     if ("ActSum" in st.session_state):
         del st.session_state["ActSum"]
-
+    
     # if ("RTSensor_df" in st.session_state):
     #     del st.session_state["RTSensor_df"]
 
@@ -69,8 +166,8 @@ def initiateSession(WellInfoDict):
         st.session_state['IsFormSubmit'] = False
     if 'PopUpWindow' not in st.session_state:
         st.session_state['PopUpWindow'] = Modal("Confirmation", key='modal_test')
-    if 'IsRecalculate' not in st.session_state:
-        st.session_state['IsRecalculate'] = False
+    if 'IsActSumNoError' not in st.session_state:
+        st.session_state['IsActSumNoError'] = False
         
     # if 'UserDateRange' not in st.session_state:
     #     st.session_state['UserDateRange'] = {
@@ -230,6 +327,25 @@ def showPopupWindow():
     if not st.session_state['PopUpWindow'].is_open():
         st.session_state['PopUpWindow'].open()
 
+def ConfirmToSave():
+    with st.session_state['PopUpWindow'].container():
+        with st.empty():
+            st.session_state['PopUpWindow'].close()
+            st.success("The Activity Summary Table has already update")
+            del st.session_state['ActSum']
+            time.sleep(5)
+
+
+def ActLogApply(ActLogAgridOut,WellInfoDict,UserDateRange):
+    ActLogApplyButtonSontainer = st.empty()
+    ActSumClear()
+    ActivityLog_DF_Upload = checkActivityLog(ActLogAgridOut['data'])
+
+    updateActivityLog(WellInfoDict,ActivityLog_DF_Upload,UserDateRange)
+    cache_DomeGetData_ActivityLog.clear()
+    ActLogApplyButtonSontainer.success("Activity Log Updated")
+    time.sleep(2)
+    ActLogApplyButtonSontainer.empty()
 
 
 def App(UserAuthDict, SelectComp, SelectWell):
@@ -311,19 +427,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
                 ActLogAgridOut = Table.ActivityLogTable_Agrid(ActivityLog_DF, reload=True)
 
 
-            isActLogApply = st.form_submit_button("apply")
-
-        if isActLogApply:
-            ActivityLog_DF_Upload = checkActivityLog(ActLogAgridOut['data'])
-
-            updateActivityLog(WellInfoDict,ActivityLog_DF_Upload,UserDateRange)
-            # st.session_state["ActivityLog_DF"] = (IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"))
-            cache_DomeGetData_ActivityLog.clear()
-            # ActivityLog_DF = cache_DomeGetData_AcctivityLog(WellInfoDict, UserDateRange)
-            st.success("Activity Log Updated")
-            if isActLogApply:
-                st.experimental_rerun()
-            
+            isActLogApply = st.form_submit_button("apply", on_click=ActLogApply, args=(ActLogAgridOut,WellInfoDict,UserDateRange))
         
         # retrieve Realtime Sensor Data
         print("GetRealtimeData")
@@ -366,9 +470,11 @@ def App(UserAuthDict, SelectComp, SelectWell):
         # IsActSumRefresh = ActSumButtonCol[-1].button("Refresh", key="ActSumRefresh")
         with ActSumForm.form(key='ActSumTable_Agrid'):
             ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=st.session_state['IsActSumReload'])['data'])
-            st.session_state['ActSum'].Data = ActivitySummary.RecalculateActSum(ActSumAgridOut, IsStatusOverride=False)
-            st.write("---")
+            ActSumAgridOut = ActivitySummary.RecalculateActSum(ActSumAgridOut, IsStatusOverride=False)
+            st.session_state['ActSum'].Data = ActSumAgridOut
+            # st.write("---")
             isActSumApply = st.form_submit_button("apply")
+        # tes_df = ActSumAgridOut.
 
         if isActSumApply :
             st.session_state['IsActSumReload'] = True
@@ -384,27 +490,39 @@ def App(UserAuthDict, SelectComp, SelectWell):
             ActSumAgridOut =(ActivitySummary.checkActSumDF(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"]))
             print(ActSumAgridOut.columns)
             if "ErrorWarning" in (ActSumAgridOut.columns):
-                with st.expander("Activity Summary Table Error"):
-                    st.markdown("Please Update the following row first")
+                st.warning("Found some Error")
+                with st.expander("Please Update the following row first"):
+                    # st.markdown("Please Update the following row first")
                     Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['ErrorWarning'].notna()], showWarning=True)
             else:
                 
                 st.session_state['ActSum'].Data = pd.concat([ActSumAgridOut_Firm,ActivitySummary.RecalculateActSum(ActSumAgridOut)])
-                st.session_state['IsRecalculate'] = True
+                st.session_state['IsActSumNoError'] = True
                 # st.stop()
-        if st.session_state['IsRecalculate']:
-            st.success("No Error Found")
-            st.button("save the Activity Summary", key="saveActSum", on_click=showPopupWindow)
-            st.download_button(
-                label="Download Activity Summary as CSV",
-                data=convert_df(st.session_state['ActSum'].Data),
-                file_name=SelectComp + "_"+ SelectWell + '_ActivitySummary.csv',
-                mime='text/csv',
-            )
+        ActSumButtonColumn = st.columns(8)
 
-
-
-            st.session_state['IsRecalculate'] = False
+        ActSumButtonColumn[0].button("save the Activity Summary", 
+                                key="saveActSum", 
+                                on_click=showPopupWindow, 
+                                disabled=(not st.session_state['IsActSumNoError']), 
+                                type='primary',
+                                help= ( 'click to save' if st.session_state['IsActSumNoError'] else 'please apply change first')
+                                )
+        ActSumButtonColumn[1].download_button(
+                                label="Download Activity Summary as CSV",
+                                data=convert_df(st.session_state['ActSum'].Data),
+                                file_name=SelectComp + "_"+ SelectWell + '_ActivitySummary.csv',
+                                mime='text/csv',
+                            )
+        if st.session_state['IsActSumNoError']:
+            st.success("No Error Found, Great Job!")
+            # st.download_button(
+            #     label="Download Activity Summary as CSV",
+            #     data=convert_df(st.session_state['ActSum'].Data),
+            #     file_name=SelectComp + "_"+ SelectWell + '_ActivitySummary.csv',
+            #     mime='text/csv',
+            # )
+            st.session_state['IsActSumNoError'] = False
             
                 # if not PopUpWindow.is_open():
                 #     PopUpWindow.open()
@@ -422,15 +540,15 @@ def App(UserAuthDict, SelectComp, SelectWell):
                 else:
                     Table.ActSumTableConfirmation_Agrid(ActSumAgridOut[ActSumAgridOut['status'] != "FIRM"])
                     PopUpWindowCol = st.columns(15)
-                    isActSumUploadConfirm = PopUpWindowCol[14].button("Confirm", key="ActSumUploadConfirm")
+                    isActSumUploadConfirm = PopUpWindowCol[14].button("Confirm", key="ActSumUploadConfirm", on_click=ConfirmToSave)
 
                 # // Table.ActSumTableConfirmation_Agrid(st.session_state['ActSumDF_Upload'])
-                    if isActSumUploadConfirm:
-                        st.success("The Activity Summary Table has already update")
-                        # cache_DomeGetData_ActivitySummary.clear()
-                        del st.session_state['ActSum']
-                        time.sleep(5)
-                        st.session_state['PopUpWindow'].close()
+                    # if isActSumUploadConfirm:
+                    #     st.success("The Activity Summary Table has already update")
+                    #     # cache_DomeGetData_ActivitySummary.clear()
+                    #     del st.session_state['ActSum']
+                    #     time.sleep(5)
+                    #     st.session_state['PopUpWindow'].close()
 
 
 
