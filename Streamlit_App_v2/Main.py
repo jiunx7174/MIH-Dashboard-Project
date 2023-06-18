@@ -52,6 +52,7 @@ st.set_page_config(page_title="Realtime Activity Mapping",initial_sidebar_state=
 # st.session_state['UserAuthDict'] = Authentification.getUserID()
 # UserAuthDict = st.session_state['UserAuthDict']
 st.session_state['QueryParams'] = st.experimental_get_query_params()
+st.write(st.session_state['QueryParams'])
 
 UserAuthDict = Authentification.getUserID(st.session_state['QueryParams'])
 if UserAuthDict['verification'] != 'verified':
