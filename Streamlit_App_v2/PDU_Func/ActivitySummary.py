@@ -316,6 +316,10 @@ class ActivitySummaryTable:
             self.Data['wid'] =  int(WellInfoDict['wid'])
             self.Data['status'] =  "FIRM"
             self.Data['LABEL_All'] = self.Data['LABEL_Activity'] + "--" + self.Data['LABEL_SubActivity']
+
+            isOverride = True
+        else:
+            isOverride = False
             # StartDateTime = self.Data['time_end'].max()
             # st.write(self.Data)
             # st.write(self.Data.dtypes)
@@ -337,15 +341,22 @@ class ActivitySummaryTable:
         #% labelling the activity data with the ActLogData
         # TODO if the ActivityLog_DF is outside the UserDateRange
         RTSensor_df = getActivityLabel(RTSensor_df, ActivityLog_DF, UserDateRange=UserDateRange)
+        # st.dataframe(RTSensor_df)
 
 
         #_________________________________________________
         #% apply the PDU mapping logic function
         RTSensor_df = getSubActivityLabel(RTSensor_df)
+        # st.dataframe(RTSensor_df)
+        # st.dataframe(RTSensor_df)
         #________________________________________________
         #% override the Realtime data, if exist
         # st.write(self.Data)
-        RTSensor_df = OverrideActivityLabel(RTSensor_df, self.Data, UserDateRange=UserDateRange)
+        if isOverride:
+            RTSensor_df = OverrideActivityLabel(RTSensor_df, self.Data, UserDateRange=UserDateRange)
+        else:
+            RTSensor_df['status'] = "REVIEW"
+
 
         #_________________________________________________
         #% group and aggregate the Realtime data into ActitivtySummaryTable, this function is categorized as lv.1 aggregate
@@ -1010,6 +1021,8 @@ def getActivityLabel (RTSensor_df, InputActivity_DB, UserDateRange="All"):
     # print(RTSensor_df['dt'].head(2))
     # print(RTSensor_df['dt'].tail(2))
     InputActivity_DB = InputActivity_DB.reset_index()
+    # st.write(InputActivity_DB)
+    # st.stop()
     # print('test')
 
     # RTSensor_df['PIC'] = ''
@@ -1050,7 +1063,9 @@ def getActivityLabel (RTSensor_df, InputActivity_DB, UserDateRange="All"):
         # print(RTSensor_df)
         RTSensor_df.loc[idx_logic, ("In-Slip Threshold")] = activity_label_temp
         ii = ii+1
-    
+    # st.write(idx_logic)
+    # st.write(start_time_temp)
+    # st.stop()
     return RTSensor_df
 
 def OverrideActivityLabel(RTSensor_df, ActSum_df, UserDateRange="All"):

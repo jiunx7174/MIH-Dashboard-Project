@@ -292,7 +292,7 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
                             }
     ActivityLogRowEmpty = {
                             'id':[1],
-                            'DateTime': [datetime.now()],
+                            'DateTime': UserDateRange['StartDate'].strftime('%Y-%m-%d') + UserDateRange['StartTime'].strftime('%H:%M:%S'),
                             'Date': UserDateRange['StartDate'].strftime('%Y-%m-%d'),
                             'Time': UserDateRange['StartTime'].strftime('%H:%M:%S'),
                             'Activity': ['N/A'],

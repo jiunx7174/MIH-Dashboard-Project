@@ -101,6 +101,12 @@ if SelectComp != '-':
         else:
             Welcome.App()
             st.stop()
+    else:
+        Welcome.App()
+        st.stop()
+else:
+    Welcome.App()
+    st.stop()
 
 # if SelectComp == '-':
 #     Welcome.App()
