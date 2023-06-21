@@ -128,6 +128,8 @@ def cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange):
 # @st.cache_data
 def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df):
     print("Get ActSum Data")
+    ActivityLog_DF['DateTime'] = ActivityLog_DF['Date'] + " " + ActivityLog_DF['Time']
+    
     ActSumData= ActivitySummary.ActivitySummaryTable(WellInfoDict, UserDateRange)
         
             # generate both of FIRM and REVIEW ActSum
@@ -187,7 +189,13 @@ def initiateSession(WellInfoDict):
 
 
 def updateActivityLog(WellInfoDict,UpdateActivityLog_DF,UserDateRange):
+    try:
+        UpdateActivityLog_DF['DateTime'] = UpdateActivityLog_DF['Date'] + " " + UpdateActivityLog_DF['Time']
+    except:
+        pass
+    # st.write(UpdateActivityLog_DF)
     with st.spinner("Communicate with the server"):
+        UpdateActivityLog_DF
         InputActivity_DB = (IO_Data.DomeGetData(WellInfoDict, UserDateRange,table_type="ActivityLogTable"))
         print(InputActivity_DB)
         ## Delete
@@ -452,8 +460,11 @@ def App(UserAuthDict, SelectComp, SelectWell):
   
             
             isActLogApply = st.form_submit_button("apply")
+        
         # st.stop()
         if isActLogApply:
+            # st.write(ActivityLog_DF)
+            # st.stop()
             updateActivityLog(WellInfoDict,ActivityLog_DF,ExtendDateTime(UserDateRange.copy()))
             # cache_DomeGetData_ActivityLog.clear()
             del st.session_state['ActLogDF']
@@ -471,7 +482,6 @@ def App(UserAuthDict, SelectComp, SelectWell):
         print(UserDateRange)
         print("-----")
         
-        # st.write(ActivityLog_DF)
         # st.write(cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange))
 
         #######
