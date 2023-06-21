@@ -29,7 +29,10 @@ def getColumnRename(Table='ActivityLogTable', scheme="API_To_DF"):
 # @st.cache_resource
 def getAvailableCompanyDF(UserAuthDict):
     UserAuthDict = UserAuthDict['data']
-    GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserAuthDict["user_cid"]
+    if UserAuthDict["user_cid"]==1:
+        GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" 
+    else :
+        GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserAuthDict["user_cid"]
     # st.text(GetCompAPI)
     CompName_JSON = requests.get(GetCompAPI).json()  
 
@@ -364,7 +367,7 @@ def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
         # print((response.json()))
         ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
         ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict, inplace = True)
-        ActivitySummary_DF = ActivitySummary_DF.sort_values(by='StartDateTime')
+        
 
 
         

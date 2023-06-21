@@ -205,6 +205,7 @@ class ActivitySummaryTable:
             self.Data['wid'] =  int(WellInfoDict['wid'])
             self.Data['status'] =  "FIRM"
             self.Data['LABEL_All'] = self.Data['LABEL_Activity'] + "--" + self.Data['LABEL_SubActivity']
+            
             # StartDateTime = self.Data['time_end'].max()
             # st.write(self.Data)
             # st.write(self.Data.dtypes)
@@ -310,6 +311,7 @@ class ActivitySummaryTable:
         # TODO, if we want to fill out a "Gap" ActSumTable case
 
         if list(temp_ActSum_df.columns) != []:
+            temp_ActSum_df = temp_ActSum_df.sort_values(by='StartDateTime')
             self.Data[list(temp_ActSum_df.columns)] = temp_ActSum_df[list(temp_ActSum_df.columns)]
             self.Data['wid'] =  int(WellInfoDict['wid'])
             self.Data['status'] =  "FIRM"
