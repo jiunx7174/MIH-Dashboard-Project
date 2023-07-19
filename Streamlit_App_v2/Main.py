@@ -55,6 +55,7 @@ st.session_state['QueryParams'] = st.experimental_get_query_params()
 # st.write(st.session_state['QueryParams'])
 
 UserAuthDict = Authentification.getUserID(st.session_state['QueryParams'])
+
 if UserAuthDict['verification'] != 'verified':
     PageNotFound.App()
     st.stop()
@@ -83,6 +84,7 @@ SidebarContainer = st.sidebar.container()
 
 # with SidebarContainer:
 AvailComp_DF = IO_Data.getAvailableCompanyDF(UserAuthDict)
+
 SelectComp = SidebarContainer.selectbox("Select Company",['-'] + AvailComp_DF['company_name'].tolist(), key='SelectCompany')
 
 # st.dataframe( IO_Data.getAvailableCompanyDF(UserAuthDict))

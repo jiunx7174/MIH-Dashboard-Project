@@ -29,7 +29,7 @@ def getColumnRename(Table='ActivityLogTable', scheme="API_To_DF"):
 # @st.cache_resource
 def getAvailableCompanyDF(UserAuthDict):
     UserAuthDict = UserAuthDict['data']
-    if UserAuthDict["user_cid"]==1:
+    if UserAuthDict["user_cid"]=='1':
         GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" 
     else :
         GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserAuthDict["user_cid"]
