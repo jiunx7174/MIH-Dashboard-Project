@@ -380,7 +380,23 @@ def App(UserAuthDict, SelectComp, SelectWell):
     )
     # st.session_state['WellInfoDict'] = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
+    
+    # ActivateDate = (WellInfoDict['ActiveDate'])
+    # ActivateDate =
+    ActivateDate = datetime.strptime(WellInfoDict['ActiveDate'], '%Y-%m-%d').strftime('%d-%m-%Y')
 
+    if datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d') > datetime.today():
+        EndDate = datetime.today().strftime('%d-%m-%Y')
+    else:
+        EndDate = datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d').strftime('%d-%m-%Y')
+        
+
+
+# Compare the dates
+# if EndDate_datetime < datetime.today():
+#     if datetime.today().strftime('%Y-%m-%d')
+    # 'ActiveDate':WellActiveDate,
+    # 'EndDate':WellEndDate
     # UserAuthDict = st.session_state['UserAuthDict']
     # WellInfoDict = st.session_state['WellInfoDict']
     # st.json(UserAuthDict)
@@ -406,7 +422,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
         UserDateRange = {
         "StartDate":(DateCol.date_input(
             "Start Date",
-            value = datetime.strptime('31-07-2021', '%d-%m-%Y').date(),
+            value = datetime.strptime(ActivateDate, '%d-%m-%Y').date(),
             key="StartDateValues"
             )),
 
@@ -416,7 +432,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
             key="StartTimeValues")),
         "EndDate":(DateCol.date_input(
             "End Date",
-            value = datetime.strptime('01-08-2021', '%d-%m-%Y').date(),
+            value = datetime.strptime(EndDate, '%d-%m-%Y').date(),
             key="EndDateValues")),
         "EndTime":(TimeCol.time_input(
             "End Time",
