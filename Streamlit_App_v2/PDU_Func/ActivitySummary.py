@@ -343,12 +343,12 @@ class ActivitySummaryTable:
         RTSensor_df = getActivityLabel(RTSensor_df, ActivityLog_DF, UserDateRange=UserDateRange)
         # st.dataframe(RTSensor_df)
 
-
         #_________________________________________________
         #% apply the PDU mapping logic function
         RTSensor_df = getSubActivityLabel(RTSensor_df)
         # st.dataframe(RTSensor_df)
         # st.dataframe(RTSensor_df)
+        # st.stop()
         #________________________________________________
         #% override the Realtime data, if exist
         # st.write(self.Data)
@@ -361,7 +361,9 @@ class ActivitySummaryTable:
         #_________________________________________________
         #% group and aggregate the Realtime data into ActitivtySummaryTable, this function is categorized as lv.1 aggregate
         ActSum_df = getGroupDuration_v2(RTSensor_df, DrillActivityList='default')
+        # RTSensor_df.to_csv("RealtimeOut.csv")
         # st.write(ActSum_df)
+        # st.stop()
 
 
         #_________________________________________________
@@ -372,7 +374,7 @@ class ActivitySummaryTable:
         # label the group stand, this function are useful to determine the lv.2 aggregate
         ActSum_df = getStandLabel(ActSum_df)
         ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        ActSum_df['EndDateTime'] = (ActSum_df['EndDateTime']+ pd.Timedelta(seconds=5)).dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
         ActSum_df['wid'] =  int(WellInfoDict['wid'])
@@ -515,14 +517,24 @@ def getStandLabel(ActSum_df):
 
 # TODO, plot the comparison result of cleanFalseSensor Algorithm using _plotFalseSensor()
 def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=1, includeStatus=False):
+    st.write('clean')
     if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
         ActSum_df['LABEL_ConnectionActivity']  = ''
     # ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('-')
+
+    # Set the Duration==0 to FALSE/Check
+    # ActSum_df.loc[, 'LABEL_SubActivity'] = "Look and define"
+
+    ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
     for iter in range(CleaningIteration):
         ActSum_df = ActSum_df.reset_index(drop=True)
         # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
+        lookdefine_logic = ActSum_df['LABEL_SubActivity']=="Look and define"
+        falsecheck_logic = ActSum_df['LABEL_SubActivity']=="FALSE/Check"
+        duration_logic = (ActSum_df['Duration'] <= float(MinuteTolerances))
+        
         idx_same = ActSum_df.index[
-            ((ActSum_df['LABEL_SubActivity']=="Look and define") | (ActSum_df['LABEL_SubActivity']=="FALSE/Check")) & (ActSum_df['Duration'] <= MinuteTolerances)
+            (lookdefine_logic | falsecheck_logic) & duration_logic
             ]
         idx_before = idx_same - 1
 
@@ -820,6 +832,7 @@ def getGroupDuration_v2(RTSensor_df , DrillActivityList='default'):
         # 'Remarks': 'str',
         # 'Section': 'str'})
         #     # )
+    
     return ActSum_df
     # RTSensor_df = Activity.GetActivity_DF(Activity_DF, Input_Temp)
 
@@ -867,7 +880,7 @@ def getSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivityLi
 
     if OverrideActivityList=='default':
         OverrideActivityList = ['CEMENTING JOB', 'CONNECTION', 'LAY DOWN BHA', 'MAKE UP BHA', 'NPT', 'N/D BOP', 
-                                'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR',]
+                                'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR','N/A']
 
     logic_status = 0
     RTSensor_df["SubActivity"] = "FALSE/Check"
@@ -1099,9 +1112,10 @@ def OverrideActivityLabel(RTSensor_df, ActSum_df, UserDateRange="All"):
 def _first_non_empty(x):
     non_empty_values = x[x != ''].tolist()
     return non_empty_values[0] if non_empty_values else ''
-def RecalculateActSum(ActSum_df,IsStatusOverride=True):
+def RecalculateActSum(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, CleaningIteration=1, includeStatus=False):
     ActSum_df = ActSum_df.reset_index(drop=True)
-
+    wid = ActSum_df['wid'][0]
+    status = ActSum_df['status']
     ConversionDict = _ActivitySummaryColumnRenameDict()
     if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
         ActSum_df['LABEL_ConnectionActivity']  = '-'
@@ -1125,18 +1139,19 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     
     ActSum_df['LABEL_All'] = ActSum_df['LABEL_All'].astype(object)
     # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
-    idx_same = ActSum_df.index[
-        ((ActSum_df['LABEL_SubActivity']=="Look and define") | (ActSum_df['LABEL_SubActivity']=="FALSE/Check")) & (ActSum_df['Duration'] <= 1)
-        ]
-    idx_before = idx_same - 1
+    # idx_same = ActSum_df.index[
+    #     ((ActSum_df['LABEL_SubActivity']=="Look and define") | (ActSum_df['LABEL_SubActivity']=="FALSE/Check")) & (ActSum_df['Duration'] <= 1)
+    #     ]
+    # idx_before = idx_same - 1
 
-    idx_same = idx_same[idx_before>=0]
-    idx_before = idx_before[idx_before>=0]
+    # idx_same = idx_same[idx_before>=0]
+    # idx_before = idx_before[idx_before>=0]
     
-    ActSum_df.loc[idx_same, 'LABEL_SubActivity'] = ActSum_df.loc[idx_before, 'LABEL_SubActivity'].values
-    ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
-
-
+    # ActSum_df.loc[idx_same, 'LABEL_SubActivity'] = ActSum_df.loc[idx_before, 'LABEL_SubActivity'].values
+    # ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
+    ActSum_df = cleanFalseSensor(ActSum_df, MinuteTolerances=MinuteTolerances, CleaningIteration=CleaningIteration, includeStatus=includeStatus)
+    ActSum_df['wid'] = wid
+    ActSum_df['status'] = status
     # if IsStatusOverride:
         # st.write("true")
     ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
@@ -1192,6 +1207,79 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True):
     #     # pass
 
 
+    #_________________________________________________
+    # label the group stand, this function are useful to determine the lv.2 aggregate
+    ActSum_df = getStandLabel(ActSum_df)
+    ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    ActSum_df['EndDateTime'] = (ActSum_df['EndDateTime']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    ActSum_df['Date'] = ActSum_df['Date'].dt.date.astype(str)
+    
+
+
+    # ActSum_df['wid'] =  int(WellInfoDict['wid'])
+
+    if IsStatusOverride:
+        ActSum_df['status'] =  "REVIEW"
+
+    return ActSum_df
+    # self.Data= pd.concat([self.Data, ActSum_df])
+def RecalculateActSum_v2(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, CleaningIteration=1, includeStatus=False):
+    ActSum_df = ActSum_df.reset_index(drop=True)
+    wid = ActSum_df['wid'][0]
+    status = ActSum_df['status']
+    ConversionDict = _ActivitySummaryColumnRenameDict()
+    if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
+        ActSum_df['LABEL_ConnectionActivity']  = '-'
+    ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('')
+    ActSum_df = ActSum_df.astype(ConversionDict['DataTypeDict'])
+    
+    # ActivitySummaryColumnRenameDict = _ActivitySummaryColumnRenameDict()
+    # ActSum_df = ActSum_df[ActivitySummaryColumnRenameDict['ColumnName'].values]
+
+    # ActSum_df['Date'] = ActSum_df['Date'].astype('datetime64[ns]')
+    # ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].astype('datetime64[ns]')
+    # ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].astype('datetime64[ns]')
+    # ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
+    # ActSum_df['Hole_Depth_max'] = ActSum_df['Hole_Depth_max'].astype('float')
+    # ActSum_df['Bit_Depth_avg'] = ActSum_df['Bit_Depth_avg'].astype('float')
+
+
+
+
+    ActSum_df['LABEL_All'] = ActSum_df['LABEL_Activity'] + '--' + ActSum_df['LABEL_SubActivity']
+    
+    ActSum_df['LABEL_All'] = ActSum_df['LABEL_All'].astype(object)
+
+    ActSum_df = cleanFalseSensor(ActSum_df, MinuteTolerances=MinuteTolerances, CleaningIteration=CleaningIteration, includeStatus=includeStatus)
+    ActSum_df['wid'] = wid
+    ActSum_df['status'] = status
+    # if IsStatusOverride:
+        # st.write("true")
+    ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
+    {
+    'wid':'first',
+    'Date': 'max',
+    'StartDateTime': 'min',
+    'EndDateTime': 'max',
+    'Duration': 'sum',
+    'Hole_Depth_max': 'max',
+    'Bit_Depth_avg': 'mean',
+    'DrillingMeterage': 'sum',
+    'RotateDrillingDuration': 'sum',
+    'SlideDrillingDuration': 'sum',
+    'ReamingDuration': 'sum',
+    'ConnectionDuration': 'sum',
+    'LABEL_SubActivity': 'first',
+    'LABEL_Activity': 'first',
+    'LABEL_All': 'first',
+    'LABEL_ConnectionActivity': _first_non_empty,
+    'PIC': 'first',
+    'InSlip_Treshold': 'first',
+    'Remarks': 'first',
+    'status':'first',
+    'Section': 'first'}
+    )
+ 
     #_________________________________________________
     # label the group stand, this function are useful to determine the lv.2 aggregate
     ActSum_df = getStandLabel(ActSum_df)

@@ -467,7 +467,25 @@ def splitDateTime(UserDateRange, hours=0.5):
 #     Activity_DF['rpm'] = Activity_DF['rpm'].astype('float64')
 #     Activity_DF['stppress'] = Activity_DF['stppress'].astype('float64')
 #     Activity_DF['mudflowin'] = Activity_DF['mudflowin'].astype('float64')
+def interpolateRealtimeData(realtimeraw):
+    realtimeraw['dt'] = pd.to_datetime(realtimeraw['dt'], format='%Y-%m-%d %H:%M:%S')
+    realtimeraw['dt_relative'] = (realtimeraw['dt'] - realtimeraw['dt'].min()).dt.total_seconds()
+    finalRealtime = pd.DataFrame(
+    {
+        'dt':pd.date_range(start=realtimeraw['dt'].min(), end=realtimeraw['dt'].max(), freq='5S'),
+    }
+    )
+    finalRealtime['date'] = finalRealtime['dt'].dt.date
+    finalRealtime['time'] = finalRealtime['dt'].dt.time
+    finalRealtime['dt_relative'] = (finalRealtime['dt'] - finalRealtime['dt'].min()).dt.total_seconds()
 
+    list_cols = ["bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin"]
+
+    for cols in list_cols:
+        realtimeraw[cols] = realtimeraw[cols].astype(float)
+        finalRealtime[cols] = np.interp(finalRealtime['dt_relative'], realtimeraw['dt_relative'].values, realtimeraw[cols])
+    finalRealtime = finalRealtime.drop('dt_relative',axis=1)
+    return finalRealtime
 def DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange, hours=0.5):
     UserDateRange = {
             "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
@@ -530,4 +548,4 @@ def DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange, hours=0.5):
     print( np.mean(time_elapsed))
     my_bar.progress(1.0)
     ProgressContainer.empty()
-    return filtered_DF[column_list]
+    return interpolateRealtimeData(filtered_DF[column_list])

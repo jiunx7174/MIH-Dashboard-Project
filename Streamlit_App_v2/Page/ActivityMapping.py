@@ -134,7 +134,7 @@ def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF
         
             # generate both of FIRM and REVIEW ActSum
     # ActSumData.getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
-    ActSumData.getActivitySummary_v2(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
+    ActSumData.getActivitySummary_v2(ActivityLog_DF, RTSensor_df, MinuteTolerances=0.5, CleaningIteration=1)
     return ActSumData
 
 def AllDateTime():
@@ -162,6 +162,8 @@ def IsSubmitFormTrue():
 def ActSumClear():
     if ("ActSum" in st.session_state):
         del st.session_state["ActSum"]
+    if ("actsumtable_v2" in st.session_state):
+        del st.session_state["actsumtable_v2"]
 def ActLogClear():
     if ("ActLogDF" in st.session_state):
         del st.session_state["ActLogDF"]
@@ -504,13 +506,17 @@ def App(UserAuthDict, SelectComp, SelectWell):
         ## ActSumTable
         #######
         if 'ActSum' not in st.session_state:
+            st.success('Calculate Activity Summary Successr')
             st.session_state['ActSum'] = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
             st.session_state['IsActSumReload'] = True
             st.session_state['isActSumApply'] = False
+        
         # else:
         #     st.session_state['IsActSumReload'] = False
 
         ActSumData = st.session_state['ActSum']
+        # st.write('ActSumData.Data')
+        # st.write(ActSumData.Data)
 
         
         if not st.session_state['PopUpWindow'].is_open():
@@ -531,7 +537,11 @@ def App(UserAuthDict, SelectComp, SelectWell):
             # ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=st.session_state['IsActSumReload'])['data'])
             # ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.getActivitySummary_v2(ActivityLog_DF, RTSensor_df), reload=st.session_state['IsActSumReload'], key='actsumtable_v2')['data'])
             ActSumAgridOut = pd.DataFrame(Table.ActSumTable_Agrid(ActSumData.Data, reload=st.session_state['IsActSumReload'], key='actsumtable_v2')['data'])
-            ActSumAgridOut = ActivitySummary.RecalculateActSum(ActSumAgridOut, IsStatusOverride=False)
+            # st.write('ActSumAgridOut')
+            # st.write(ActSumAgridOut)
+            ActSumAgridOut = ActivitySummary.RecalculateActSum(ActSumAgridOut, IsStatusOverride=False,MinuteTolerances=0.5, CleaningIteration=1, includeStatus=False)
+            # st.write('ActSumAgridOutRecalculate')
+            # st.write(ActSumAgridOut)
             st.session_state['ActSum'].Data = ActSumAgridOut
             # st.write("---")
             isActSumApply = st.form_submit_button("apply")
@@ -575,6 +585,12 @@ def App(UserAuthDict, SelectComp, SelectWell):
                                 label="Download Activity Summary as CSV",
                                 data=convert_df(st.session_state['ActSum'].Data),
                                 file_name=SelectComp + "_"+ SelectWell + '_ActivitySummary.csv',
+                                mime='text/csv',
+                            )
+        ActSumButtonColumn[2].download_button(
+                                label="Download Raw Realtime 5s as CSV",
+                                data=convert_df(RTSensor_df),
+                                file_name=SelectComp + "_"+ SelectWell + '_RawREaltime5s.csv',
                                 mime='text/csv',
                             )
         if st.session_state['IsActSumNoError']:
