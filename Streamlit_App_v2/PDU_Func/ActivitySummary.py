@@ -742,7 +742,8 @@ def getGroupDuration_v2(RTSensor_df , DrillActivityList='default'):
         status_data = DF_Temp['status'].iloc[0]
 
         # Duration(minutes)
-        Duration = (EndDateTime-StartDateTime).total_seconds() / 60.0 
+        # the duration should add 5 second to compensate the delta 5s
+        Duration = (((EndDateTime-StartDateTime).total_seconds()+5) / 60.0 )
 
 
         Hole_Depth_Temp = DF_Temp['md'].max()
@@ -1223,13 +1224,15 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, Cleani
 
     return ActSum_df
     # self.Data= pd.concat([self.Data, ActSum_df])
-def RecalculateActSum_v2(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, CleaningIteration=1, includeStatus=False):
+def RecalculateActSum_v2(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, CleaningIteration=1, includeStatus=False, DrillActivityList='default'):
     ActSum_df = ActSum_df.reset_index(drop=True)
     wid = ActSum_df['wid'][0]
     status = ActSum_df['status']
     ConversionDict = _ActivitySummaryColumnRenameDict()
     if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
         ActSum_df['LABEL_ConnectionActivity']  = '-'
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
     ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('')
     ActSum_df = ActSum_df.astype(ConversionDict['DataTypeDict'])
     
@@ -1280,6 +1283,13 @@ def RecalculateActSum_v2(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, Cle
     'Section': 'first'}
     )
  
+    for LabelName,ColName in zip(
+        ["Rotary Drilling", "Slide Drilling", "Reaming","Connection"],
+        ['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration','ConnectionDuration']
+    ):
+        
+        ActSum_df.loc[ActSum_df['LABEL_SubActivity'] == LabelName, ColName] = ActSum_df.loc[ActSum_df['LABEL_SubActivity'] == LabelName, 'Duration']
+
     #_________________________________________________
     # label the group stand, this function are useful to determine the lv.2 aggregate
     ActSum_df = getStandLabel(ActSum_df)
@@ -1287,6 +1297,18 @@ def RecalculateActSum_v2(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, Cle
     ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     ActSum_df['Date'] = ActSum_df['Date'].dt.date.astype(str)
     
+    #TODO 
+    # 'Duration': 'sum',
+    # 'Bit_Depth_avg': 'mean',
+    # 'RotateDrillingDuration': 'sum',
+    # 'SlideDrillingDuration': 'sum',
+    # 'ReamingDuration': 'sum',
+    # 'ConnectionDuration': 'sum',
+    # the aggregation above should be recalculate
+    # ActSum_df
+
+
+ 
 
 
     # ActSum_df['wid'] =  int(WellInfoDict['wid'])
@@ -1336,7 +1358,10 @@ def UploadActivitySummary(ActSumdf, progressbar=False):
 
     # IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
 
-
+def ReAverage(AverageA,CountA,AverageB,CountB):
+    TotalSumA = AverageA * CountA
+    TotalSumB = AverageB * CountB
+    return (TotalSumA + TotalSumB )/(CountA + CountB)
 
 
 
