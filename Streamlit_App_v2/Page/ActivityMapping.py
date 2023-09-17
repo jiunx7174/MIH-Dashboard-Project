@@ -154,10 +154,32 @@ def ExtendDateTime(DateRange):
     # DateRange['EndDate'] = DateRange['EndDate'] - timedelta(days=1)
 
     return DateRange
-def IsSubmitFormTrue():
-    st.session_state['IsFormSubmit'] = True
-    ActSumClear()
-    ActLogClear()
+def IsSubmitFormTrue(UserDateRange):
+    start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+    end_datetime = datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
+    time_difference = end_datetime - start_datetime
+    time_difference = np.round(time_difference.total_seconds() / 3600,2)
+    if start_datetime > end_datetime:
+        st.error(
+            "[ERROR] TIME INTERVAL: Start Date-Time is earlier than End Date-Time, please check the Time interval input "
+        )
+        # time.sleep(2)
+        # st.experimental_rerun()
+    else:
+        
+        if  time_difference > (3*24):
+            # total_hours = np.round(time_difference.total_seconds() / 3600,2)
+            st.error(
+                f"[ERROR] TIME INTERVAL: The selected interval is {time_difference} Hours, the current limit is 72 Hours(3 Days)"
+            )
+            # time.sleep(2)
+            # st.experimental_rerun()
+        else:
+
+            st.session_state['IsFormSubmit'] = True
+
+            ActSumClear()
+            ActLogClear()
 
 def ActSumClear():
     if ("ActSum" in st.session_state):
@@ -444,9 +466,10 @@ def App(UserAuthDict, SelectComp, SelectWell):
         # st.json(UserDateRange)
 
 
-        st.form_submit_button(on_click=IsSubmitFormTrue)
+        st.form_submit_button(on_click=IsSubmitFormTrue, args=(UserDateRange,))
 
     # print(st.session_state['UserDateRange'])
+
 
     # st.json(UserDateRange)
     
@@ -506,7 +529,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
         ## ActSumTable
         #######
         if 'ActSum' not in st.session_state:
-            st.success('Calculate Activity Summary Successr')
+            st.success('Auto Activity Mapping successfully generated!')
             st.session_state['ActSum'] = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
             st.session_state['IsActSumReload'] = True
             st.session_state['isActSumApply'] = False
@@ -572,7 +595,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
                 # st.session_state['ActSum'].Data = pd.concat([ActSumAgridOut_Firm,ActivitySummary.RecalculateActSum(ActSumAgridOut)])
                 st.session_state['IsActSumNoError'] = True
                 # st.stop()
-        ActSumButtonColumn = st.columns(8)
+        ActSumButtonColumn = st.columns(6)
 
         ActSumButtonColumn[0].button("save the Activity Summary", 
                                 key="saveActSum", 

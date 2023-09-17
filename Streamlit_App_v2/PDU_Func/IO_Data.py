@@ -251,7 +251,7 @@ def DomeDeleteData(dict_row, table_type="ActivityLogTable"):
         pass
 
 
-def DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"):
+def DomeGetData(WellInfoDict, UserDateRange, StartTimeExtend = None, EndTimeExtend = None, table_type="ActivityLogTable"):
     # TODO: simplify the column name in activity log, make it only 2 type colname, for calculation and display
     # st.write(1)
     # st.write(UserDateRange)
@@ -504,7 +504,8 @@ def DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange, hours=0.5):
     StartEndList=list(zip(StartDateTimeList,EndDateTimeList))
     ProgressContainer = st.empty()
     my_bar = ProgressContainer.progress(0.0,)
-
+    max_retries=10
+    retry_delay = 5
     for ii in range(len((StartEndList))):
         my_bar.progress(np.round(ii/len(StartEndList),2), text=f"Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
         StartDateTime,EndDateTime = StartEndList[ii]
@@ -518,23 +519,50 @@ def DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange, hours=0.5):
         # st.text(Data_params)
         # if ii>5:
         #     st.stop()
-        WellData = json.loads((
-            (
-                # requests.get("https://pdumitradome.id/dome_api/rtdc/rtdc/get_data", data=json.dumps(Data_params))
-                requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
-            ).text
-        ))
-        if WellData['status'] != 200:
-            raise KeyError (WellData['message'])
+        for attempt in range(max_retries):
+            try:
+                response = requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
+                response.raise_for_status()  # Raise an exception for non-2xx status codes
+                WellData = json.loads(response.text)
+
+                if WellData['status'] != 200:
+                    raise KeyError(WellData['message'])
+
+                Realtime_DF_temp = pd.json_normalize(WellData, record_path='result')
+                try:
+                    Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
+                    Realtime_List.append(Realtime_DF_temp)
+                except Exception as e:
+                    print("error")
+                    print(e)
+                    print(Realtime_DF_temp)
+                break  # Break out of the retry loop if successful
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed with error: {str(e)}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    print("Max retries reached. Exiting.")
+                    # Handle the failure or raise an exception if needed
+
+        # WellData = json.loads((
+        #     (
+        #         # requests.get("https://pdumitradome.id/dome_api/rtdc/rtdc/get_data", data=json.dumps(Data_params))
+        #         requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
+        #     ).text
+        # ))
+        # if WellData['status'] != 200:
+        #     raise KeyError (WellData['message'])
         
-        Realtime_DF_temp = pd.json_normalize((WellData), record_path='result')
-        try:
-            Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
-            Realtime_List.append(Realtime_DF_temp)
-        except Exception as e:
-            print("error")
-            print(e)
-            print(Realtime_DF_temp)
+        # Realtime_DF_temp = pd.json_normalize((WellData), record_path='result')
+        # try:
+        #     Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
+        #     Realtime_List.append(Realtime_DF_temp)
+        # except Exception as e:
+        #     print("error")
+        #     print(e)
+        #     print(Realtime_DF_temp)
         loopEndTime = time.time()
         i=i+1
         time_elapsed.append(loopEndTime-loopStartTime)
