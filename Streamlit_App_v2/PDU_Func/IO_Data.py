@@ -147,58 +147,64 @@ def DomeCreateTable(wid: int, table_type: str="ActivityLogTable"):
     
 def DomeInsertData(dict_row, table_type="ActivityLogTable"):
     # time.sleep(0.1)
-    print("add new data to " + table_type)
-    if table_type=="ActivityLogTable":
-        AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/create"
-        error_msg = ""
-        keys_list = ["wid", "dt", "date", "time", "activity",
-                            "in_slip_threshold", "remarks", "pic", "section"]
-        
-        for keys_name in keys_list:
-            if keys_name not in dict_row.keys():
-                error_msg = error_msg + keys_name + ", "
-        if error_msg == "":
-            json_queries = json.dumps(
-                dict_row,
-                indent = 4
-            )
-            print(json_queries)
-            response = (
-                requests.post(
-                    AddRowAPI, data=json_queries 
-                )
-            )
-            
-            return dict(response.json())
-        else:
-            return error_msg
-    elif table_type=="ActivitySummaryTable":
-        AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/create"
-        error_msg = ""
-        keys_list = ['wid', 'date', 'time_start', 'time_end', 'duration_minutes', 'hole_depth', 
-                        'bit_depth', 'meterage_drilling', 'rotate_drilling_time', 'slide_drilling_time', 
-                        'reaming_time', 'connection_time', 'on_bottom_hours', 'stand_duration', 'label_subactivity', 
-                        'label_activity', 'stand_meterage_drilling', 'stand_durationx', 'stand_on_bottom', 'pic', 
-                        'section', 'remark', 'stand_group']
-        
-        for keys_name in keys_list:
-            if keys_name not in dict_row.keys():
-                error_msg = error_msg + keys_name + ", "
-        print(dict_row)
-        if error_msg == "":
-            json_queries = json.dumps(
-                dict_row,
-                indent = 4
-            )
-            response = (
-                requests.post(
-                    AddRowAPI, data=json_queries 
-                )
-            )
-            # print(response)
-            return dict(response.json())
-        else:
-            return error_msg
+    for trial in range(5):
+        try:
+            print("add new data to " + table_type)
+            if table_type=="ActivityLogTable":
+                AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/create"
+                error_msg = ""
+                keys_list = ["wid", "dt", "date", "time", "activity",
+                                    "in_slip_threshold", "remarks", "pic", "section"]
+                
+                for keys_name in keys_list:
+                    if keys_name not in dict_row.keys():
+                        error_msg = error_msg + keys_name + ", "
+                if error_msg == "":
+                    json_queries = json.dumps(
+                        dict_row,
+                        indent = 4
+                    )
+                    print(json_queries)
+                    response = (
+                        requests.post(
+                            AddRowAPI, data=json_queries 
+                        )
+                    )
+                    
+                    return dict(response.json())
+                else:
+                    return error_msg
+            elif table_type=="ActivitySummaryTable":
+                AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/create"
+                error_msg = ""
+                keys_list = ['wid', 'date', 'time_start', 'time_end', 'duration_minutes', 'hole_depth', 
+                                'bit_depth', 'meterage_drilling', 'rotate_drilling_time', 'slide_drilling_time', 
+                                'reaming_time', 'connection_time', 'on_bottom_hours', 'stand_duration', 'label_subactivity', 
+                                'label_activity', 'stand_meterage_drilling', 'stand_durationx', 'stand_on_bottom', 'pic', 
+                                'section', 'remark', 'stand_group']
+                
+                for keys_name in keys_list:
+                    if keys_name not in dict_row.keys():
+                        error_msg = error_msg + keys_name + ", "
+                print(dict_row)
+                if error_msg == "":
+                    json_queries = json.dumps(
+                        dict_row,
+                        indent = 4
+                    )
+                    response = (
+                        requests.post(
+                            AddRowAPI, data=json_queries 
+                        )
+                    )
+                    # print(response)
+                    return dict(response.json())
+                else:
+                    return error_msg
+            break
+        except:
+            time.sleep(0.5)
+            pass
 
 
 def DomeDeleteData(dict_row, table_type="ActivityLogTable"):
@@ -273,7 +279,7 @@ def DomeGetData(WellInfoDict, UserDateRange, StartTimeExtend = None, EndTimeExte
                             "label_activity":"LABEL_Activity",
                             "stand_meterage_drilling":"DrillingMeteragePerStand",
                             "stand_durationx":"InSlip_Treshold",
-                            "stand_on_bottom":"LABEL_ConnectionActivity",
+                            "connection_activity":"LABEL_ConnectionActivity",
                             "pic":"PIC",
                             "section":"Section",
                             "remark":"Remarks",
@@ -359,6 +365,7 @@ def DomeGetData(WellInfoDict, UserDateRange, StartTimeExtend = None, EndTimeExte
             },
             indent = 4
         )
+
         response = (
             requests.get(
                 TableAPI, data=json_queries
@@ -370,8 +377,6 @@ def DomeGetData(WellInfoDict, UserDateRange, StartTimeExtend = None, EndTimeExte
         
 
 
-        
-        
         
         return ActivitySummary_DF
 
@@ -440,6 +445,34 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
     mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
     filtered_DF = Realtime_DF[mask]
     return filtered_DF[column_list]
+def DomeGetLastStandNumber(wid, SectionSize, BeforeDate):
+    RequestDict = {
+	"wid":int(wid),
+	"section":str(SectionSize),
+	"DateTime_Before":str(BeforeDate)
+    }
+    # st.write(RequestDict)
+    DomeGetLastStandAPI = "http://khansadev.xyz/dome_api/rtdc/get_Last_LabelStand"
+    # DomeGetLastStandAPI = "https://pdumitradome.id/dome_api/rtdc/get_Last_LabelStand"
+    # DomeGetLastStandAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/create"
+    json_queries = json.dumps(
+        RequestDict,
+        indent = 4
+    )
+
+    response = (
+        requests.post(
+            DomeGetLastStandAPI, data=json_queries 
+        )
+    )
+    if response.json()['result'] != None:
+        try:
+            return int(response.json()['result']['stand_group'].split('-')[-1])
+        except:
+            return 0
+    else:
+        return None
+
 
 def splitDateTime(UserDateRange, hours=0.5):
     startDateTimeStr = UserDateRange['StartDate'] + ' ' + UserDateRange['StartTime']

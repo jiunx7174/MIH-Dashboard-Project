@@ -51,6 +51,7 @@ def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange):
     return ActSumData.Data
 def refreshAll():
     cache_DomeGetData_ActivityLog.clear()
+    st.session_state['IsReloadActSumTable'] = True
     if 'ActSum_df_Database' not in st.session_state:
         del st.session_state['ActSum_df_Database'] 
 
@@ -128,6 +129,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
         # active_color="#11567f",  # optional
         # track_color="#29B5E8",  # optional
     )
+
     if IsActSumDelete:
         with st.form("ActSum"):
             Out = Table.ActSumTableDatabase_Agrid(st.session_state['ActSum_df_Database'], reload=st.session_state['IsReloadActSumTable'],)

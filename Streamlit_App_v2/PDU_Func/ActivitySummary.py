@@ -104,7 +104,7 @@ def _ActivitySummaryColumnRenameDict():
                             "stand_meterage_drilling":"DrillingMeteragePerStand",
                             "stand_durationx":"InSlip_Treshold",
                             # "stand_on_bottom":"OnBottomDurationPerStand",
-                            "stand_on_bottom":"LABEL_ConnectionActivity",
+                            "connection_activity":"LABEL_ConnectionActivity",
                             "pic":"PIC",
                             "section":"Section",
                             "remark":"Remarks",
@@ -352,6 +352,7 @@ class ActivitySummaryTable:
         # get the realtime data
         # RTSensor_df = IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
         
+
         #_________________________________________________
         #% labelling the activity data with the ActLogData
         # TODO if the ActivityLog_DF is outside the UserDateRange
@@ -377,6 +378,10 @@ class ActivitySummaryTable:
         #_________________________________________________
         #% group and aggregate the Realtime data into ActitivtySummaryTable, this function is categorized as lv.1 aggregate
         ActSum_df = getGroupDuration_v2(RTSensor_df, DrillActivityList='default')
+
+        # st.write(RTSensor_df)
+        # st.write("inside sx")
+        # st.stop()
         # RTSensor_df.to_csv("RealtimeOut.csv")
         # st.write(ActSum_df)
         # st.stop()
@@ -388,7 +393,9 @@ class ActivitySummaryTable:
 
         #_________________________________________________
         # label the group stand, this function are useful to determine the lv.2 aggregate
-        ActSum_df = getStandLabel(ActSum_df)
+        ActSum_df = getStandLabel(ActSum_df, stand_num=getLastStandNum(WellInfoDict['wid'], ActSum_df))
+
+        
         ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
         ActSum_df['EndDateTime'] = (ActSum_df['EndDateTime']+ pd.Timedelta(seconds=5)).dt.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -541,7 +548,7 @@ def getStandLabel_BU(ActSum_df, DrillActivityList='default'):
     # ActSum_df['Time_start'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_start'], format='%Y-%m-%d %H:%M:%S')
     # ActSum_df['Time_end'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_end'])
     return ActSum_df
-def getStandLabel(ActSum_df, DrillActivityList='default'):
+def getStandLabel_BU_2(ActSum_df, DrillActivityList='default',stand_num=None):
 
     ActSum_df['DrillingMeteragePerStand'] = np.NaN
     ActSum_df['StandDuration'] = np.NaN
@@ -561,10 +568,11 @@ def getStandLabel(ActSum_df, DrillActivityList='default'):
 
 
     ActSum_df['LABEL_Activity'] = ActSum_df['LABEL_Activity'].astype(str)
+    
 
-
-
-    stand_num = 1
+    if stand_num is None:
+        stand_num = 0
+    stand_num = stand_num+1
 
     # st.write(ActSum_df_Drilling.index[0])
     for k,ActSum_df_Temp in ActSum_df.groupby((ActSum_df['LABEL_Activity'].shift() != ActSum_df ['LABEL_Activity']).cumsum()):
@@ -579,8 +587,11 @@ def getStandLabel(ActSum_df, DrillActivityList='default'):
         # for idx,row in ActSum_df[(ActSum_df['LABEL_SubActivity']=='Connection')].iterrows():
             len_connection = len(ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')])
             for idx,row in ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')].iterrows():
+                # if len_connection == 1:
+                #     idx_end=idx-1
+                # else:
                 idx_end=idx-1
-                ActSum_df_Stand = ActSum_df[idx_start:idx_end]
+                ActSum_df_Stand = ActSum_df[idx_start:idx_end+1]
 
                 if 'Reaming' in ActSum_df_Stand['LABEL_SubActivity'].tolist():
                     OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
@@ -594,6 +605,7 @@ def getStandLabel(ActSum_df, DrillActivityList='default'):
                     ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Drilling Stand-' + str(stand_num)
                     if ii==1:
                         PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        st.write(ActSum_df_Stand)
                         PreCon_End_idx = (idx-1)
                         ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
                         # stand_num = stand_num-1
@@ -601,63 +613,29 @@ def getStandLabel(ActSum_df, DrillActivityList='default'):
                         # st.write(PreCon_Start_idx)
                     else:
 
-                        try:
-                            PostCon_Start_idx = idx_start
-                            PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
-                            ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
-                            print(PostCon_Start_idx)
-                            print('PostCon')
-                            print(PostCon_End_idx)
-                            # if ii < len_connection:
-                            PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
-                            PreCon_End_idx = (idx-1)
-                            ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
-                            # st.write(f"PreConIdx {PreCon_Start_idx} - {PreCon_End_idx}")
+                        # try:
+                        PostCon_Start_idx = idx_start
+                        PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
+                        ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
+                        print(PostCon_Start_idx)
+                        print('PostCon')
+                        print(PostCon_End_idx)
+                        # if ii < len_connection:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # st.write(f"PreConIdx {PreCon_Start_idx} - {PreCon_End_idx}")
 
-                        except:
-                            pass
+                        # except:
+                        #     pass
                         ii = ii+1
                     # st.write()
-
-
-
-
-                    
-                
-
-
-
-
-
-
                     stand_num = stand_num+1
                 idx_start = idx+1
             try:
                 ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
             except:
                 pass
-
-
-
-
-
-                
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                 # if ii==0:
 
                 #     idx_start = idx + 1
@@ -692,6 +670,118 @@ def getStandLabel(ActSum_df, DrillActivityList='default'):
     
     # ActSum_df['Time_start'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_start'], format='%Y-%m-%d %H:%M:%S')
     # ActSum_df['Time_end'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_end'])
+    return ActSum_df
+def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
+    # if ActSum_df[ActSum_df['status']=='REVIEW'].empty:
+    #     return ActSum_df
+    # else:
+    # ActSum_df = ActSum_df[ActSum_df['status']=='REVIEW']
+
+    ActSum_df['DrillingMeteragePerStand'] = np.NaN
+    ActSum_df['StandDuration'] = np.NaN
+    ActSum_df['OnBottomDurationPerStand'] = np.NaN
+    ActSum_df['Stand Group_Pred'] = ""
+    ActSum_df['LABEL_ConnectionActivity'] = ""
+    ActSum_df['RotateDrillingDuration'] = ActSum_df['RotateDrillingDuration'].astype('float')
+    ActSum_df['SlideDrillingDuration']= ActSum_df['SlideDrillingDuration'].astype('float')
+    ActSum_df['DrillingMeterage']= ActSum_df['DrillingMeterage'].astype('float')
+    ActSum_df['Duration']= ActSum_df['Duration'].astype('float')
+
+    # ActSum_df['ConnectionDurationPerStand'] = np.NaN
+
+    ActSum_df = ActSum_df.reset_index(drop=True).fillna(0)
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'DRILL OUT CEMENT',]
+
+
+    ActSum_df['LABEL_Activity'] = ActSum_df['LABEL_Activity'].astype(str)
+    
+
+    if stand_num is None:
+        stand_num = 0
+    stand_num = stand_num+1
+
+    # st.write(ActSum_df_Drilling.index[0])
+    for k,ActSum_df_Temp in ActSum_df.groupby((ActSum_df['LABEL_Activity'].shift() != ActSum_df ['LABEL_Activity']).cumsum()):
+        if ActSum_df_Temp['LABEL_Activity'].tolist()[0] in (DrillActivityList):
+            ii = 1
+            idx_start = ActSum_df_Temp.index[0]
+
+
+
+            len_connection = len(ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')])
+            # First, define the stand first
+            for idx,row in ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')].iterrows():
+                idx_end=idx-1
+                ActSum_df_Stand = ActSum_df[idx_start:idx_end+1]
+
+                if 'Reaming' in ActSum_df_Stand['LABEL_SubActivity'].tolist():
+                    OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
+                    StandDuration =  ActSum_df.loc[idx_start:idx_end+1, 'Duration'].sum()
+                    DrillingMeteragePerStand = ActSum_df.loc[idx_start:idx_end, 'DrillingMeterage'].sum()
+
+
+                    ActSum_df.loc[idx, 'OnBottomDurationPerStand'] = OnBottomDurationPerStand
+                    ActSum_df.loc[idx, 'StandDuration'] = StandDuration
+                    ActSum_df.loc[idx, "DrillingMeteragePerStand"] = DrillingMeteragePerStand
+                    ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Drilling Stand-' + str(stand_num)
+                    if ii==1:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # stand_num = stand_num-1
+                        ii = ii +1
+                        # st.write(PreCon_Start_idx)
+                    else:
+                        
+
+
+                        # try:
+                        PostCon_Start_idx = idx_start
+                        PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
+                        ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
+                        print(PostCon_Start_idx)
+                        print('PostCon')
+                        print(PostCon_End_idx)
+                        # if ii < len_connection:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # st.write(f"PreConIdx {PreCon_Start_idx} - {PreCon_End_idx}")
+
+                        # except:
+                        #     pass
+                        ii = ii+1
+
+
+
+                    # st.write()
+                    stand_num = stand_num+1
+                
+
+
+
+
+                idx_start = idx+1
+            # if len_connection == 1:
+            try:
+                ActSum_df_PostCon = ActSum_df_Temp[idx_start-2:]
+                # st.write(ActSum_df_PostCon)
+
+                PostCon_Start_idx = idx_start
+                PostCon_End_idx = ActSum_df_PostCon[ActSum_df_PostCon['LABEL_SubActivity']=='Reaming'].index[0]
+                ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
+            except:
+                ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
+                # pass
+
+
+
+
+
+            
+
     return ActSum_df
 
 # TODO, plot the comparison result of cleanFalseSensor Algorithm using _plotFalseSensor()
@@ -1302,6 +1392,7 @@ def RecalculateActSum(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, Cleani
     if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
         ActSum_df['LABEL_ConnectionActivity']  = '-'
     ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('')
+    # st.write(ActSum_df)
     ActSum_df = ActSum_df.astype(ConversionDict['DataTypeDict'])
     
     # ActivitySummaryColumnRenameDict = _ActivitySummaryColumnRenameDict()
@@ -1473,7 +1564,7 @@ def RecalculateActSum_v2(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, Cle
 
     #_________________________________________________
     # label the group stand, this function are useful to determine the lv.2 aggregate
-    ActSum_df = getStandLabel(ActSum_df)
+    ActSum_df = getStandLabel(ActSum_df, stand_num=getLastStandNum(wid, ActSum_df))
     ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     ActSum_df['Date'] = ActSum_df['Date'].dt.date.astype(str)
@@ -1508,6 +1599,7 @@ def UploadActivitySummary(ActSumdf, progressbar=False):
     ActSumdf = ActSumdf.rename(
         columns={value: key for key, value in ConversionDict['ColumnName'].items()}
     )
+    ActSumdf['stand_on_bottom']=0
     ActSumdf = ActSumdf.astype('string')
     i = 0
     i_end = len(ActSumdf)
@@ -1566,6 +1658,26 @@ def ExtendDateRange(UserDateRange, start_extend=None, end_extend=None):
         UserDateRange["EndTime"] = new_end_datetime.time()
     return UserDateRange
 
+
+def getLastStandNum(wid, ActSum_df):
+
+    # try:
+    ActSum_df_temp = ActSum_df[ActSum_df['status'] == "REVIEW"]
+    ActSum_df_temp = ActSum_df_temp.head(1)
+    if ActSum_df_temp.empty:
+        
+    # except:
+        ActSum_df_temp = ActSum_df[ActSum_df['status'] == "FIRM"]
+        ActSum_df_temp = ActSum_df_temp.tail(1)
+
+    SectionSize = ActSum_df_temp["Section"].values[0]
+    BeforeDate = ActSum_df_temp["StartDateTime"].values[0]
+
+    LastStandNumber = IO_Data.DomeGetLastStandNumber(wid, SectionSize, BeforeDate)
+    # st.write(BeforeDate)
+    # st.write(LastStandNumber)
+    # st.stop()
+    return LastStandNumber
 
 
 

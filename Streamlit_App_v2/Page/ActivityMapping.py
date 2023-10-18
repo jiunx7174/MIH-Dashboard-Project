@@ -135,6 +135,7 @@ def cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF
             # generate both of FIRM and REVIEW ActSum
     # ActSumData.getActivitySummary(ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1)
     ActSumData.getActivitySummary_v2(ActivityLog_DF, RTSensor_df, MinuteTolerances=0.5, CleaningIteration=1)
+
     return ActSumData
 
 def AllDateTime():
@@ -155,6 +156,40 @@ def ExtendDateTime(DateRange):
 
     return DateRange
 def IsSubmitFormTrue(UserDateRange):
+    # st.session_state['IsFormSubmit'] = CheckUserDateRange(UserDateRange)
+    # if st.session_state['IsFormSubmit']:
+    st.session_state['IsFormSubmit'] = True
+    ActSumClear()
+    ActLogClear()
+
+# def IsSubmitFormTrue(UserDateRange):
+#     start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+#     end_datetime = datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
+#     time_difference = end_datetime - start_datetime
+#     time_difference = np.round(time_difference.total_seconds() / 3600,2)
+#     if start_datetime > end_datetime:
+#         st.error(
+#             "[ERROR] TIME INTERVAL: Start Date-Time is earlier than End Date-Time, please check the Time interval input "
+#         )
+#         # time.sleep(2)
+#         # st.experimental_rerun()
+#     else:
+        
+#         if  time_difference > (3*24):
+#             # total_hours = np.round(time_difference.total_seconds() / 3600,2)
+#             st.error(
+#                 f"[ERROR] TIME INTERVAL: The selected interval is {time_difference} Hours, the current limit is 72 Hours(3 Days)"
+#             )
+#             # time.sleep(2)
+#             # st.experimental_rerun()
+#             st.session_state['IsFormSubmit'] = False
+#         else:
+
+#             st.session_state['IsFormSubmit'] = True
+
+#             ActSumClear()
+#             ActLogClear()
+def CheckUserDateRange(UserDateRange):
     start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
     end_datetime = datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
     time_difference = end_datetime - start_datetime
@@ -163,6 +198,8 @@ def IsSubmitFormTrue(UserDateRange):
         st.error(
             "[ERROR] TIME INTERVAL: Start Date-Time is earlier than End Date-Time, please check the Time interval input "
         )
+        st.stop()
+        # return False
         # time.sleep(2)
         # st.experimental_rerun()
     else:
@@ -172,14 +209,17 @@ def IsSubmitFormTrue(UserDateRange):
             st.error(
                 f"[ERROR] TIME INTERVAL: The selected interval is {time_difference} Hours, the current limit is 72 Hours(3 Days)"
             )
+            st.stop()
             # time.sleep(2)
             # st.experimental_rerun()
+            # st.session_state['IsFormSubmit'] = False
+            # return False
         else:
+            pass
 
-            st.session_state['IsFormSubmit'] = True
+            # st.session_state['IsFormSubmit'] = True
+            # return True
 
-            ActSumClear()
-            ActLogClear()
 
 def ActSumClear():
     if ("ActSum" in st.session_state):
@@ -477,6 +517,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
     
 
     if st.session_state['IsFormSubmit']:
+        CheckUserDateRange(UserDateRange)
         if 'ActLogDF' not in st.session_state:
             st.session_state['ActLogDF'] = cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange)
             st.session_state['ActLogDF']['DateTime'] = st.session_state['ActLogDF']['Date'] + " " + st.session_state['ActLogDF']['Time']
@@ -530,6 +571,8 @@ def App(UserAuthDict, SelectComp, SelectWell):
         #######
         if 'ActSum' not in st.session_state:
             st.success('Auto Activity Mapping successfully generated!')
+            # st.write(cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df).Data)
+            # st.stop()
             st.session_state['ActSum'] = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange,ActivityLog_DF, RTSensor_df)
             st.session_state['IsActSumReload'] = True
             st.session_state['isActSumApply'] = False

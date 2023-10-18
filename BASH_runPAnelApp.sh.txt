@@ -1,0 +1,2 @@
+conda activate PDU_3
+panel serve Panel_App/00_trial2.py --show --autoreload

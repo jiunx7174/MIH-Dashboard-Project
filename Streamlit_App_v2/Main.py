@@ -21,8 +21,13 @@ def showUserInfo(UserAuthDict, container):
 
     container.markdown("#### Company: ")
     container.text(UserAuthDict["user_company_name"])
-    
 
+def DropDownOnChange():
+    if 'IsFormSubmit' in st.session_state:
+        del st.session_state['IsFormSubmit']
+    st.cache_data.clear()
+
+    
 
 
 # import importlib
@@ -73,11 +78,6 @@ PageAppDict={
     # "Activity Visualization Module":ActivityVisualization.App,
 }
 
-
-if "IsFormSubmit" not in st.session_state:
-    st.session_state['IsFormSubmit'] = False
-
-
  
 # ModuleSidebarContainer = st.sidebar.container()
 SidebarContainer = st.sidebar.container()
@@ -95,10 +95,12 @@ if SelectComp != '-':
     # st.text(SelectWell)
     # st.dataframe( IO_Data.getAvailableWellDF(SelectComp, UserAuthDict))
     if SelectWell != '-':
-        SelectPageApp = SidebarContainer.selectbox("Select Module",['-']+list(PageAppDict.keys()), key='SelectModule', on_change=st.cache_data.clear)
+        SelectPageApp = SidebarContainer.selectbox("Select Module",['-']+list(PageAppDict.keys()), key='SelectModule', on_change=DropDownOnChange)
         
         
         if SelectPageApp != '-':
+            # if "IsFormSubmit" not in st.session_state:
+            #     st.session_state['IsFormSubmit'] = False
             PageAppDict[SelectPageApp](UserAuthDict, SelectComp, SelectWell)
         else:
             Welcome.App()
