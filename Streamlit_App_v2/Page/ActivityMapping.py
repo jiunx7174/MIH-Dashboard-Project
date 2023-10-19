@@ -534,7 +534,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
         ActLogDF = st.session_state['ActLogDF']
         with ActLogContainer.form(key='ActivityLogTable_Agrid'):
             st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 2px;">Major Activity Log Table</h1>', unsafe_allow_html=True)
-            ActivityLog_DF = Table.ActivityLogTable_Agrid(ActLogDF, reload=st.session_state['IsActLogTableReload'])['data']
+            ActivityLog_DF = Table.ActivityLogTable_Agrid(ActLogDF, reload=True)['data']
             # ActivityLog_DF = ActivityLog_DF
             # if ActivityLog_DF.empty:
             #     ActivityLog_DF = ActLogDF
