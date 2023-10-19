@@ -773,7 +773,11 @@ def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
                 PostCon_End_idx = ActSum_df_PostCon[ActSum_df_PostCon['LABEL_SubActivity']=='Reaming'].index[0]
                 ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
             except:
-                ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
+                # st.write(ii)
+                try:
+                    ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
+                except:
+                    pass
                 # pass
 
 
