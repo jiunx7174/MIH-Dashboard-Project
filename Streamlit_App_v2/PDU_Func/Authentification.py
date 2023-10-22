@@ -1,6 +1,20 @@
 import streamlit as st 
 import requests
-
+import time
+def retry_on_error(max_retries=10, retry_interval=5):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for _ in range(max_retries):
+                try:
+                    result = func(*args, **kwargs)
+                    return result
+                except Exception as e:
+                    print(f"Error: {e}. Retrying in {retry_interval} seconds...")
+                    time.sleep(retry_interval)
+            raise Exception(f"Communitation with DOME server still failed after {max_retries} retries.")
+        return wrapper
+    return decorator
+@retry_on_error()
 def getUserID(UserDict):
     # UserDict = st.experimental_get_query_params()
     print(UserDict)

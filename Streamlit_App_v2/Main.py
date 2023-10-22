@@ -1,9 +1,12 @@
 import streamlit as st 
 from PDU_Func import Authentification, IO_Data
-from Page import ActivityMapping, ActivityDatabase, ActivityVisualization
+from Page import ActivityMapping, ActivityDatabase, ActivityVisualization, ComponentTest
 from Page import Welcome, PageNotFound
 from importlib import reload
 reload(ActivityMapping)
+reload(ComponentTest)
+reload(ActivityDatabase)
+reload(ComponentTest)
 
 from streamlit_extras.no_default_selectbox import selectbox as ext_selectbox
 from streamlit_option_menu import option_menu
@@ -77,31 +80,34 @@ PageAppDict={
     "Activity Database Module":ActivityDatabase.App,
     # "Activity Visualization Module":ActivityVisualization.App,
 }
-
- 
+if 'Dev' in st.session_state['QueryParams']:        
+    # st.write(st.session_state['QueryParams'])
+    if st.session_state['QueryParams']['Dev'][0]=='1':
+        PageAppDict["Component Test"] = ComponentTest.App
 # ModuleSidebarContainer = st.sidebar.container()
 SidebarContainer = st.sidebar.container()
 
 # with SidebarContainer:
 AvailComp_DF = IO_Data.getAvailableCompanyDF(UserAuthDict)
 
-SelectComp = SidebarContainer.selectbox("Select Company",['-'] + AvailComp_DF['company_name'].tolist(), key='SelectCompany')
+SelectComp = SidebarContainer.selectbox("Select Company",AvailComp_DF['company_name'].tolist(), index=None, key='SelectCompany')
 
 # st.dataframe( IO_Data.getAvailableCompanyDF(UserAuthDict))
-if SelectComp != '-':
+if SelectComp != None:
 
     AvailWell_DF = IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)
-    SelectWell = SidebarContainer.selectbox("Select Well",['-'] + AvailWell_DF['well_name'].tolist(), key='SelectWell')
+    SelectWell = SidebarContainer.selectbox("Select Well",['-'] + AvailWell_DF['well_name'].tolist(), index=None,key='SelectWell')
     # st.text(SelectWell)
     # st.dataframe( IO_Data.getAvailableWellDF(SelectComp, UserAuthDict))
-    if SelectWell != '-':
-        SelectPageApp = SidebarContainer.selectbox("Select Module",['-']+list(PageAppDict.keys()), key='SelectModule', on_change=DropDownOnChange)
+    if SelectWell != None:
+        SelectPageApp = SidebarContainer.selectbox("Select Module",['-']+list(PageAppDict.keys()), index=None,key='SelectModule', on_change=DropDownOnChange)
         
         
-        if SelectPageApp != '-':
+        if SelectPageApp != None:
             # if "IsFormSubmit" not in st.session_state:
             #     st.session_state['IsFormSubmit'] = False
             PageAppDict[SelectPageApp](UserAuthDict, SelectComp, SelectWell)
+
         else:
             Welcome.App()
             st.stop()

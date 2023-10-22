@@ -118,9 +118,7 @@ def CheckCreateTable(WellInfoDict):
 
 # @st.cache_data(ttl=timedelta(hours=1))
 def cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange):
-    UserDateRange_Ext = ExtendDateTime(UserDateRange.copy())
-    # st.write(UserDateRange_Ext)
-    return (IO_Data.DomeGetData(WellInfoDict, UserDateRange_Ext, table_type="ActivityLogTable"))
+    return (IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="ActivityLogTable"))
 
 @st.cache_data(show_spinner=False, ttl=timedelta(hours=2))
 def cache_DomeGetRealtimeSensorData_v2(WellInfoDict, UserDateRange):
@@ -146,12 +144,12 @@ def AllDateTime():
                 "EndTime": datetime.strptime('00:00', '%H:%M').time()
                     }
     return DateRange
-def ExtendDateTime(DateRange):
+def ExtendDateTime(DateRange, daysFwd=14, daysBwd=14):
     """
     Extend the date time by backdate by 1 day in the StartDate
     """
-    DateRange['StartDate'] = DateRange['StartDate'] - timedelta(days=14)
-    DateRange['EndDate'] = DateRange['EndDate'] + timedelta(days=14)
+    DateRange['StartDate'] = DateRange['StartDate'] - timedelta(days=daysBwd)
+    DateRange['EndDate'] = DateRange['EndDate'] + timedelta(days=daysFwd)
     # DateRange['EndDate'] = DateRange['EndDate'] - timedelta(days=1)
 
     return DateRange
@@ -226,6 +224,8 @@ def ActSumClear():
         del st.session_state["ActSum"]
     if ("actsumtable_v2" in st.session_state):
         del st.session_state["actsumtable_v2"]
+    if ("ActSumTable"in st.session_state):
+        del st.session_state["ActSumTable"]
 def ActLogClear():
     if ("ActLogDF" in st.session_state):
         del st.session_state["ActLogDF"]
@@ -519,7 +519,7 @@ def App(UserAuthDict, SelectComp, SelectWell):
     if st.session_state['IsFormSubmit']:
         CheckUserDateRange(UserDateRange)
         if 'ActLogDF' not in st.session_state:
-            st.session_state['ActLogDF'] = cache_DomeGetData_ActivityLog(WellInfoDict, UserDateRange)
+            st.session_state['ActLogDF'] = cache_DomeGetData_ActivityLog(WellInfoDict, ExtendDateTime(UserDateRange.copy(), daysFwd=3, daysBwd=3))
             st.session_state['ActLogDF']['DateTime'] = st.session_state['ActLogDF']['Date'] + " " + st.session_state['ActLogDF']['Time']
             st.session_state['IsActLogTableReload'] = True
 
@@ -535,6 +535,12 @@ def App(UserAuthDict, SelectComp, SelectWell):
         with ActLogContainer.form(key='ActivityLogTable_Agrid'):
             st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 2px;">Major Activity Log Table</h1>', unsafe_allow_html=True)
             ActivityLog_DF = Table.ActivityLogTable_Agrid(ActLogDF, reload=True)['data']
+            # ActivityLog_DF = Table.ActivityLogTable_DataEditor(ActLogDF, 
+            #                                                    UserAuthDict, 
+            #                                                    ActivityList='default', 
+            #                                                    SectionSizeList='default', 
+            #                                                    key='ActLogInput')
+            
             # ActivityLog_DF = ActivityLog_DF
             # if ActivityLog_DF.empty:
             #     ActivityLog_DF = ActLogDF
@@ -545,9 +551,12 @@ def App(UserAuthDict, SelectComp, SelectWell):
         
         # st.stop()
         if isActLogApply:
+            # ActivityLog_DF['Date'] = ActivityLog_DF_out['DateTime'].dt.date
+            # ActivityLog_DF['Time'] = ActivityLog_DF_out['DateTime'].dt.time
             # st.write(ActivityLog_DF)
             # st.stop()
-            updateActivityLog(WellInfoDict,ActivityLog_DF,ExtendDateTime(UserDateRange.copy()))
+            with ActLogContainer:
+                updateActivityLog(WellInfoDict,ActivityLog_DF,ExtendDateTime(UserDateRange.copy(), daysFwd=3, daysBwd=3))
             # cache_DomeGetData_ActivityLog.clear()
             del st.session_state['ActLogDF']
             ActLogContainer.success("Activity Log successfully updated. Please wait for the page to refresh.")

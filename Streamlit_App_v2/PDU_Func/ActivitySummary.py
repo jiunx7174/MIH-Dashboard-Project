@@ -112,9 +112,9 @@ def _ActivitySummaryColumnRenameDict():
                             },
         "DataTypeDict":{
                     "wid": 'int',
-                    "Date": "datetime64",
-                    "StartDateTime": "datetime64",
-                    "EndDateTime": "datetime64",
+                    "Date": "datetime64[ns]",
+                    "StartDateTime": "datetime64[ns]",
+                    "EndDateTime": "datetime64[ns]",
                     "Duration": "float",
                     "Hole_Depth_max": "float",
                     "Bit_Depth_avg": "float",

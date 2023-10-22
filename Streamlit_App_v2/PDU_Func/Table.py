@@ -259,10 +259,11 @@ def ActivityLogTable_Agrid(ActivityLog_DF, reload=False, ActivityList='default',
     gridOptions.configure_default_column(editable=True)
     gb = gridOptions.build()
     gb['pagination']=True
+    gb['paginationPageSize']=20
     # gb['autoSizeColumns ']=True
     InputActivityGrid_response = AgGrid(
         ActivityLog_DF, 
-        height=450,
+        # height=450,
         gridOptions=gb,
         data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
         key=key,
@@ -503,6 +504,29 @@ def ActSumTable_Agrid(ActSum_DF, reload=False, key='ActSumTable'):
         }
     }
     """)
+    style_code = [
+        JsCode("""
+            function(params) {
+                    return {
+                        'background-color': '#fcfbe8',
+                    };
+                }
+            """),
+        JsCode("""
+            function(params) {
+                    return {
+                        'background-color': '#f3fce8',
+                    };
+                }
+            """),
+        JsCode("""
+            function(params) {
+                    return {
+                        'background-color': '#fcf1e8',
+                    };
+                }
+            """),
+    ]
     highlight_style_code = JsCode("""
     function(params) {
         let api = params.api;
@@ -656,6 +680,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False, key='ActSumTable'):
                                                 # 'checkboxSelection': True,
                                                 # 'showDisabledCheckboxes':False,
                                                 'cellStyle':status_style_code,
+                                                
                                                 },
         {"field":'Insert', 
             "headerTooltip":'Click on Button to add new row',
@@ -666,7 +691,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False, key='ActSumTable'):
             # "autoHeight":True, 
             "wrapText":True, 
             "suppressMovable":True,
-            "width":110,
+            "width":95,
             'pinned': 'left',
         },
         {"field":'Delete',
@@ -676,7 +701,7 @@ def ActSumTable_Agrid(ActSum_DF, reload=False, key='ActSumTable'):
             "onCellClicked":JsCode(string_to_delete),
             "cellRenderer":cell_button_delete,
             # "autoHeight":True, 
-            "width":110,
+            "width":95,
             'pinned': 'left',
         },
         {"field":'StartDateTime',               "headerName":"Start", "width":160,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start \n(YYYY:MM:DD hh:mm:ss)",
@@ -699,30 +724,30 @@ def ActSumTable_Agrid(ActSum_DF, reload=False, key='ActSumTable'):
 
                                                 },
         {"field":'LABEL_ConnectionActivity',    "headerName":"Connection Activity", "width":90,'editable':True,"filter":True,"headerTooltip":"Date Time when the activity start"},
-        {"headerName": "Activity Duration","width":200,
+        {"headerName": "Activity Duration","width":150,
          "children":[
-            {"field":'Duration',                    "headerName":"Duration (Minutes)","width":170, 'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'closed',},
-            {"field":'Duration',                    "headerName":"Duration (Minutes)","width":100, 'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
-            {"field":'RotateDrillingDuration',  "headerName":"Rotate Drilling Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
-            {"field":'SlideDrillingDuration',   "headerName":"Slide Drilling Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
-            {"field":'ReamingDuration',         "headerName":"Reaming Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
-            {"field":'ConnectionDuration',      "headerName":"Connection Duration","width":105,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'Duration',                    "headerName":"Duration (Minutes)","width":140, 'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'closed','cellStyle':style_code[0],},
+            {"field":'Duration',                    "headerName":"Duration (Minutes)","width":100, 'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open','cellStyle':style_code[0],},
+            {"field":'RotateDrillingDuration',  "headerName":"Rotate Drilling Duration","width":120,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open','cellStyle':style_code[0],},
+            {"field":'SlideDrillingDuration',   "headerName":"Slide Drilling Duration","width":120,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open','cellStyle':style_code[0],},
+            {"field":'ReamingDuration',         "headerName":"Reaming Duration","width":95,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open','cellStyle':style_code[0],},
+            {"field":'ConnectionDuration',      "headerName":"Connection Duration","width":105,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open','cellStyle':style_code[0],},
          ]},
-        {"headerName": "Activity Meterage",
+        {"headerName": "Activity Meterage","width":150,
          "children":[
-            {'field':'DrillingMeterage',        "headerName":"Drilling Meterage","width":170,'editable':False,"filter":True,"headerTooltip":"(Meter)",'columnGroupShow': 'closed',},
-            {'field':'DrillingMeterage',        "headerName":"Drilling Meterage","width":95,'editable':False,"filter":True,"headerTooltip":"(Meter)",'columnGroupShow': 'open',},
-            {'field':'Hole_Depth_max',          "headerName":"Hole Depth","width":90,'editable':False,"filter":True,"headerTooltip":"Max. (Meter)",'columnGroupShow': 'open',},
-            {'field':'Bit_Depth_avg',           "headerName":"Bit Depth","width":90,'editable':False,"filter":True,"headerTooltip":"Avg. (Meter)",'columnGroupShow': 'open',},
+            {'field':'DrillingMeterage',        "headerName":"Drilling Meterage","width":140,'editable':False,"filter":True,"headerTooltip":"(Meter)",'columnGroupShow': 'closed','cellStyle':style_code[1]},
+            {'field':'DrillingMeterage',        "headerName":"Drilling Meterage","width":95,'editable':False,"filter":True,"headerTooltip":"(Meter)",'columnGroupShow': 'open','cellStyle':style_code[1]},
+            {'field':'Hole_Depth_max',          "headerName":"Hole Depth","width":90,'editable':False,"filter":True,"headerTooltip":"Max. (Meter)",'columnGroupShow': 'open','cellStyle':style_code[1]},
+            {'field':'Bit_Depth_avg',           "headerName":"Bit Depth","width":90,'editable':False,"filter":True,"headerTooltip":"Avg. (Meter)",'columnGroupShow': 'open','cellStyle':style_code[1]},
          ]},
 
-        {"headerName": "Stand Duration & Meterage",'columnGroupShow': 'closed',
+        {"headerName": "Stand Duration & Meterage",'columnGroupShow': 'closed',"width":150,
          "children":[
-            {"field":'Stand Group_Pred',            "headerName":"Stand Number","width":150,'editable':False,"filter":True,'columnGroupShow': 'closed',},
-            {"field":'Stand Group_Pred',            "headerName":"Stand Number","width":100,'editable':False,"filter":True,'columnGroupShow': 'open',},
-            {"field":'OnBottomDurationPerStand',    "headerName":"On Bottom Duration (Minutes)","width":100,'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
-            {"field":'StandDuration',               "headerName":"Stand Duration (Minutes)","width":100,'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
-            {"field":'DrillingMeteragePerStand',    "headerName":"Drilling Meterage per stand (Minutes)",'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open',},
+            {"field":'Stand Group_Pred',            "headerName":"Stand Number","width":140,'editable':False,"filter":True,'columnGroupShow': 'closed','cellStyle':style_code[2],},
+            {"field":'Stand Group_Pred',            "headerName":"Stand Number","width":100,'editable':False,"filter":True,'columnGroupShow': 'open','cellStyle':style_code[2],},
+            {"field":'OnBottomDurationPerStand',    "headerName":"On Bottom Duration (Minutes)","width":160,'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open','cellStyle':style_code[2],},
+            {"field":'StandDuration',               "headerName":"Stand Duration (Minutes)","width":130,'editable':False,"filter":True,"headerTooltip":"Minutes",'columnGroupShow': 'open','cellStyle':style_code[2],},
+            {"field":'DrillingMeteragePerStand',    "headerName":"Drilling Meterage per stand (Minutes)","width":140,'editable':False,"filter":False,"headerTooltip":"Minutes",'columnGroupShow': 'open','cellStyle':style_code[2],},
          ]},
 
     ]
@@ -1121,3 +1146,72 @@ def ActSumTableConfirmation_Agrid(ActSum_DF, reload=False, showWarning=False):
 #     dta = AgGrid(df, gridOptions=gb, height=350, allow_unsafe_jscode=True, theme="blue",
 #                 update_mode=GridUpdateMode.VALUE_CHANGED | GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.FILTERING_CHANGED | GridUpdateMode.SORTING_CHANGED)
 #     st.text(dta)
+
+
+def ActivityLogTable_DataEditor(ActivityLog_DF, UserAuthDict, ActivityList='default', SectionSizeList='default', key='ActivityLogTableDataEditor'):
+    if ActivityList  =='default':
+        ActivityList = ["N/A",'CEMENTING JOB','CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT','DRILLING FORMATION',
+                        'LAY DOWN BHA','MAKE UP BHA','NPT','N/D BOP','N/U BOP','OTHER','RUNNING CASING IN','STATIONARY',
+                        'STUCK PIPE','TRIP IN','TRIP OUT','WAIT ON CEMENT','CIRCULATION','RIG REPAIR','WIPER TRIP'
+        ]
+    if SectionSizeList == 'default':
+        SectionSizeList=['26"','17-1/2"','12-1/4"','9-7/8"', '7-7/8"', '8.5"','6-3/4"', '6-1/8"','6"', ]
+
+    column_config = {
+        'DateTime':st.column_config.DatetimeColumn(
+            "DateTime",
+            format="D MMM YYYY, HH:mm:ss",
+            # required =True,
+            ),
+        'In-Slip Threshold':st.column_config.NumberColumn(
+            "In-Slip Threshold",
+            # format="HH:mm:ss",
+            # required =True,
+            ),
+        'Section Size':st.column_config.SelectboxColumn(
+            "Section Size",
+            # width='small',
+            options =SectionSizeList,
+            width='small',
+            required =True,
+            ),
+        'Activity':st.column_config.SelectboxColumn(
+            "Activity",
+            # width='small',
+            options =ActivityList,
+
+            # required =True,
+            ),
+        'PIC':st.column_config.TextColumn(
+            "PIC",
+            width='small',
+            disabled=True,
+            default=UserAuthDict['data']['user_id'],
+            # required =True,
+            ),
+        'Remarks':st.column_config.TextColumn(
+            "Remarks",
+            width='large',
+            # required =True,
+            ),
+    }
+    ActivityLog_DF['DateTime'] = ActivityLog_DF['DateTime'].astype('datetime64[ns]') 
+    ActivityLog_DF['Time'] = ActivityLog_DF['Time'].astype('datetime64[ns]') 
+    ActivityLog_DF = ActivityLog_DF.reset_index()
+    ActivityLog_DF_out = st.data_editor(
+            ActivityLog_DF,
+            num_rows ='dynamic',
+            column_config=column_config,
+            use_container_width=True,
+            hide_index=True,
+            column_order = ['DateTime', 'Activity', 'Section Size','In-Slip Threshold' ,  'Remarks', 'PIC'],
+            key=key
+        )
+    return ActivityLog_DF_out
+
+
+
+
+
+
+
