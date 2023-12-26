@@ -377,7 +377,9 @@ class ActivitySummaryTable:
 
         #_________________________________________________
         #% group and aggregate the Realtime data into ActitivtySummaryTable, this function is categorized as lv.1 aggregate
+        
         ActSum_df = getGroupDuration_v2(RTSensor_df, DrillActivityList='default')
+        # st.write(ActSum_df)
 
         # st.write(RTSensor_df)
         # st.write("inside sx")
@@ -401,6 +403,9 @@ class ActivitySummaryTable:
 
 
         ActSum_df['wid'] =  int(WellInfoDict['wid'])
+        # st.write(ActSum_df)
+        # st.write(temp_ActSum_df)
+        # st.stop()
         self.Data = ActSum_df
         # ActSum_df['status'] =  "REVIEW"
 
@@ -510,7 +515,7 @@ def getStandLabel_BU(ActSum_df, DrillActivityList='default'):
 
     ii = 0
     ActSum_df_Drilling = ActSum_df[ActSum_df['LABEL_Activity'].isin(DrillActivityList)]
-    st.write(ActSum_df_Drilling.index[0])
+    # st.write(ActSum_df_Drilling.index[0])
     # for idx,row in ActSum_df[(ActSum_df['LABEL_SubActivity']=='Connection')].iterrows():
     for idx,row in ActSum_df_Drilling[(ActSum_df_Drilling['LABEL_SubActivity']=='Connection')].iterrows():
         # print(idx)
@@ -605,7 +610,7 @@ def getStandLabel_BU_2(ActSum_df, DrillActivityList='default',stand_num=None):
                     ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Drilling Stand-' + str(stand_num)
                     if ii==1:
                         PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
-                        st.write(ActSum_df_Stand)
+                        # st.write(ActSum_df_Stand)
                         PreCon_End_idx = (idx-1)
                         ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
                         # stand_num = stand_num-1
@@ -987,6 +992,7 @@ def getGroupDuration_v2(RTSensor_df , DrillActivityList='default'):
     # TODO , a funtion that check the latest hole depth
     Hole_Depth_max = 0
     list_dict_out = []
+    # st.write(RTSensor_df)
     for k,DF_Temp in RTSensor_df .groupby((RTSensor_df ['LABEL_All'].shift() != RTSensor_df ['LABEL_All']).cumsum()):
 
         # if not(("Hole_Depth" in locals()) or ("Hole_Depth" in globals())):
@@ -1067,7 +1073,7 @@ def getGroupDuration_v2(RTSensor_df , DrillActivityList='default'):
             # 'Stand Duration': StandDuration,
             'LABEL_SubActivity': LABEL_SubActivity,
             "LABEL_Activity": LABEL_Activity,
-            "LABEL_All": LABEL_SubActivity+'--'+LABEL_Activity,
+            "LABEL_All": LABEL_SubActivity+'--'+LABEL_Activity+'--'+status_data,
             "PIC":pic_data,
             "InSlip_Treshold":InSlip_Treshold_data,
             "Remarks":remarks_data,
@@ -1098,7 +1104,7 @@ def getGroupDuration_v2(RTSensor_df , DrillActivityList='default'):
         # 'RotateDrillingDuration': dtype('float64'),
         # 'SlideDrillingDuration': np.dtype('float64'),
         # 'ReamingDuration': np.dtype('float64'),
-        # 'ConnectionDuration': np.dtype('float64'),
+        # 'ConnectionDuration': np.dtype('float64'), 
         # 'LABEL_SubActivity': 'str',
         # 'LABEL_Activity': 'str',
         # 'PIC': 'str',

@@ -1,0 +1,250 @@
+import requests
+import pandas as pd
+import streamlit as st
+import numpy as np
+import json
+import time
+
+from datetime import datetime,timedelta
+# from stqdm import stqdm
+
+# for IO trial
+def retry_on_error(max_retries=10, retry_interval=10):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for _ in range(max_retries):
+                try:
+                    result = func(*args, **kwargs)
+                    return result
+                except Exception as e:
+                    print(f"Error: {e}. Retrying in {retry_interval} seconds...")
+                    time.sleep(retry_interval)
+            raise Exception(f"Function {func.__name__} still failed after {max_retries} retries.")
+        return wrapper
+    return decorator
+
+@retry_on_error()
+def getAvailableCompanyDF(UserAuthDict):
+    UserAuthDict = UserAuthDict['data']
+    if UserAuthDict["user_cid"]=='1':
+        GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" 
+    else :
+        GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserAuthDict["user_cid"]
+    # st.text(GetCompAPI)
+    CompName_JSON = requests.get(GetCompAPI).json()  
+
+    # st.text(CompName_JSON)
+
+    # st.json(CompName_JSON)
+    CompDF = pd.json_normalize(CompName_JSON, record_path = 'result')
+
+    return CompDF
+
+
+def getAvailableWellDF(SelectComp,UserAuthDict):
+    CompDF = getAvailableCompanyDF(UserAuthDict)
+    # st.dataframe(CompDF)
+    cid = CompDF.loc[CompDF['company_name']==SelectComp, 'cid'].values[0]
+    # st.text(cid)
+    # print(cid.values[0])
+    # st.text(cid)
+    GetAvailableWellAPI =  "http://khansadev.xyz/dome_api/rtdc/get_well?cid=" + str(cid)
+    AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
+    # st.json(AvailableWell_JSON)
+    AvailableWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
+    # st.dataframe(AvailableWellDF)
+    if not AvailableWellDF.empty:
+
+
+        AvailableWellDF['cid'] = cid
+        AvailableWellDF = AvailableWellDF.astype({"cid": int,"wid": int, "well_name": 'string', 'rig_name':'string'})
+    else:
+        AvailableWellDF =pd.DataFrame.from_dict({"cid":[],"wid": [], "well_name": [], 'active_date': [], 'end_date': [], 'rig_name':[]})
+    return AvailableWellDF
+
+def getWellInfoDict(UserAuthDict, SelectComp, SelectWell):
+
+    SelectWellDF = getAvailableWellDF(SelectComp,UserAuthDict)
+    Comp_ID = int(SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'cid'].values[0])
+    Well_ID = int(SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'wid'].values[0])
+    WellActiveDate = SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'active_date'].tolist()[0]
+    WellEndDate = SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'end_date'].tolist()[0]
+    RigName = SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'rig_name']
+
+    SelectWellInfoDict = {
+        'cid': Comp_ID,
+        'wid': Well_ID,
+        'WellName':SelectWell,
+        'RigName':RigName,
+        'ActiveDate':WellActiveDate,
+        'EndDate':WellEndDate
+    }
+    return SelectWellInfoDict
+
+def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01"):
+    """
+    Retrieves the drilling activity for a specific well within a given time range.
+
+    Parameters:
+    - WellInfoDict (dict): A dictionary containing information about the well.
+    - start_date (str): The start date of the time range (default: "2000-01-01 00:00:01").
+    - end_date (str): The end date of the time range (default: "2100-01-01 00:00:01").
+
+    Returns:
+    - dict: A dictionary containing the drilling activity response.
+
+    """
+    getRigActAPI = 'https://pdumitradome.id/dome_api/rtdc/get_drilling_activity'
+    # getRigActAPI = 'http://khansadev.xyz/dome_api/rtdc/get_drilling_activity'
+
+    getRigActAPI_json = json.dumps(
+    {
+                    "wid":WellInfoDict['wid'],
+                    "start_date":start_date,
+                    "end_date":end_date
+                    },
+    indent = 4
+    )
+    response = (
+            requests.post(
+                getRigActAPI, data=getRigActAPI_json 
+            )
+            )
+    return dict(response.json())
+
+
+@retry_on_error()
+def DomeGetRealtimeRange(WellInfoDict):
+    wid = WellInfoDict['wid']
+    result = dict(requests.get(f"http://khansadev.xyz/dome_api/rtdc/get_realtime_interval/{wid}").json()['result'])
+
+    date_format = '%Y-%m-%d %H:%M:%S'
+    AllRealtime_DF = pd.DataFrame.from_dict([{
+        'StartDateTime':datetime.strptime(result['Start'], date_format),
+        'EndDateTime':datetime.strptime(result['End'], date_format),
+        'Y-Axis':'Realtime',
+    }]
+    )
+    return AllRealtime_DF
+
+
+def interpolateRealtimeData(realtimeraw):
+    realtimeraw['dt'] = pd.to_datetime(realtimeraw['dt'], format='%Y-%m-%d %H:%M:%S')
+    realtimeraw['dt_relative'] = (realtimeraw['dt'] - realtimeraw['dt'].min()).dt.total_seconds()
+    finalRealtime = pd.DataFrame(
+    {
+        'dt':pd.date_range(start=realtimeraw['dt'].min(), end=realtimeraw['dt'].max(), freq='5S'),
+    }
+    )
+    finalRealtime['date'] = finalRealtime['dt'].dt.date
+    finalRealtime['time'] = finalRealtime['dt'].dt.time
+    finalRealtime['dt_relative'] = (finalRealtime['dt'] - finalRealtime['dt'].min()).dt.total_seconds()
+
+    list_cols = ["bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin"]
+
+    for cols in list_cols:
+        realtimeraw[cols] = realtimeraw[cols].astype(float)
+        finalRealtime[cols] = np.interp(finalRealtime['dt_relative'], realtimeraw['dt_relative'].values, realtimeraw[cols])
+    finalRealtime = finalRealtime.drop('dt_relative',axis=1)
+    return finalRealtime
+def splitDateTime(UserDateRange, hours=0.5):
+    startDateTimeStr = UserDateRange['StartDate'] + ' ' + UserDateRange['StartTime']
+    endDateTimeStr = UserDateRange['EndDate'] + ' ' + UserDateRange['EndTime']
+
+
+    startDateTime = pd.Timestamp(startDateTimeStr)
+    endDateTime = pd.Timestamp(endDateTimeStr)
+    deltaTime = pd.Timedelta(hours=hours)
+
+    date_ranges = pd.date_range(start=startDateTime, end=endDateTime.floor("H"), freq=deltaTime)
+
+    date_list = date_ranges.tolist() + [endDateTime]
+    StartDateTimeList,EndDateTimeList = date_list[:-1],date_list[1:]
+    return StartDateTimeList,EndDateTimeList
+@retry_on_error()
+def DomeGetRealtimeSensorDataChunk(Data_params):
+    # UserDateRange = {
+    #         "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
+    #         "StartTime": UserDateRange['StartTime'].strftime('%H:%M:%S'),
+    #         "EndDate": UserDateRange['EndDate'].strftime('%Y-%m-%d'),
+    #         "EndTime": UserDateRange['EndTime'].strftime('%H:%M:%S'),
+    #         }
+
+    # Data_params ={
+    #     "wid" : int(WellInfoDict['wid']),
+    #     "start" : str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime']),
+    #     "end" : str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime']),
+    # }
+    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
+    WellData = (
+        (
+            # requests.get("https://pdumitradome.id/dome_api/rtdc/rtdc/get_data", data=json.dumps(Data_params))
+            requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
+        ).text
+    )
+
+    return pd.json_normalize(json.loads(WellData), record_path='result')
+    # Realtime_DF['dt'] = Realtime_DF['dt'].astype('datetime64[ns]')
+    # start = datetime.strptime(Data_params['start'], '%Y-%m-%d %H:%M:%S')
+    # end = datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S')
+    # mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
+    # filtered_DF = Realtime_DF[mask]
+    # return filtered_DF[column_list]
+def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5):
+    UserDateRange = {
+            "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
+            "StartTime": UserDateRange['StartTime'].strftime('%H:%M:%S'),
+            "EndDate": UserDateRange['EndDate'].strftime('%Y-%m-%d'),
+            "EndTime": UserDateRange['EndTime'].strftime('%H:%M:%S'),
+            }
+
+    StartDateTimeList,EndDateTimeList = splitDateTime(UserDateRange, hours=hours)
+
+    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
+    Realtime_List = []
+    time_elapsed = []
+    i = 0
+    StartEndList=list(zip(StartDateTimeList,EndDateTimeList))
+    # ProgressContainer = st.empty()
+    # my_bar = ProgressContainer.progress(0.0,)
+    # max_retries=10
+    # retry_delay = 5
+    for ii in range(len((StartEndList))):
+        # my_bar.progress(np.round(ii/len(StartEndList),2), text=f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
+        StartDateTime,EndDateTime = StartEndList[ii]
+        loopStartTime = time.time()
+        Data_params ={
+            "wid" : int(WellInfoDict['wid']),
+            "start" : str(StartDateTime),
+            "end" : str(EndDateTime),
+        }
+        Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
+        Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
+        Realtime_List.append(Realtime_DF_temp)
+
+        loopEndTime = time.time()
+        i=i+1
+        time_elapsed.append(loopEndTime-loopStartTime)
+        print(f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
+
+    Realtime_DF = pd.concat(Realtime_List, axis=0, ignore_index=True)
+
+    start = str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime'])
+    end = str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime'])
+    mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
+    filtered_DF = Realtime_DF[mask]
+    # print( np.mean(time_elapsed))
+    # my_bar.progress(1.0)
+    # ProgressContainer.empty()
+    return interpolateRealtimeData(filtered_DF[column_list])
+
+
+
+
+
+
+
+
+
+
+
