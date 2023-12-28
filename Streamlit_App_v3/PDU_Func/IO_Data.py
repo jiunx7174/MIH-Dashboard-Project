@@ -110,7 +110,14 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
                 getRigActAPI, data=getRigActAPI_json 
             )
             )
-    return dict(response.json())
+    # return dict(response.json())
+    RigActivityDF = pd.DataFrame(dict(response.json())['data'], columns=['dt', 'actcode', 'activity'])
+
+    RigActivityDF.sort_values(by='dt', inplace=True)
+    RigActivityDF.rename(columns={'activity': 'Activity', 'dt':'DateTime'}, inplace=True)
+    RigActivityDF['DateTime'] = pd.to_datetime(RigActivityDF['DateTime'])
+    RigActivityDF = RigActivityDF.reset_index(drop=True)
+    return RigActivityDF
 
 
 @retry_on_error()
