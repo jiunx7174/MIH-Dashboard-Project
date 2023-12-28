@@ -2,11 +2,16 @@ import streamlit as st
 from PDU_Func import Authentification, IO_Data
 from importlib import reload
 import pandas as pd
+from datetime import datetime,timedelta
 from streamlit_date_picker import date_range_picker, PickerType, Unit, date_picker
 reload(IO_Data)
 # @st.cache_data(show_spinner="Retrieve Rig Activity")
 def cache_getRigActivity(WellInfoDict, **kwargs):
     return IO_Data.getRigActivity(WellInfoDict, **kwargs)
+def IsSubmitFormTrue(UserDateRange):
+    # st.session_state['IsFormSubmit'] = CheckUserDateRange(UserDateRange)
+    # if st.session_state['IsFormSubmit']:
+    st.session_state['IsFormSubmit'] = True
 def App():
     UserAuthDict = st.session_state['UserAuthDict']
     SelectComp = st.session_state['SelComp']
@@ -66,6 +71,40 @@ def App():
                     }
                 
                 )
+    ActivateDate = datetime.strptime(WellInfoDict['ActiveDate'], '%Y-%m-%d').strftime('%d-%m-%Y')
+    if datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d') > datetime.today():
+        EndDate = datetime.today().strftime('%d-%m-%Y')
+    else:
+        EndDate = datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d').strftime('%d-%m-%Y')
+        
+
+    with st.form(key='DateForm'):
+        StartDateCol,StartTimeCol,MiddleCol, EndDateCol, EndTimeCol = st.columns([2,1,4,2,1])
+        # st.session_state['UserDateRange'] = {
+        UserDateRange = {
+        "StartDate":(StartDateCol.date_input(
+            "Start Date",
+            value = datetime.strptime(ActivateDate, '%d-%m-%Y').date(),
+            key="StartDateValues"
+            )),
+
+        "StartTime":(StartTimeCol.time_input(
+            "Start Time",
+            value = datetime.strptime('00:00', '%H:%M').time(),
+            key="StartTimeValues")),
+        "EndDate":(EndDateCol.date_input(
+            "End Date",
+            value = datetime.strptime(EndDate, '%d-%m-%Y').date(),
+            key="EndDateValues")),
+        "EndTime":(EndTimeCol.time_input(
+            "End Time",
+            value = datetime.strptime('23:59', '%H:%M').time(),
+            key="EndTimeValues"))
+        }
+        # st.json(UserDateRange)
+
+        # SubmitCol.text("s")
+        st.form_submit_button(on_click=IsSubmitFormTrue, args=(UserDateRange,), use_container_width=True)
     with st.expander("Override Activity Data"):
         # st.image('Data\MockupActivityMapping.png', caption='Activity Mapping')
         st.dataframe(RigActivity_DF[['DateTime', 'Activity']].sort_values(by='DateTime', ascending=False),
