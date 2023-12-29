@@ -136,8 +136,12 @@ def DomeGetRealtimeRange(WellInfoDict):
 
 
 def interpolateRealtimeData(realtimeraw):
-    realtimeraw['dt'] = pd.to_datetime(realtimeraw['dt'], format='%Y-%m-%d %H:%M:%S')
-    realtimeraw['dt_relative'] = (realtimeraw['dt'] - realtimeraw['dt'].min()).dt.total_seconds()
+    # realtimeraw['dt'] = pd.to_datetime(realtimeraw['dt'], format='%Y-%m-%d %H:%M:%S')
+    realtimeraw.loc[:, 'dt'] = pd.to_datetime(realtimeraw['dt'], format='%Y-%m-%d %H:%M:%S')
+
+    # realtimeraw['dt_relative'] = (realtimeraw['dt'] - realtimeraw['dt'].min()).dt.total_seconds()
+    realtimeraw.loc[:, 'dt_relative'] = (realtimeraw['dt'] - realtimeraw['dt'].min()).dt.total_seconds()
+
     finalRealtime = pd.DataFrame(
     {
         'dt':pd.date_range(start=realtimeraw['dt'].min(), end=realtimeraw['dt'].max(), freq='5S'),
@@ -148,13 +152,13 @@ def interpolateRealtimeData(realtimeraw):
     finalRealtime['dt_relative'] = (finalRealtime['dt'] - finalRealtime['dt'].min()).dt.total_seconds()
 
     list_cols = ["bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin"]
-
+    realtimeraw[list_cols] = realtimeraw[list_cols].astype(float)
     for cols in list_cols:
-        realtimeraw[cols] = realtimeraw[cols].astype(float)
+        # realtimeraw[cols] = realtimeraw[cols].astype(float)
         finalRealtime[cols] = np.interp(finalRealtime['dt_relative'], realtimeraw['dt_relative'].values, realtimeraw[cols])
     finalRealtime = finalRealtime.drop('dt_relative',axis=1)
     return finalRealtime
-def splitDateTime(UserDateRange, hours=0.5):
+def splitDateTime_BU(UserDateRange, hours=0.5):
     startDateTimeStr = UserDateRange['StartDate'] + ' ' + UserDateRange['StartTime']
     endDateTimeStr = UserDateRange['EndDate'] + ' ' + UserDateRange['EndTime']
 
@@ -168,6 +172,33 @@ def splitDateTime(UserDateRange, hours=0.5):
     date_list = date_ranges.tolist() + [endDateTime]
     StartDateTimeList,EndDateTimeList = date_list[:-1],date_list[1:]
     return StartDateTimeList,EndDateTimeList
+def splitDateTime(UserDateRange, hours=0.5):
+    # Concatenate start date and time, and end date and time
+    startDateTimeStr = UserDateRange['StartDate'] + ' ' + UserDateRange['StartTime']
+    endDateTimeStr = UserDateRange['EndDate'] + ' ' + UserDateRange['EndTime']
+
+    # Convert to Timestamp
+    startDateTime = pd.Timestamp(startDateTimeStr)
+    endDateTime = pd.Timestamp(endDateTimeStr)
+
+    # Round down the start time to the nearest hour and round up the end time to the next hour
+    startDateTimeRounded = startDateTime.floor('H')
+    endDateTimeRounded = endDateTime.ceil('H')
+
+    # Define the time interval
+    deltaTime = pd.Timedelta(hours=hours)
+
+    # Generate date ranges
+    date_ranges = pd.date_range(start=startDateTimeRounded, end=endDateTimeRounded.floor("H"), freq=deltaTime)
+
+    # Add the rounded end time to the date list
+    date_list = date_ranges.tolist()
+    if endDateTimeRounded not in date_list:
+        date_list.append(endDateTimeRounded)
+
+    StartDateTimeList, EndDateTimeList = date_list[:-1], date_list[1:]
+
+    return StartDateTimeList, EndDateTimeList
 @retry_on_error()
 def DomeGetRealtimeSensorDataChunk(Data_params):
     # UserDateRange = {
@@ -191,13 +222,31 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
     )
 
     return pd.json_normalize(json.loads(WellData), record_path='result')
+@st.cache_data(ttl=60*60*1.5, show_spinner="Downloading Realtime Data...")
+def DomeGetRealtimeSensorDataChunk_Cache(Data_params):
+    return DomeGetRealtimeSensorDataChunk(Data_params)
+
     # Realtime_DF['dt'] = Realtime_DF['dt'].astype('datetime64[ns]')
     # start = datetime.strptime(Data_params['start'], '%Y-%m-%d %H:%M:%S')
     # end = datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S')
     # mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
     # filtered_DF = Realtime_DF[mask]
     # return filtered_DF[column_list]
-def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5):
+def ShowProgress(container, i, total):
+
+    # ProgressContainer = container.empty()
+    # if i ==0:
+    #     container.progress(0.0,)
+    print(f"{i} - {total} - {np.round((i+1)/total,2)}")
+    # print(np.round(i+1/total,2))
+    if i > 0 and i < total:
+        container.progress(np.round((i+1)/total,2), text=f"Download Realtime Sensor Data, {np.round((i+1)/total*100,0)} % Complete")
+    elif i == total:
+        container.progress(1.0)
+        container.empty()
+        # container.progress(i/total)
+
+def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progress=True, container=None):
     UserDateRange = {
             "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
             "StartTime": UserDateRange['StartTime'].strftime('%H:%M:%S'),
@@ -216,7 +265,14 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5):
     # my_bar = ProgressContainer.progress(0.0,)
     # max_retries=10
     # retry_delay = 5
+    if show_progress:
+        container.empty()
+        my_bar = container.progress(0.0,)
+
+
     for ii in range(len((StartEndList))):
+        print(f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
+        print(StartEndList[ii])
         # my_bar.progress(np.round(ii/len(StartEndList),2), text=f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
         StartDateTime,EndDateTime = StartEndList[ii]
         loopStartTime = time.time()
@@ -225,14 +281,18 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5):
             "start" : str(StartDateTime),
             "end" : str(EndDateTime),
         }
-        Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
+        Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_Cache(Data_params)
+        # Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
         Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
         Realtime_List.append(Realtime_DF_temp)
 
         loopEndTime = time.time()
         i=i+1
         time_elapsed.append(loopEndTime-loopStartTime)
-        print(f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
+        if show_progress:
+            ShowProgress(my_bar, ii, (len((StartEndList))))
+    if show_progress:
+        container.empty()
 
     Realtime_DF = pd.concat(Realtime_List, axis=0, ignore_index=True)
 
