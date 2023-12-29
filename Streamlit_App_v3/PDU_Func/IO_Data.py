@@ -243,7 +243,7 @@ def ShowProgress(container, i, total):
         container.progress(np.round((i+1)/total,2), text=f"Download Realtime Sensor Data, {np.round((i+1)/total*100,0)} % Complete")
     elif i == total:
         container.progress(1.0)
-        container.empty()
+        # container.empty()
         # container.progress(i/total)
 
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progress=True, container=None):
@@ -266,7 +266,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     # max_retries=10
     # retry_delay = 5
     if show_progress:
-        container.empty()
+        # container.empty()
         my_bar = container.progress(0.0,)
 
 
