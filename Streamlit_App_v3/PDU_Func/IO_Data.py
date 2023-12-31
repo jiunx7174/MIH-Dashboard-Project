@@ -305,6 +305,129 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     # ProgressContainer.empty()
     return interpolateRealtimeData(filtered_DF[column_list])
 
+@retry_on_error()
+def DomeRequestGET(API, Data_params):
+    return requests.get(API, data=Data_params)
+@retry_on_error()
+def DomeRequestPOST(API, Data_params):
+    return requests.post(API, data=Data_params)
+
+
+def DomeGetActivityLogData(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01"):
+    ActivityLogColumnRenameDict = {
+                            'id': 'id',
+                            'dt': 'DateTime',
+                            'date': 'Date',
+                            'time': 'Time',
+                            'activity': 'Activity',
+                            'in_slip_threshold': 'In-Slip Threshold', 
+                            'remarks': 'Remarks',
+                            'pic': 'PIC',
+                            'section': 'Section Size'
+                            }
+    
+    # ActivityLogColumns = ['id', 'dt', 'date', 'time', 'activity', 'in_slip_threshold', 'remarks', 'pic', 'section']
+    TableAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/get_data"
+
+    json_queries = json.dumps(
+        {
+        "wid": WellInfoDict['wid'],
+        "start" : start_date,
+        "end" : end_date,
+        },
+        indent = 4
+    )
+    response = DomeRequestGET(TableAPI, json_queries)
+
+    if (dict(response.json())['result']) == []:
+
+        ActivityLog_DF = pd.DataFrame(columns=list(ActivityLogColumnRenameDict.keys()))
+    else:
+        ActivityLog_DF = pd.DataFrame(dict(response.json())['result'])
+        ActivityLog_DF = ActivityLog_DF.sort_values(by='dt')
+
+    ActivityLog_DF.rename(columns = ActivityLogColumnRenameDict, inplace = True)
+    ActivityLog_DF['DateTime'] = pd.to_datetime(ActivityLog_DF['DateTime'], errors='coerce')
+    ActivityLog_DF.reset_index(inplace=True)
+    # ActivityLog_DF = ActivityLog_DF.set_index('id')
+    return ActivityLog_DF
+
+def DomeInsertActivityLogData(WellInfoDict, ActLogDF):
+    ActivityLogColumnRenameDict = {
+        'id': 'id',
+        'DateTime': 'dt',
+        'Date': 'date',
+        'Time': 'time',
+        'Activity': 'activity',
+        'In-Slip Threshold': 'in_slip_threshold',
+        'Remarks': 'remarks',
+        'PIC': 'pic',
+        'Section Size': 'section'
+    }
+    ActLogDF = ActLogDF.copy()
+    
+
+    ActLogDF['wid'] = WellInfoDict['wid']
+    keys_list = ["wid", "dt", "date", "time", "activity",
+                        "in_slip_threshold", "remarks", "pic", "section"]
+    ActLogDF = ActLogDF.rename(columns=ActivityLogColumnRenameDict)
+    # st.write(ActLogDF)
+    # st.stop()
+    ActLogDF = ActLogDF[keys_list]
+    # Convert to datetime format before formatting, if necessary
+    if ActLogDF['dt'].dtype != 'datetime64[ns]':
+        ActLogDF['dt'] = pd.to_datetime(ActLogDF['dt'], errors='coerce')
+    ActLogDF['dt'] = ActLogDF['dt'].dt.strftime('%Y-%m-%d %H:%M:%S')
+
+    ActLogDF['date'] = ActLogDF['date'].astype(str)
+    ActLogDF['time'] = ActLogDF['time'].astype(str)
+
+    ActLogDF['activity'] = ActLogDF['activity'].astype(str)
+    ActLogDF['in_slip_threshold'] = ActLogDF['in_slip_threshold'].astype(str)
+    ActLogDF['remarks'] = ActLogDF['remarks'].astype(str)
+    ActLogDF['pic'] = ActLogDF['pic'].astype(str)
+    ActLogDF['section'] = ActLogDF['section'].astype(str)
+    ActLogDF['wid'] = ActLogDF['wid'].astype(int)
+
+    
+
+
+
+    AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/create"
+
+    for index, row in ActLogDF.iterrows():
+
+
+
+        json_queries = json.dumps(
+            row.to_dict(),
+            indent = 4
+        )
+
+        response = DomeRequestPOST(AddRowAPI, json_queries)
+        st.toast(dict(response.json())['message'])
+        # st.stop()
+    # return dict(response.json())
+
+
+def DomeDeleteActivityLogData(WellInfoDict, row_id):
+    
+    DeleteRowAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/delete"
+    error_msg = ""
+    dict_row = {
+        "wid": WellInfoDict['wid'],
+        "id": row_id,
+    }
+    if error_msg == "":
+        json_queries = json.dumps(
+            dict_row,
+            indent = 4
+        )
+        response = (
+            DomeRequestPOST(DeleteRowAPI, json_queries)
+        )
+        
+        return dict(response.json())
 
 
 
