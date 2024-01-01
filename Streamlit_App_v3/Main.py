@@ -5,6 +5,7 @@ from Page import Welcome, PageNotFound
 from importlib import reload
 import streamlit_ext as ste
 reload(ActivityMapping)
+reload(ActivityVisualization)
 # reload(ComponentTest)
 # reload(ActivityDatabase)
 # reload(ComponentTest)

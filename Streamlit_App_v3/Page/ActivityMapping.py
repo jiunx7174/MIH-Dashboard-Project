@@ -145,7 +145,7 @@ def App():
     # if "SectionParams_DF" not in st.session_state:
     #     st.session_state["SectionParams_DF"] = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
     SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
-    st.button("🔄 Refresh Data", key="RefreshSectionParamsTable", on_click=resetDataEditorKey, args=(WellInfoDict,))
+    st.sidebar.button("🔄 Refresh Data", key="RefreshSectionParamsTable", on_click=resetDataEditorKey, args=(WellInfoDict,))
     
 
     # st.stop()
@@ -299,10 +299,13 @@ def App():
             RealtimeDataViz.App(st, RTSensor_DF)
         # RealtimeActTabs[1].RealtimeDataViz
         ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
+        ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
+        ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
         WellActivityContainer.write("##### Activity Summary")
         WellActivityContainer.dataframe(ActivitySummary_DF, height=500)
         
-
+        st.button("Upload Acticity Summary", on_click=IO_Data.DomeInsertActivitySummaryData, args=(WellInfoDict, ActivitySummary_DF ))
+            
 
 
         st.stop()

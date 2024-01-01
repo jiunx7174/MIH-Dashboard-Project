@@ -8,6 +8,8 @@ import time
 from datetime import datetime,timedelta
 # from stqdm import stqdm
 
+
+
 # for IO trial
 def retry_on_error(max_retries=10, retry_interval=10):
     def decorator(func):
@@ -312,7 +314,7 @@ def DomeRequestGET(API, Data_params):
 def DomeRequestPOST(API, Data_params):
     return requests.post(API, data=Data_params)
 
-
+# Activity Log
 def DomeGetActivityLogData(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01"):
     ActivityLogColumnRenameDict = {
                             'id': 'id',
@@ -430,10 +432,140 @@ def DomeDeleteActivityLogData(WellInfoDict, row_id):
         return dict(response.json())
 
 
+# Activity Summary
+def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
+    TableAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/get_data"
+    # print(wid)
+    json_queries = json.dumps(
+        {"wid" : int(WellInfoDict['wid']),
+            "start" : str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime']),
+            "end" : str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime']),
+        },
+        indent = 4
+    )
+
+    response = DomeRequestGET(TableAPI, json_queries)
+    # print((response.json()))
+    ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
+    ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict()['ColumnName'], inplace = True)
+    
+    return ActivitySummary_DF
+# def DomeInsertActivitySummaryData():
+#     # TODO create API for Activity Summary upload
+#     pass
+def DomeDeleteActivitySummaryData():
+    # TODO create API for Activity Summary delete
+    pass
+
+def ActivitySummaryColumnRenameDict():
+    out= {
+        "ColumnName":{"wid":"wid",
+                            "date":"Date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            # "stand_on_bottom":"OnBottomDurationPerStand",
+                            "connection_activity":"LABEL_ConnectionActivity",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            },
+        "DataTypeDict":{
+                    "wid": 'int',
+                    "Date": "datetime64[ns]",
+                    "StartDateTime": "datetime64[ns]",
+                    "EndDateTime": "datetime64[ns]",
+                    "Duration": "float",
+                    "Hole_Depth_max": "float",
+                    "Bit_Depth_avg": "float",
+                    "DrillingMeterage": "float",
+                    "RotateDrillingDuration": "float",
+                    "SlideDrillingDuration": "float",
+                    "ReamingDuration": "float",
+                    "ConnectionDuration": "float",
+                    "OnBottomDurationPerStand": "float",
+                    "StandDuration": "float",
+                    "LABEL_SubActivity": "string",
+                    "LABEL_Activity": "string",
+                    "DrillingMeteragePerStand": "float",
+                    "InSlip_Treshold": "float",
+                    "PIC": "string",
+                    "Section": "string",
+                    "Remarks": "string",
+                    "Stand Group_Pred": "string",
+                    "LABEL_ConnectionActivity":"string",
+                    },
+
+    }
+    return out
+def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf ):
+    # try:
+    # TODO create API for Activity Summary upload
+    # st.write(ActSumdf.dtypes)
+    ConversionDict = ActivitySummaryColumnRenameDict()
+    ActSumdf['wid'] = WellInfoDict['wid']
+    ActSumdf = ActSumdf.drop(['LABEL_All'], axis=1)
+    ActSumdf = ActSumdf.rename(
+        columns={value: key for key, value in ConversionDict['ColumnName'].items()}
+    )
+    ActSumdf['stand_on_bottom']=0
+    ActSumdf = ActSumdf.astype('string')
+    i = 0
+    i_end = len(ActSumdf)
+    # if progressbar:
+    #     ProgressBarContainer = st.session_state['PopUpWindow'].empty()
+    #     ProgressBarContainer.progress(0.0)
+    keys_list = ['wid', 'date', 'time_start', 'time_end', 'duration_minutes', 'hole_depth', 
+                    'bit_depth', 'meterage_drilling', 'rotate_drilling_time', 'slide_drilling_time', 
+                    'reaming_time', 'connection_time', 'on_bottom_hours', 'stand_duration', 'label_subactivity', 
+                    'label_activity', 'stand_meterage_drilling', 'stand_durationx', 'stand_on_bottom',
+                    'section', 'stand_group']
+    additional_key_list = ['pic', 'remark',] 
+    ActSumdf = ActSumdf[keys_list]
+    ActSumdf[additional_key_list] = ""
+    for idx,row in ActSumdf.iterrows():
+        i = i+1
+        dict_row = row.to_dict()
+        # print(dict_row)
+        # IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
 
 
+        AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/create"
+        json_queries = json.dumps(
+                dict_row,
+                indent = 4
+            )
+        
+        # st.write(dict_row)
+        response = (
+            DomeRequestPOST(AddRowAPI, json_queries)
+        )
+        # st.stop()
+        st.toast(dict(response.json())['message'])
 
 
+        # if progressbar:
+        #     ProgressBarContainer.progress(np.round(i/i_end,2), text=f"Download Realtime Sensor Data, {np.round(i/i_end,2)*100} % Complete")
+    
+    # if progressbar:
+    #     ProgressBarContainer.progress(1)
+    #     ProgressBarContainer.success("Upload Success!")
+    #     time.sleep(3)
+    #     ProgressBarContainer.empty()
 
 
 

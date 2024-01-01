@@ -1,8 +1,243 @@
 import pandas as pd
 import numpy as np  
 from datetime import datetime,timedelta
-# import streamlit as st
-# def groupActivity
+def ActivitySummaryColumnRenameDict():
+    out= {
+        "ColumnName":{"wid":"wid",
+                            "date":"Date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            # "stand_on_bottom":"OnBottomDurationPerStand",
+                            "connection_activity":"LABEL_ConnectionActivity",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            },
+        "DataTypeDict":{
+                    "wid": 'int',
+                    "Date": "datetime64[ns]",
+                    "StartDateTime": "datetime64[ns]",
+                    "EndDateTime": "datetime64[ns]",
+                    "Duration": "float",
+                    "Hole_Depth_max": "float",
+                    "Bit_Depth_avg": "float",
+                    "DrillingMeterage": "float",
+                    "RotateDrillingDuration": "float",
+                    "SlideDrillingDuration": "float",
+                    "ReamingDuration": "float",
+                    "ConnectionDuration": "float",
+                    "OnBottomDurationPerStand": "float",
+                    "StandDuration": "float",
+                    "LABEL_SubActivity": "string",
+                    "LABEL_Activity": "string",
+                    "DrillingMeteragePerStand": "float",
+                    "InSlip_Treshold": "float",
+                    "PIC": "string",
+                    "Section": "string",
+                    "Remarks": "string",
+                    "Stand Group_Pred": "string",
+                    "LABEL_ConnectionActivity":"string",
+                    },
+
+    }
+    return out
+
+
+def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
+    # if ActSum_df[ActSum_df['status']=='REVIEW'].empty:
+    #     return ActSum_df
+    # else:
+    # ActSum_df = ActSum_df[ActSum_df['status']=='REVIEW']
+
+    ActSum_df['DrillingMeteragePerStand'] = np.NaN
+    ActSum_df['StandDuration'] = np.NaN
+    ActSum_df['OnBottomDurationPerStand'] = np.NaN
+    ActSum_df['Stand Group_Pred'] = ""
+    ActSum_df['LABEL_ConnectionActivity'] = ""
+    ActSum_df['RotateDrillingDuration'] = ActSum_df['RotateDrillingDuration'].astype('float')
+    ActSum_df['SlideDrillingDuration']= ActSum_df['SlideDrillingDuration'].astype('float')
+    ActSum_df['DrillingMeterage']= ActSum_df['DrillingMeterage'].astype('float')
+    ActSum_df['Duration']= ActSum_df['Duration'].astype('float')
+
+    # ActSum_df['ConnectionDurationPerStand'] = np.NaN
+
+    ActSum_df = ActSum_df.reset_index(drop=True).fillna(0)
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'DRILL OUT CEMENT','CONNECTION']
+
+
+    ActSum_df['LABEL_Activity'] = ActSum_df['LABEL_Activity'].astype(str)
+    # ActSum_df['LABEL_Activity'] = ActSum_df['LABEL_Activity'].replace({"CONNECTION":"DRILLING FORMATION"})
+    ActSum_df = replace_connection_with_nearest_activity(ActSum_df)
+    
+
+    if stand_num is None:
+        stand_num = 0
+    stand_num = stand_num+1
+
+    # st.write(ActSum_df_Drilling.index[0])
+    for k,ActSum_df_Temp in ActSum_df.groupby((ActSum_df['LABEL_Activity'].shift() != ActSum_df ['LABEL_Activity']).cumsum()):
+        if ActSum_df_Temp['LABEL_Activity'].tolist()[0] in (DrillActivityList):
+            ii = 1
+            idx_start = ActSum_df_Temp.index[0]
+
+
+
+            len_connection = len(ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')])
+            # First, define the stand first
+            for idx,row in ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')].iterrows():
+                idx_end=idx-1
+                ActSum_df_Stand = ActSum_df[idx_start:idx_end+1]
+
+                if 'Reaming' in ActSum_df_Stand['LABEL_SubActivity'].tolist():
+                    OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
+                    StandDuration =  ActSum_df.loc[idx_start:idx_end+1, 'Duration'].sum()
+                    DrillingMeteragePerStand = ActSum_df.loc[idx_start:idx_end, 'DrillingMeterage'].sum()
+
+
+                    ActSum_df.loc[idx, 'OnBottomDurationPerStand'] = OnBottomDurationPerStand
+                    ActSum_df.loc[idx, 'StandDuration'] = StandDuration
+                    ActSum_df.loc[idx, "DrillingMeteragePerStand"] = DrillingMeteragePerStand
+                    ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Drilling Stand-' + str(stand_num)
+                    if ii==1:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # stand_num = stand_num-1
+                        ii = ii +1
+                        # st.write(PreCon_Start_idx)
+                    else:
+                        
+                        # try:
+                        PostCon_Start_idx = idx_start
+                        PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
+                        ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
+                        print(PostCon_Start_idx)
+                        print('PostCon')
+                        print(PostCon_End_idx)
+                        # if ii < len_connection:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # st.write(f"PreConIdx {PreCon_Start_idx} - {PreCon_End_idx}")
+
+                        # except:
+                        #     pass
+                        ii = ii+1
+                    # st.write()
+                    stand_num = stand_num+1
+                
+                idx_start = idx+1
+            # if len_connection == 1:
+            try:
+                ActSum_df_PostCon = ActSum_df_Temp[idx_start-2:]
+                # st.write(ActSum_df_PostCon)
+
+                PostCon_Start_idx = idx_start
+                PostCon_End_idx = ActSum_df_PostCon[ActSum_df_PostCon['LABEL_SubActivity']=='Reaming'].index[0]
+                ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
+            except:
+                # st.write(ii)
+                try:
+                    ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
+                except:
+                    pass
+                # pass
+
+    return ActSum_df
+def replace_connection_with_nearest_activity(ActSum_df):
+    connection_indices = ActSum_df.index[ActSum_df['LABEL_Activity'] == 'CONNECTION'].tolist()
+    for conn_idx in connection_indices:
+        prev_activities = ActSum_df['LABEL_Activity'].iloc[:conn_idx]
+        next_activities = ActSum_df['LABEL_Activity'].iloc[conn_idx+1:]
+
+        prev_nearest = prev_activities[prev_activities.isin(['DRILLING FORMATION', 'DRILL OUT CEMENT'])].last_valid_index()
+        next_nearest = next_activities[next_activities.isin(['DRILLING FORMATION', 'DRILL OUT CEMENT'])].first_valid_index()
+
+        dist_prev = np.inf if prev_nearest is None else conn_idx - prev_nearest
+        dist_next = np.inf if next_nearest is None else next_nearest - conn_idx
+
+        if dist_prev <= dist_next and prev_nearest is not None:
+            replace_with = ActSum_df.at[prev_nearest, 'LABEL_Activity']
+        elif next_nearest is not None:
+            replace_with = ActSum_df.at[next_nearest, 'LABEL_Activity']
+        else:
+            replace_with = 'DRILLING FORMATION'
+
+        ActSum_df.at[conn_idx, 'LABEL_Activity'] = replace_with
+    return ActSum_df
+def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=1, includeStatus=False):
+    def _first_non_empty(x):
+        non_empty_values = x[x != ''].tolist()
+        return non_empty_values[0] if non_empty_values else ''
+    # st.write('clean')
+    if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
+        ActSum_df['LABEL_ConnectionActivity']  = ''
+    # ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('-')
+
+    # Set the Duration==0 to FALSE/Check
+    # ActSum_df.loc[, 'LABEL_SubActivity'] = "Look and define"
+
+    ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
+    for iter in range(CleaningIteration):
+        ActSum_df = ActSum_df.reset_index(drop=True)
+        # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
+        lookdefine_logic = ActSum_df['LABEL_SubActivity']=="Look and define"
+        falsecheck_logic = ActSum_df['LABEL_SubActivity']=="FALSE/Check"
+        duration_logic = (ActSum_df['Duration'] <= float(MinuteTolerances))
+
+        
+        idx_same = ActSum_df.index[
+            (lookdefine_logic | falsecheck_logic) #& duration_logic
+            ]
+        idx_before = idx_same - 1
+
+        idx_same = idx_same[idx_before>=0]
+        idx_before = idx_before[idx_before>=0]
+        
+        ActSum_df.loc[idx_same, 'LABEL_SubActivity'] = ActSum_df.loc[idx_before, 'LABEL_SubActivity'].values
+        ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
+        AggDict = {'Date': 'max',
+                    'StartDateTime': 'min',
+                    'EndDateTime': 'max',
+                    'Duration': 'sum',
+                    'Hole_Depth_max': 'max',
+                    'Bit_Depth_avg': 'mean',
+                    'DrillingMeterage': 'sum',
+                    'RotateDrillingDuration': 'sum',
+                    'SlideDrillingDuration': 'sum',
+                    'ReamingDuration': 'sum',
+                    'ConnectionDuration': 'sum',
+                    'LABEL_SubActivity': 'first',
+                    'LABEL_Activity': 'first',
+                    'LABEL_All': 'first',
+                    'LABEL_ConnectionActivity': _first_non_empty,
+                    # 'PIC': 'first',
+                    'InSlip_Treshold': 'first',
+                    # 'Remarks': 'first',
+                    'Section': 'first'
+                    }
+        # if includeStatus:
+        #     AggDict['status'] = 'first'
+        ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(AggDict)
+
+    return ActSum_df
 
 def groupActivity(RTSensor_df , DrillActivityList='default'):
     if DrillActivityList=='default':
@@ -10,7 +245,7 @@ def groupActivity(RTSensor_df , DrillActivityList='default'):
 
 
     RTSensor_df ['dt'] = pd.to_datetime(RTSensor_df ['dt'])
-    RTSensor_df ["LABEL_All"] =RTSensor_df ['SubActivity'].astype(str)+'--'+RTSensor_df['Activity'].astype(str)
+    RTSensor_df ["LABEL_All"] =RTSensor_df ['Section Size'].astype(str)+'--'+RTSensor_df ['SubActivity'].astype(str)+'--'+RTSensor_df['Activity'].astype(str)
     RTSensor_df ['Activity'] = RTSensor_df ['Activity'].fillna("N/A").astype(str)
     RTSensor_df ['SubActivity'] = RTSensor_df ['SubActivity'].fillna("N/A").astype(str)
     # TODO , a funtion that check the latest hole depth
@@ -97,7 +332,7 @@ def groupActivity(RTSensor_df , DrillActivityList='default'):
             # 'Stand Duration': StandDuration,
             'LABEL_SubActivity': LABEL_SubActivity,
             "LABEL_Activity": LABEL_Activity,
-            "LABEL_All": LABEL_SubActivity+'--'+LABEL_Activity,
+            "LABEL_All": section_data+"--"+LABEL_SubActivity+'--'+LABEL_Activity,
             # "PIC":pic_data,
             "InSlip_Treshold":InSlip_Treshold_data,
             # "Remarks":remarks_data,
@@ -167,8 +402,10 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
         }
     )
     if TripActivityList=='default':
-        TripActivityList = ['NPT', 'N/D BOP', 'N/U BOP', 'OTHER', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 
-                            'TRIP IN', 'TRIP OUT', 'WAIT ON CEMENT', 'LAY DOWN BHA', 'MAKE UP BHA', 'WIPER TRIP']
+        TripActivityList = ['TRIP IN', 'TRIP OUT', 'WIPER TRIP']
+
+        # TripActivityList = ['NPT', 'N/D BOP', 'N/U BOP', 'OTHER', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 
+        #                     'TRIP IN', 'TRIP OUT', 'WAIT ON CEMENT', 'LAY DOWN BHA', 'MAKE UP BHA', 'WIPER TRIP']
         
     if DrillActivityList=='default':
         DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
