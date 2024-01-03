@@ -1,11 +1,15 @@
 import streamlit as st
-from PDU_Func import Activity, Authentification, IO_Data
+from PDU_Func import Activity, Authentification, IO_Data, Viz_Data
+from Page.SubPage import Dashboard
 from datetime import datetime,timedelta
 import streamlit_ext as ste
 import pandas as pd
 from importlib import reload
 reload(IO_Data)
 reload(Activity)
+reload(Viz_Data)
+reload(Dashboard)
+from streamlit_elements import elements, mui, html
 # reload(RealtimeDataViz)
 def IsSubmitFormTrue(UserDateRange):
     # st.session_state['IsFormSubmit'] = CheckUserDateRange(UserDateRange)
@@ -34,6 +38,8 @@ def validate_start_end_dates(UserDateRange):
         st.error("***Start*** *Datetime* must be less than ***End*** *Datetime*. Please adjust the dates/times.")
         st.stop()
 def App():
+    if 'IsFormSubmit' not in st.session_state:
+        st.session_state['IsFormSubmit'] = False
     UserAuthDict = st.session_state['UserAuthDict']
     SelectComp = st.session_state['SelComp']
     SelectWell = st.session_state['SelWell']
@@ -104,6 +110,29 @@ def App():
         st.warning("Please select a date range")
     else:
         validate_start_end_dates(UserDateRange)
-        st.write(cacheGetActivitySummaryData(WellInfoDict, UserDateRange))
-
-    
+        ActivitySummary_DF = cacheGetActivitySummaryData(WellInfoDict, UserDateRange)
+        Dashboard.SingleWellChart(ActivitySummary_DF)
+        # st.write(ActivitySummary_DF)
+        # st.plotly_chart(
+        #     Viz_Data.getDurationPieChart(
+        #                     ActivitySummary_DF, 
+        #                     'LABEL_Activity', 
+        #                     Title='', 
+        #                     DurationCol='Duration', 
+        #                     height=400,
+        #                     width=400,
+        #                     hole=0.5),
+        #                     use_container_width=True
+        # )
+        # st.plotly_chart(
+        #     Viz_Data.getDurationPieChart(
+        #                     ActivitySummary_DF, 
+        #                     'LABEL_SubActivity', 
+        #                     Title='', 
+        #                     DurationCol='Duration', 
+        #                     height=400,
+        #                     width=400,
+        #                     hole=0.5),
+        #                     use_container_width=True
+        # )
+        # First, import the elements you need

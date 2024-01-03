@@ -139,7 +139,7 @@ def App():
     SelectComp = st.session_state['SelComp']
     SelectWell = st.session_state['SelWell']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
-    SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
+    # SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
 
     # SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
     # if "SectionParams_DF" not in st.session_state:
