@@ -139,6 +139,10 @@ def App():
     SelectComp = st.session_state['SelComp']
     SelectWell = st.session_state['SelWell']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
+    # IO_Data.initiateTable(WellInfoDict)
+    # st.write(WellInfoDict)
+    # st.write(IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type="ActivityLogTable"))
+    # st.stop()
     # SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
 
     # SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
@@ -293,18 +297,63 @@ def App():
         RTDataContainer,RTVizContainer = WellActivityContainer.tabs(['Table', 'Visualization'])
 
         with RTDataContainer: 
-            st.dataframe(RTSensor_DF, height = 770)
+            st.dataframe(RTSensor_DF, height = 400,)
         with RTVizContainer:
 
             RealtimeDataViz.App(st, RTSensor_DF)
         # RealtimeActTabs[1].RealtimeDataViz
+
+        
+        # st.write(OverridedActivity_df)
+        # st.write(st.session_state['OverridedActivity_df'])
+        # st.stop()
         ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
         ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
         ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
         WellActivityContainer.write("##### Activity Summary")
-        WellActivityContainer.dataframe(ActivitySummary_DF, height=500)
+        ActivitySummaryTable, ActivitySummaryOverrideTable = WellActivityContainer.tabs(['Table','Override Table'])
+        with ActivitySummaryTable:
+            st.dataframe(ActivitySummary_DF, height=500)
+        with ActivitySummaryOverrideTable:
+            OverridedActivity_df = pd.DataFrame(columns=['StartDateTime','EndDateTime','Activity','SubActivity'], )
+            with st.form(key='OverridedActivityForm'):
+                OverrideActivityForm_ColumnConfig = {
+                                                        "StartDateTime": st.column_config.DatetimeColumn(
+                                                            "StartDateTime",
+                                                            format="D MMM YYYY, h:mm:ss",
+                                                            step=60,
+                                                        ),
+                                                    }
+                OverridedActivity_df = st.data_editor(OverridedActivity_df,column_config=OverrideActivityForm_ColumnConfig,  key="OverridedActivity_df", num_rows='dynamic')
+                st.form_submit_button(label='Submit')
+        # ActivitySummary_DFColumnShow = [
+        #     "StartDateTime","EndDateTime", "Duration", 'Hole_Depth_max', "Bit_Depth_avg", "DrillingMeterage"
+        # ]
+        # StartDateTime
+        # EndDateTime
+        # Duration
+        # Hole_Depth_max
+        # Bit_Depth_avg
+        # DrillingMeterage
+        # RotateDrillingDuration
+        # SlideDrillingDuration
+        # ReamingDuration
+        # ConnectionDuration
+        # LABEL_SubActivity
+        # LABEL_Activity
+        # LABEL_ConnectionActivity
+        # InSlip_Treshold
+        # DrillingMeteragePerStand
+        # StandDuration
+        # OnBottomDurationPerStand
+        # Stand Group_Pred
+        # st.write(ActivitySummary_DF.columns)
         
         st.button("Upload Acticity Summary", on_click=IO_Data.DomeInsertActivitySummaryData, args=(WellInfoDict, ActivitySummary_DF ))
+
+
+
+
             
 
 

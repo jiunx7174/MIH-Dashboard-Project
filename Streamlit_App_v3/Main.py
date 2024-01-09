@@ -1,11 +1,12 @@
 import streamlit as st
 from PDU_Func import Authentification, IO_Data
-from Page import ActivityMapping,  ActivityVisualization
+from Page import ActivityMapping,  ActivityVisualization, DataAnalytics
 from Page import Welcome, PageNotFound
 from importlib import reload
 import streamlit_ext as ste
 reload(ActivityMapping)
 reload(ActivityVisualization)
+reload(DataAnalytics)
 # reload(ComponentTest)
 # reload(ActivityDatabase)
 # reload(ComponentTest)
@@ -83,12 +84,14 @@ with MenuNavigationContainer:
         sac.MenuItem('Activity Mapping', icon='bi bi-table', disabled=(SelectWell==None or SelectWell=='-')),
         # sac.MenuItem('Activity Mappingx', icon='bi bi-ui-checks'),
         sac.MenuItem('Dashboard', icon='bi bi-graph-up', disabled=(SelectWell==None or SelectWell=='-')),
+        sac.MenuItem('Data Analytics', icon='bi bi-motherboard', disabled=(SelectWell==None or SelectWell=='-')),
     ], format_func='title',size='small',index=1, open_all=True, key='Menu')
 
 AppDict = {
     'home': Welcome.App,
     'Activity Mapping': ActivityMapping.App,
     'Dashboard': ActivityVisualization.App,
+    'Data Analytics': DataAnalytics.App,
 }
 
 AppDict[AppName]()

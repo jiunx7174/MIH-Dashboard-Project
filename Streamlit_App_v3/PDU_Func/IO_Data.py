@@ -26,6 +26,74 @@ def retry_on_error(max_retries=10, retry_interval=10):
     return decorator
 
 @retry_on_error()
+def DomeCheckTable(wid: int, table_type: str="ActivityLogTable"):
+    if table_type=="ActivityLogTable":    
+        WellAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitylogRT/cek_table"
+        json_queries = {
+        "wid": wid
+        }
+
+        response = (
+            requests.post(
+                WellAPI, data=json.dumps(json_queries, indent = 4) 
+            )
+        )
+        print('check ActivityLogTable')
+        return dict(response.json())
+    
+    elif table_type=="ActivitySummaryTable":
+        WellAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummaryRT/cek_table"
+        json_queries = {
+        "wid": wid
+        }
+
+        response = (
+            requests.post(
+                WellAPI, data=json.dumps(json_queries, indent = 4) 
+            )
+        )
+        print('check ActivitySummaryTable')
+        return dict(response.json())
+
+@retry_on_error()
+def DomeCreateTable(wid: int, table_type: str="ActivityLogTable"):
+    if table_type=="ActivityLogTable":    
+        WellAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitylogRT/create_table"
+        json_queries = {
+        "wid": wid
+        }
+
+        response = (
+            requests.post(
+                WellAPI, data=json.dumps(json_queries, indent = 4) 
+            )
+        )
+        print('create ActivityLogTable')
+
+        return dict(response.json())
+    elif table_type=="ActivitySummaryTable":    
+        WellAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummaryRT/create_table"
+        json_queries = {
+        "wid": wid
+        }
+
+        response = (
+            requests.post(
+                WellAPI, data=json.dumps(json_queries, indent = 4) 
+            )
+        )
+
+        print('create ActivitySummaryTable')
+        return dict(response.json())
+
+
+def initiateTable(WellInfoDict):
+    wid = WellInfoDict['wid']
+    for table_type in ['ActivityLogTable', 'ActivitySummaryTable']:
+        if DomeCheckTable(wid, table_type)['table'] == 0:
+            DomeCreateTable(wid, table_type)
+
+@retry_on_error()
 def getAvailableCompanyDF(UserAuthDict):
     UserAuthDict = UserAuthDict['data']
     if UserAuthDict["user_cid"]=='1':
@@ -447,6 +515,8 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
     response = DomeRequestGET(TableAPI, json_queries)
     # print((response.json()))
     ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
+    print("Columns:")
+    print(ActivitySummary_DF.columns)
     ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict()['ColumnName'], inplace = True)
     
     return ActivitySummary_DF
@@ -532,7 +602,7 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf ):
     keys_list = ['wid', 'date', 'time_start', 'time_end', 'duration_minutes', 'hole_depth', 
                     'bit_depth', 'meterage_drilling', 'rotate_drilling_time', 'slide_drilling_time', 
                     'reaming_time', 'connection_time', 'on_bottom_hours', 'stand_duration', 'label_subactivity', 
-                    'label_activity', 'stand_meterage_drilling', 'stand_durationx', 'stand_on_bottom',
+                    'label_activity', 'stand_meterage_drilling', 'stand_durationx','connection_activity', 'stand_on_bottom',
                     'section', 'stand_group']
     additional_key_list = ['pic', 'remark',] 
     ActSumdf = ActSumdf[keys_list]

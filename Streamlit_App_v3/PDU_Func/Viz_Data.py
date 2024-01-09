@@ -55,3 +55,214 @@ def getDrillingMeterageBarChart(ActSum_df):
         dtick="D",)
     # Show the plot
     return fig
+
+def getTimeVsDepthChart(ActSum_df, height=600,width=1200,):
+    df = ActSum_df.copy()
+    df['Activity'] = df['LABEL_Activity']
+    df['BitDepth'] = df['Bit_Depth_avg']
+
+    # Convert the 'StartDateTime' and 'EndDateTime' columns to datetime type
+    df['StartDateTime'] = pd.to_datetime(df['StartDateTime'])
+    df['EndDateTime'] = pd.to_datetime(df['EndDateTime'])
+
+    # Sort the DataFrame by 'StartDateTime' for chronological plotting
+    df = df.sort_values('StartDateTime').reset_index(drop=True)
+
+    # Create a new Plotly figure
+    fig = go.Figure()
+
+    # Define custom colors for each activity type
+    activity_colors = {'TRIP IN': 'red',
+    'TRIP OUT': 'orange',
+    'WIPER TRIP': '#00CC96',
+    'DRILLING FORMATION': '#AB63FA',
+    'CIRCULATE HOLE CLEANING': '#FFA15A',
+    'CONNECTION': '#19D3F3',
+    'DRILL OUT CEMENT': '#FF6692',
+    'CEMENTING JOB': '#B6E880',
+    'LAY DOWN BHA': '#FF97FF',
+    'MAKE UP BHA': '#FECB52',
+    'NPT': '#4D8BFA',
+    'N/D BOP': '#F5663B',
+    'N/U BOP': '#00D596',
+    'RUNNING CASING IN': '#9B63FA',
+    'STATIONARY': '#FFB85A',
+    'STUCK PIPE': '#39D4F3',
+    'WAIT ON CEMENT': '#FF3388',
+    'RIG REPAIR': '#C6F980',
+    'N/A': '#FFC0FF',
+    'OTHER': '#FED752'}
+
+    # Temporary list to track activities for legend display
+    temp_activity_list = []
+
+    # Iterate over each row in the DataFrame to plot the activities
+    for idx, row in df.iterrows():
+        # Show legend only for the first instance of each activity
+        legend_show = row['Activity'] not in temp_activity_list
+        if legend_show:
+            temp_activity_list.append(row['Activity'])
+
+        # Create a date range with 15-minute intervals, ensuring to include the end time
+        time_range = pd.date_range(start=row['StartDateTime'], end=row['EndDateTime'], freq='15T')
+        if time_range[-1] != row['EndDateTime']:
+            time_range = time_range.union(pd.DatetimeIndex([row['EndDateTime']]))
+
+        # Assume BitDepth is constant for simplicity
+        bit_depth_values = [row['BitDepth']] * len(time_range)
+
+        # Create and add a trace to the figure for each activity
+        if idx == 0:
+            df_plot = pd.DataFrame({'Datetime': time_range.values.tolist(), 'bit_depth': bit_depth_values})
+            df_plot['Datetime'] = pd.to_datetime(df_plot['Datetime'])
+            fig.add_trace(
+                go.Scatter(
+                    x=df_plot['Datetime'],
+                    y=df_plot['bit_depth'],
+                    mode='lines',
+                    name=row['Activity'],
+                    line=dict(color=activity_colors[row['Activity']], width=4),
+                    legendgroup=row['Activity'],
+                    showlegend=legend_show  # Show legend only for the first instance of each activity
+                )
+            )
+            before_bit_depth = [bit_depth_values[-1]]
+        else:
+            df_plot = pd.DataFrame({'Datetime': [time_range.values.tolist()[0]] + time_range.values.tolist(), 'bit_depth': before_bit_depth + bit_depth_values})
+            df_plot['Datetime'] = pd.to_datetime(df_plot['Datetime'])
+            fig.add_trace(
+                go.Scatter(
+                    x=df_plot['Datetime'],
+                    y=df_plot['bit_depth'],
+                    mode='lines',
+                    name=row['Activity'],
+                    line=dict(color=activity_colors[row['Activity']], width=4),
+                    legendgroup=row['Activity'],
+                    showlegend=legend_show  # Show legend only for the first instance of each activity
+                )
+            )
+            before_bit_depth = [bit_depth_values[-1]]
+
+    # Update layout for the legend
+    legend_layout = {
+        'orientation': 'h',
+        'xref': "paper",
+        'yref': "container",
+        'y': -0.3,
+        'x': 0.5,
+        'xanchor': 'center',
+        'yanchor': 'bottom'
+    }
+    fig.update_layout(legend=legend_layout)
+
+    # Set the plot titles and labels
+    fig.update_layout(
+        height=height,
+        width=width,
+        margin=dict(l=0, r=50, t=50, b=50),
+        xaxis_title='Datetime',
+        yaxis_title='Avg. Bit Depth (m)',
+        yaxis_autorange='reversed',  # Reverse the y-axis to show deeper depths at the top
+        legend_title='Activity'
+    )
+    return fig
+
+
+
+def getROPchart(ActSum_df, height=400, width=800):
+    ROP_df = ActSum_df.copy()
+    ROP_df['StartDateTime'] = pd.to_datetime(ROP_df['StartDateTime'])
+    ROP_df['EndDateTime'] = pd.to_datetime(ROP_df['EndDateTime'])
+    ROP_df[['DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration']] = ROP_df[['DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration']].astype(float)
+
+    # Calculate MidDateTime as the average of StartDateTime and EndDateTime
+    ROP_df['MidDateTime'] = ROP_df['StartDateTime'] + (ROP_df['EndDateTime'] - ROP_df['StartDateTime']) / 2
+
+    idx_logic = (ROP_df['LABEL_Activity'].isin(["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','DRILL OUT CEMENT',])) & (ROP_df['LABEL_SubActivity'] == 'Connection')
+
+
+    ROP_df = ROP_df[idx_logic]
+
+    ROP_df['ROP_OnBottom'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['OnBottomDurationPerStand']/60) 
+    ROP_df['ROP_Stand'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['StandDuration']/60)
+    # display(ROP_df[['MidDateTime', 'LABEL_SubActivity', 'LABEL_Activity', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand']])
+    # ROP stand m/hr 
+
+
+
+    # Assuming your DataFrame is named df and contains columns 'ROP_OnBottom', 'ROP_Stand', and 'DateTime'
+    # First, convert your 'DateTime' column to a datetime type if it's not already
+    df = pd.DataFrame(ROP_df)
+    # df['DateTime'] = pd.to_datetime(df['DateTime'])
+
+    # Create a new Plotly figure
+    fig = go.Figure()
+    bar_width = 60*60*60*10
+    # Add ROP_OnBottom as one set of bars
+    fig.add_trace(go.Bar(
+        x=df['MidDateTime'],
+        y=df['ROP_OnBottom'],
+        name='ROP On Bottom',
+        marker_color='blue',  # You can choose a color
+        #  width=bar_width 
+    ))
+
+    # Add ROP_Stand as another set of bars
+    fig.add_trace(go.Bar(
+        x=df['MidDateTime'],
+        y=df['ROP_Stand'],
+        name='ROP Stand',
+        marker_color='red',  # You can choose a different color
+        #  width=bar_width 
+    ))
+
+    # Update the layout
+    fig.update_layout(
+        barmode='group',  # This will group the bars side by side at each x-value (datetime)
+            bargap=0, # gap between bars of adjacent location coordinates.
+        bargroupgap=0, # gap between bars of the same location coordinate.
+        # title='ROP On Bottom vs ROP Stand Over Time',
+        xaxis_title='Datetime',
+        yaxis_title='ROP(m/hr)', # Ensuring x-axis is treated as date
+        height=height,
+        width=width,
+        margin=dict(l=0, r=50, t=50, b=50),
+    )
+    return fig
+
+
+
+def getStandTimeChart(ActSum_df, height=400, width=800):
+    StandTime_df = ActSum_df.copy()
+    StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']] = StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']].astype(float)
+    StandTime_df = StandTime_df.groupby('Stand Group_Pred').agg({
+        'RotateDrillingDuration': 'sum',
+        'SlideDrillingDuration': 'sum',
+        'ReamingDuration': 'sum',
+        'ConnectionDuration': 'sum',
+        'EndDateTime': 'max'
+    })
+    fig = go.Figure()
+
+    for DurationCols in [ 'Rotate Drilling', 'Slide Drilling', 'Reaming', 'Connection']:
+        # DurationCols = DurationCols.replace(' ', '').replace('Duration', '')
+        
+        fig.add_trace(go.Bar(
+            x=StandTime_df['EndDateTime'],
+            y=StandTime_df[DurationCols.replace(' ', '') + "Duration"],
+            name=DurationCols,
+            # marker_color='blue',  # You can choose a color
+            #  width=bar_width 
+        ))
+
+
+    # Update the layout
+    fig.update_layout(
+        height=height,
+        width=width,
+        barmode='stack',  # This will group the bars side by side at each x-value (datetime)
+        xaxis_title='Datetime',
+        yaxis_title='Duration',
+        xaxis=dict(type='date')  # Ensuring x-axis is treated as date
+    )
+    return fig

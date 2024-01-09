@@ -1,16 +1,21 @@
+from pygwalker.api.streamlit import StreamlitRenderer, init_streamlit_comm
+import pandas as pd
 import streamlit as st
-from PDU_Func import Activity, Authentification, IO_Data, Viz_Data
-from Page.SubPage import Dashboard
 from datetime import datetime,timedelta
+from PDU_Func import Activity, Authentification, IO_Data, Viz_Data
+from importlib import reload
 import streamlit_ext as ste
 import pandas as pd
-from importlib import reload
 reload(IO_Data)
 reload(Activity)
 reload(Viz_Data)
-reload(Dashboard)
-from streamlit_elements import elements, mui, html
-# reload(RealtimeDataViz)
+
+@st.cache_resource
+def get_pyg_renderer(WellInfoDict, UserDateRange) -> "StreamlitRenderer":
+    ActtSum_df = cacheGetActivitySummaryData(WellInfoDict, UserDateRange)
+    # df = pd.read_csv("https://kanaries-app.s3.ap-northeast-1.amazonaws.com/public-datasets/bike_sharing_dc.csv")
+    # When you need to publish your app to the public, you should set the debug parameter to False to prevent other users from writing to your chart configuration file.
+    return StreamlitRenderer(ActtSum_df, spec="./gw_config.json", debug=False)
 def IsSubmitFormTrue(UserDateRange):
     # st.session_state['IsFormSubmit'] = CheckUserDateRange(UserDateRange)
     # if st.session_state['IsFormSubmit']:
@@ -44,7 +49,7 @@ def App():
     SelectComp = st.session_state['SelComp']
     SelectWell = st.session_state['SelWell']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
-    st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 0px;">ACTIVITY DASHBOARD</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 0px;">Exploratory Data Analysis</h1>', unsafe_allow_html=True)
     WellActivityContainer = st.container(border=True)
     DatetimeRangeCol = WellActivityContainer.container()
     ActivateDate = datetime.strptime(WellInfoDict['ActiveDate'], '%Y-%m-%d').strftime('%d-%m-%Y')
@@ -110,29 +115,16 @@ def App():
         st.warning("Please select a date range")
     else:
         validate_start_end_dates(UserDateRange)
-        ActivitySummary_DF = cacheGetActivitySummaryData(WellInfoDict, UserDateRange)
-        Dashboard.SingleWellChart(ActivitySummary_DF)
-        # st.write(ActivitySummary_DF)
-        # st.plotly_chart(
-        #     Viz_Data.getDurationPieChart(
-        #                     ActivitySummary_DF, 
-        #                     'LABEL_Activity', 
-        #                     Title='', 
-        #                     DurationCol='Duration', 
-        #                     height=400,
-        #                     width=400,
-        #                     hole=0.5),
-        #                     use_container_width=True
-        # )
-        # st.plotly_chart(
-        #     Viz_Data.getDurationPieChart(
-        #                     ActivitySummary_DF, 
-        #                     'LABEL_SubActivity', 
-        #                     Title='', 
-        #                     DurationCol='Duration', 
-        #                     height=400,
-        #                     width=400,
-        #                     hole=0.5),
-        #                     use_container_width=True
-        # )
-        # First, import the elements you need
+        # ActivitySummary_DF = cacheGetActivitySummaryData(WellInfoDict, UserDateRange)
+        # Establish communication between pygwalker and streamlit
+        init_streamlit_comm()
+        
+            # Add a title
+
+
+        # Get an instance of pygwalker's renderer. You should cache this instance to effectively prevent the growth of in-process memory.
+
+        renderer = get_pyg_renderer(WellInfoDict, UserDateRange)
+
+        # Render your data exploration interface. Developers can use it to build charts by drag and drop.
+        renderer.render_explore(scrolling=True)

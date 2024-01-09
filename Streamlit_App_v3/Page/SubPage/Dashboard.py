@@ -70,10 +70,22 @@ def SingleWellChart(ActSum_df, MainContainer=None):
 
 
     TimeVsDepthCol.markdown(f"Time vs Depth <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
-    
+    TimeVsDepthCol.plotly_chart(
+        Viz_Data.getTimeVsDepthChart(ActSum_df, height=400, width=800),
+        use_container_width=True
+    )
+
     ROP_PerStandCol.markdown(f"ROP On Bottom and Stand <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
+    ROP_PerStandCol.plotly_chart(
+        Viz_Data.getROPchart(ActSum_df, height=400, width=800),
+        use_container_width=True
+    )
     ConnectionTimeCol.markdown(f"Connection time <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     StandTimeCol.markdown(f"Time Stand Break Down <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
+    StandTimeCol.plotly_chart(
+        Viz_Data.getStandTimeChart(ActSum_df, height=400, width=800),
+        use_container_width=True
+    )
 
 
     st.write(ActSum_df)
