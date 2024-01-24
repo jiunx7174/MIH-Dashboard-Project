@@ -276,7 +276,12 @@ def App():
         st.warning("Please select a date range")
     else:
         validate_start_end_dates(UserDateRange)
-        RTSensor_DF = cache_DomeGetRealtimeSensorData(WellInfoDict,UserDateRange, hours=0.5, show_progress=True, container=RealtimeLoadingContainer)
+        RTSensor_DF = cache_DomeGetRealtimeSensorData(WellInfoDict,
+                                                      UserDateRange, 
+                                                      hours=0.5, 
+                                                      show_progress=True, 
+                                                      runOnStreamlit=True,
+                                                      container=RealtimeLoadingContainer)
         RealtimeLoadingContainer.empty()
         # InputActivity_DB = ActivityMapping.translateRigActivity2Activity(RigActivity_DF)
         RTSensor_DF = Activity.addRigActivityLabel (
@@ -349,7 +354,7 @@ def App():
         # Stand Group_Pred
         # st.write(ActivitySummary_DF.columns)
         
-        st.button("Upload Acticity Summary", on_click=IO_Data.DomeInsertActivitySummaryData, args=(WellInfoDict, ActivitySummary_DF ))
+        st.button("Upload Activity Summary", on_click=IO_Data.DomeInsertActivitySummaryData, args=(WellInfoDict, ActivitySummary_DF ))
 
 
 

@@ -316,7 +316,7 @@ def ShowProgress(container, i, total):
         # container.empty()
         # container.progress(i/total)
 
-def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progress=True, container=None):
+def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progress=True,runOnStreamlit=True, container=None):
     UserDateRange = {
             "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
             "StartTime": UserDateRange['StartTime'].strftime('%H:%M:%S'),
@@ -351,7 +351,10 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
             "start" : str(StartDateTime),
             "end" : str(EndDateTime),
         }
-        Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_Cache(Data_params)
+        if runOnStreamlit:
+            Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_Cache(Data_params)
+        else:
+            Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
         # Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
         Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
         Realtime_List.append(Realtime_DF_temp)
@@ -515,8 +518,8 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
     response = DomeRequestGET(TableAPI, json_queries)
     # print((response.json()))
     ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
-    print("Columns:")
-    print(ActivitySummary_DF.columns)
+    # print("Columns:")
+    # print(ActivitySummary_DF.columns)
     ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict()['ColumnName'], inplace = True)
     
     return ActivitySummary_DF
