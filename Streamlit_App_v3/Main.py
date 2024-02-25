@@ -1,11 +1,12 @@
 import streamlit as st
 from PDU_Func import Authentification, IO_Data
-from Page import ActivityMapping,  ActivityVisualization, DataAnalytics
+from Page import ActivityMapping,  ActivityVisualization, Override, DataAnalytics
 from Page import Welcome, PageNotFound
 from importlib import reload
 import streamlit_ext as ste
 reload(ActivityMapping)
 reload(ActivityVisualization)
+reload(Override)
 reload(DataAnalytics)
 # reload(ComponentTest)
 # reload(ActivityDatabase)
@@ -23,7 +24,8 @@ import streamlit_antd_components as sac
 
 #     container.markdown("#### Company: ")
 #     container.text(UserAuthDict["user_company_name"])
-
+def setPage(buttonName):
+    st.session_state['AppName'] = buttonName
 def showUserInfo(UserAuthDict, container):
     container.markdown("# RTDC App")
 
@@ -75,23 +77,43 @@ with SelCompWellContainer:
 
 # TODO:
 # * add User Module auth
+# if ('BeforeAppName' not in st.session_state) or (SelectWell==None or SelectWell=='-'):
+#     st.session_state.BeforeAppName = 'Home'
+# # else:
+# st.session_state.AppName = str(st.session_state.BeforeAppName)
 
-
+# st.write(st.session_state.Menu)
+listbutton = ['Home', 'Activity Mapping', 'Dashboard', 'Data Analytics']
+# if 'AppName' in st.session_state:
+#     if st.session_state.AppName is '':
+#         st.session_state.AppName = 'Home'
+#     st.write(st.session_state.AppName)
+#     SelMenu = st.session_state['AppName']
+# else:
+#     SelMenu = 'Home'
+# if SelMenu is '':
+#     SelMenu = 'Home'
 with MenuNavigationContainer:
-    AppName = sac.menu([
+
+    AppName  = sac.menu([
         sac.MenuItem(type='divider'),
-        sac.MenuItem('home', icon='house-fill'),
+        sac.MenuItem('Home', icon='house-fill'),
         sac.MenuItem('Activity Mapping', icon='bi bi-table', disabled=(SelectWell==None or SelectWell=='-')),
         # sac.MenuItem('Activity Mappingx', icon='bi bi-ui-checks'),
         sac.MenuItem('Dashboard', icon='bi bi-graph-up', disabled=(SelectWell==None or SelectWell=='-')),
         sac.MenuItem('Data Analytics', icon='bi bi-motherboard', disabled=(SelectWell==None or SelectWell=='-')),
-    ], format_func='title',size='small',index=1, open_all=True, key='Menu')
+        sac.MenuItem('Override Activity', icon='bi bi-motherboard', disabled=(SelectWell==None or SelectWell=='-')),
+    ], format_func='title',size='small', open_all=True,key='AppName')
+# st.write(f"Selected Menu: {AppName}")
+if AppName is '':
+    AppName = 'Home'
 
 AppDict = {
-    'home': Welcome.App,
+    'Home': Welcome.App,
     'Activity Mapping': ActivityMapping.App,
     'Dashboard': ActivityVisualization.App,
     'Data Analytics': DataAnalytics.App,
+    'Override Activity': Override.App,
 }
 
 AppDict[AppName]()

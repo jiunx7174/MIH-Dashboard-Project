@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from PDU_Func import Authentification, IO_Data, Table, ActivitySummary
+from PDU_Func import Authentification, IO_Data, Table, ActivitySummary, Visualization
 from streamlit_toggle import st_toggle_switch
 import time
 from datetime import datetime
@@ -120,6 +120,34 @@ def App(UserAuthDict, SelectComp, SelectWell):
         st.session_state['ActSum_df_Database'] = cache_DomeGetData_ActivitySummary(WellInfoDict, UserDateRange)
         st.session_state['IsReloadActSumTable'] = True
 
+    IsShowAllRealtime = st_toggle_switch(
+        label="Show All Realtime Range",
+        key="switch_2",
+        default_value=False,
+        label_after=False,
+        # inactive_color="#D3D3D3",  # optional
+        # active_color="#11567f",  # optional
+        # track_color="#29B5E8",  # optional
+    )
+    TimelinePlotTabsContainer = st.tabs(['Activity', 'Sub-Activity'])
+
+    TimelinePlotTabsContainer[0].plotly_chart(
+        Visualization.getTimelinePlot(st.session_state['ActSum_df_Database'], WellInfoDict['wid'],  
+                                      TimelineRange = 'All' if IsShowAllRealtime else None,
+                                      LabelColumn = 'LABEL_Activity'
+                                      ),
+            use_container_width = True,
+            theme=None
+        )
+    TimelinePlotTabsContainer[1].plotly_chart(
+        Visualization.getTimelinePlot(st.session_state['ActSum_df_Database'], WellInfoDict['wid'],  
+                                      TimelineRange = 'All' if IsShowAllRealtime else None,
+                                      LabelColumn = 'LABEL_SubActivity'
+                                      ),
+            use_container_width = True,
+            theme=None
+        )
+
     IsActSumDelete = st_toggle_switch(
         label="Delete Activity Summary",
         key="switch_1",
@@ -164,3 +192,4 @@ def App(UserAuthDict, SelectComp, SelectWell):
 
     else:
         Table.ActSumTableDatabase_Agrid(st.session_state['ActSum_df_Database'], reload=True,RowSelection=False)
+        # st.dataframe(st.session_state['ActSum_df_Database'])

@@ -24,6 +24,12 @@ def retry_on_error(max_retries=10, retry_interval=10):
             raise Exception(f"Function {func.__name__} still failed after {max_retries} retries.")
         return wrapper
     return decorator
+@retry_on_error()
+def DomeRequestGET(API, Data_params):
+    return requests.get(API, data=Data_params)
+@retry_on_error()
+def DomeRequestPOST(API, Data_params):
+    return requests.post(API, data=Data_params)
 
 @retry_on_error()
 def DomeCheckTable(wid: int, table_type: str="ActivityLogTable"):
@@ -164,8 +170,8 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
     - dict: A dictionary containing the drilling activity response.
 
     """
-    getRigActAPI = 'https://pdumitradome.id/dome_api/rtdc/get_drilling_activity'
-    # getRigActAPI = 'http://khansadev.xyz/dome_api/rtdc/get_drilling_activity'
+    # getRigActAPI = 'https://pdumitradome.id/dome_api/rtdc/get_drilling_activity'
+    getRigActAPI = 'http://khansadev.xyz/dome_api/rtdc/get_drilling_activity'
 
     getRigActAPI_json = json.dumps(
     {
@@ -211,12 +217,23 @@ def interpolateRealtimeData(realtimeraw):
 
     # realtimeraw['dt_relative'] = (realtimeraw['dt'] - realtimeraw['dt'].min()).dt.total_seconds()
     realtimeraw.loc[:, 'dt_relative'] = (realtimeraw['dt'] - realtimeraw['dt'].min()).dt.total_seconds()
+    # Assuming `realtimeraw['dt']` is a Series of datetime objects
+    start_time = realtimeraw['dt'].min()
+    end_time = realtimeraw['dt'].max()
 
-    finalRealtime = pd.DataFrame(
-    {
-        'dt':pd.date_range(start=realtimeraw['dt'].min(), end=realtimeraw['dt'].max(), freq='5S'),
-    }
-    )
+    # Round the start time to the nearest 5 seconds
+    rounded_start_time = start_time - timedelta(seconds=start_time.second % 5,
+                                                        microseconds=start_time.microsecond)
+    finalRealtime = pd.DataFrame({
+        'dt': pd.date_range(start=rounded_start_time, end=end_time, freq='5S'),
+    })
+
+
+    # finalRealtime = pd.DataFrame(
+    # {
+    #     'dt':pd.date_range(start=realtimeraw['dt'].min(), end=realtimeraw['dt'].max(), freq='5S'),
+    # }
+    # )
     finalRealtime['date'] = finalRealtime['dt'].dt.date
     finalRealtime['time'] = finalRealtime['dt'].dt.time
     finalRealtime['dt_relative'] = (finalRealtime['dt'] - finalRealtime['dt'].min()).dt.total_seconds()
@@ -378,12 +395,6 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     # ProgressContainer.empty()
     return interpolateRealtimeData(filtered_DF[column_list])
 
-@retry_on_error()
-def DomeRequestGET(API, Data_params):
-    return requests.get(API, data=Data_params)
-@retry_on_error()
-def DomeRequestPOST(API, Data_params):
-    return requests.post(API, data=Data_params)
 
 # Activity Log
 def DomeGetActivityLogData(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01"):
@@ -463,9 +474,6 @@ def DomeInsertActivityLogData(WellInfoDict, ActLogDF):
     ActLogDF['wid'] = ActLogDF['wid'].astype(int)
 
     
-
-
-
     AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/create"
 
     for index, row in ActLogDF.iterrows():
@@ -481,7 +489,6 @@ def DomeInsertActivityLogData(WellInfoDict, ActLogDF):
         st.toast(dict(response.json())['message'])
         # st.stop()
     # return dict(response.json())
-
 
 def DomeDeleteActivityLogData(WellInfoDict, row_id):
     
@@ -526,9 +533,34 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
 # def DomeInsertActivitySummaryData():
 #     # TODO create API for Activity Summary upload
 #     pass
-def DomeDeleteActivitySummaryData():
-    # TODO create API for Activity Summary delete
-    pass
+def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict):
+    TableAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/delete"
+    if isinstance(DateTimeRangeList, dict):
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, DateTimeRangeList)
+        DeleteList = ActSum_df['StartDateTime'].astype('str').tolist()
+    else:
+        DeleteList = DateTimeRangeList
+    for ID_or_timestart in DeleteList:
+        response = (
+            requests.post(
+                TableAPI, 
+                data=json.dumps(
+                                {
+                                    "wid": WellInfoDict['wid'],
+                                    "time_start":ID_or_timestart
+                                },
+                                indent = 4
+                            ) 
+                )
+        )
+        print(f"{ID_or_timestart} - {response.json()}")
+
+
+    #     # DateTimeRangeList = [DateTimeRangeList]
+    # # TODO create API for Activity Summary delete
+    # # Delete by range
+    # # Delete by list of DateTime
+    # pass
 
 def ActivitySummaryColumnRenameDict():
     out= {
@@ -640,6 +672,487 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf ):
     #     time.sleep(3)
     #     ProgressBarContainer.empty()
 
+def getLastConnectionDateTime(WellInfoDict, UserDateRange):
+    # Initialize variables
+    ActSum_df = None
+    total_hours_adjusted = 1
+    max_hours_to_adjust = 24
+    isRun = True
+
+    while isRun:
+        # print(UserDateRange)
+        # Get Activity Summary Data
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+        
+        # print(ActSum_df['LABEL_ConnectionActivity'].unique())
+        try:
+            ActSum_df[['LABEL_Connection', 'LABEL_ConnectionID']] = ActSum_df['LABEL_ConnectionActivity'].str.split('-',n=1, expand=True)
+        except:
+            ActSum_df[['LABEL_Connection', 'LABEL_ConnectionID']] = None
+
+        # If ActSum_df is not empty, break the loop
+        if ("Connection" in ActSum_df['LABEL_Connection'].values) or (len(ActSum_df['LABEL_Activity'].unique())> 1):
+            isRun = False
+            break
+        
+        # Calculate the new StartDate and StartTime by subtracting 3 hours
+        start_datetime = datetime.datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+        new_start_datetime = start_datetime - datetime.timedelta(hours=total_hours_adjusted)
+        
+        # Update the UserDateRange
+        UserDateRange["StartDate"] = new_start_datetime.date()
+        UserDateRange["StartTime"] = new_start_datetime.time()
+        
+        # Update the total hours adjusted
+        total_hours_adjusted += 1
+        
+        # # If we've adjusted more than 24 hours, stop adjusting
+        if total_hours_adjusted >= max_hours_to_adjust:
+            break
+    
+    # # If ActSum_df is still empty after the loop, return None or handle as needed
+    # if ActSum_df.empty:
+    #     return None
+
+    # Return the last 'EndDateTime' if ActSum_df is not empty
+    if ("Connection" in ActSum_df['LABEL_Connection'].values):
+
+        # LastActSumDateTime = ActSum_df[ActSum_df['LABEL_Connection']=='Connection']
+        LastConnectionID = ActSum_df[ActSum_df['LABEL_Connection']=='Connection'].tail(1)
+        LastConnectionID = LastConnectionID['LABEL_ConnectionID'].values[0]
+        LastConnectionGroup = ActSum_df[ActSum_df['LABEL_ConnectionID']==LastConnectionID]
+        
+
+        
+        LastActSumDateTime = LastConnectionGroup.head(1)
+    else:
+        LABEL_Act_temp = list(ActSum_df.tail(1)['LABEL_Activity'].values)[0]
+        # display(LABEL_Act_temp)
+        LastActSumDateTime = ActSum_df[ActSum_df['LABEL_Activity']==LABEL_Act_temp]
+        LastActSumDateTime = LastActSumDateTime.head(1)
+    return LastActSumDateTime
+
+def getLastActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
+    """
+    This function retrieves the last activity summary for a given well within a specified date range.
+    If the activity summary is empty, it adjusts the start date and time by subtracting 3 hours until it finds data or has adjusted a total of 24 hours.
+    If the last activity is in the DrillActivityList, it retrieves the last connection date and time.
+    
+    Parameters:
+    WellInfoDict (dict): Dictionary containing well information.
+    UserDateRange (dict): Dictionary containing the start and end date and time for the data retrieval.
+    DrillActivityList (list, optional): List of drilling activities to check in the last activity summary. Defaults to a predefined list of activities.
+    
+    Returns:
+    DataFrame or None: Returns the last activity summary as a DataFrame if found, else returns None.
+    """
+    
+    # Set default DrillActivityList if not provided
+    if DrillActivityList =='default':
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT']
+    
+    # Initialize variables
+    ActSum_df = None
+    total_hours_adjusted = 1
+    max_hours_to_adjust = 24
+
+    # Loop until we get a non-empty activity summary or have adjusted the start time by 24 hours
+    while ActSum_df is None or ActSum_df.empty:
+        # Get Activity Summary Data
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+
+        # If ActSum_df is not empty, break the loop
+        if not ActSum_df.empty:
+            break
+        
+        # Calculate the new StartDate and StartTime by subtracting 3 hours
+        start_datetime = datetime.datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+        new_start_datetime = start_datetime - datetime.timedelta(hours=total_hours_adjusted)
+        
+        # Update the UserDateRange
+        UserDateRange["StartDate"] = new_start_datetime.date()
+        UserDateRange["StartTime"] = new_start_datetime.time()
+        
+        # Update the total hours adjusted
+        total_hours_adjusted += 1
+        
+        # If we've adjusted more than 24 hours, stop adjusting
+        if total_hours_adjusted >= max_hours_to_adjust:
+            break
+    
+    # If ActSum_df is still empty after the loop, return None
+    if ActSum_df.empty:
+        return None
+
+    # Get the last row of the activity summary
+    LastActSum_df = ActSum_df.tail(1)
+    
+    # If the last activity is in the DrillActivityList, get the last connection date and time
+    if LastActSum_df['LABEL_Activity'].values[0] in DrillActivityList:
+        return getLastConnectionDateTime(WellInfoDict, UserDateRange)
+    else:
+        return LastActSum_df
+
+
+
+
+
+
+def getBeforeConnectionDateTime(WellInfoDict, UserDateRange):
+    # Initialize variables
+    ActSum_df = None
+    total_hours_adjusted = 1
+    max_hours_to_adjust = 24
+    isRun = True
+
+    while isRun:
+        # print(UserDateRange)
+        # Get Activity Summary Data
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+        
+        # print(ActSum_df['LABEL_ConnectionActivity'].unique())
+        try:
+            ActSum_df[['LABEL_Connection', 'LABEL_ConnectionID']] = ActSum_df['LABEL_ConnectionActivity'].str.split('-',n=1, expand=True)
+        except:
+            ActSum_df[['LABEL_Connection', 'LABEL_ConnectionID']] = None
+
+        # If ActSum_df is not empty, break the loop
+        if ("Connection" in ActSum_df['LABEL_Connection'].values) or (len(ActSum_df['LABEL_Activity'].unique())> 1):
+            isRun = False
+            break
+        
+        # Calculate the new StartDate and StartTime by subtracting 3 hours
+        start_datetime = datetime.datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+        new_start_datetime = start_datetime - datetime.timedelta(hours=total_hours_adjusted)
+        
+        # Update the UserDateRange
+        UserDateRange["StartDate"] = new_start_datetime.date()
+        UserDateRange["StartTime"] = new_start_datetime.time()
+        
+        # Update the total hours adjusted
+        total_hours_adjusted += 1
+        
+        # # If we've adjusted more than 24 hours, stop adjusting
+        if total_hours_adjusted >= max_hours_to_adjust:
+            break
+    
+    # # If ActSum_df is still empty after the loop, return None or handle as needed
+    # if ActSum_df.empty:
+    #     return None
+
+    # Return the last 'EndDateTime' if ActSum_df is not empty
+    if ("Connection" in ActSum_df['LABEL_Connection'].values):
+
+        # LastActSumDateTime = ActSum_df[ActSum_df['LABEL_Connection']=='Connection']
+        LastConnectionID = ActSum_df[ActSum_df['LABEL_Connection']=='Connection'].tail(1)
+        LastConnectionID = LastConnectionID['LABEL_ConnectionID'].values[0]
+        LastConnectionGroup = ActSum_df[ActSum_df['LABEL_ConnectionID']==LastConnectionID]
+        
+
+        
+        LastActSumDateTime = LastConnectionGroup.head(1)
+    else:
+        LABEL_Act_temp = list(ActSum_df.tail(1)['LABEL_Activity'].values)[0]
+        # display(LABEL_Act_temp)
+        LastActSumDateTime = ActSum_df[ActSum_df['LABEL_Activity']==LABEL_Act_temp]
+        LastActSumDateTime = LastActSumDateTime.head(1)
+    return LastActSumDateTime
+
+def getNextConnectionDateTime(WellInfoDict, UserDateRange):
+    # Initialize variables
+    ActSum_df = None
+    total_hours_adjusted = 1
+    max_hours_to_adjust = 24
+    isRun = True
+
+    while isRun:
+        # print(UserDateRange)
+        # Get Activity Summary Data
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+        
+        # print(ActSum_df['LABEL_ConnectionActivity'].unique())
+        try:
+            ActSum_df[['LABEL_Connection', 'LABEL_ConnectionID']] = ActSum_df['LABEL_ConnectionActivity'].str.split('-',n=1, expand=True)
+        except:
+            ActSum_df[['LABEL_Connection', 'LABEL_ConnectionID']] = None
+
+        # If ActSum_df is not empty, break the loop
+        if ("Connection" in ActSum_df['LABEL_Connection'].values) or (len(ActSum_df['LABEL_Activity'].unique())> 1):
+            isRun = False
+            break
+        
+        # Calculate the new StartDate and StartTime by subtracting 3 hours
+        end_datetime = datetime.datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
+        new_end_datetime = end_datetime + datetime.timedelta(hours=3)
+        
+        # Update the UserDateRange
+        UserDateRange["EndDate"] = new_end_datetime.date()
+        UserDateRange["EndTime"] = new_end_datetime.time()
+        
+        # # If we've adjusted more than 24 hours, stop adjusting
+        if total_hours_adjusted >= max_hours_to_adjust:
+            break
+    
+    # # If ActSum_df is still empty after the loop, return None or handle as needed
+    # if ActSum_df.empty:
+    #     return None
+
+    # Return the last 'EndDateTime' if ActSum_df is not empty
+    if ("Connection" in ActSum_df['LABEL_Connection'].values):
+
+        # LastActSumDateTime = ActSum_df[ActSum_df['LABEL_Connection']=='Connection']
+        LastConnectionID = ActSum_df[ActSum_df['LABEL_Connection']=='Connection'].head(1)
+        LastConnectionID = LastConnectionID['LABEL_ConnectionID'].values[0]
+        LastConnectionGroup = ActSum_df[ActSum_df['LABEL_ConnectionID']==LastConnectionID]
+        
+
+        
+        LastActSumDateTime = LastConnectionGroup.tail(1)
+    else:
+        LABEL_Act_temp = list(ActSum_df.head(1)['LABEL_Activity'].values)[0]
+        # display(LABEL_Act_temp)
+        LastActSumDateTime = ActSum_df[ActSum_df['LABEL_Activity']==LABEL_Act_temp]
+        LastActSumDateTime = LastActSumDateTime.head(1)
+    return LastActSumDateTime
+
+def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
+    """
+    This function retrieves the last activity summary for a given well within a specified date range.
+    If the activity summary is empty, it adjusts the start date and time by subtracting 3 hours until it finds data or has adjusted a total of 24 hours.
+    If the last activity is in the DrillActivityList, it retrieves the last connection date and time.
+    
+    Parameters:
+    WellInfoDict (dict): Dictionary containing well information.
+    UserDateRange (dict): Dictionary containing the start and end date and time for the data retrieval.
+    DrillActivityList (list, optional): List of drilling activities to check in the last activity summary. Defaults to a predefined list of activities.
+    
+    Returns:
+    DataFrame or None: Returns the last activity summary as a DataFrame if found, else returns None.
+    """
+    
+    # Set default DrillActivityList if not provided
+    if DrillActivityList =='default':
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT']
+    
+    # Initialize variables
+    ActSum_df = None
+    total_hours_adjusted = 1
+    max_hours_to_adjust = 24
+
+    # Loop until we get a non-empty activity summary or have adjusted the start time by 24 hours
+    while ActSum_df is None or ActSum_df.empty:
+        # Get Activity Summary Data
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+
+        # If ActSum_df is not empty, break the loop
+        if not ActSum_df.empty:
+            break
+        
+        # Calculate the new StartDate and StartTime by subtracting 3 hours
+        start_datetime = datetime.datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+        new_start_datetime = start_datetime - datetime.timedelta(hours=total_hours_adjusted)
+        
+        # Update the UserDateRange
+        UserDateRange["StartDate"] = new_start_datetime.date()
+        UserDateRange["StartTime"] = new_start_datetime.time()
+        
+        # Update the total hours adjusted
+        total_hours_adjusted += 1
+        
+        # If we've adjusted more than 24 hours, stop adjusting
+        if total_hours_adjusted >= max_hours_to_adjust:
+            break
+    
+    # If ActSum_df is still empty after the loop, return None
+    if ActSum_df.empty:
+        return None
+
+    # Get the last row of the activity summary
+    LastActSum_df = ActSum_df.tail(1)
+    
+    # If the last activity is in the DrillActivityList, get the last connection date and time
+    if LastActSum_df['LABEL_Activity'].values[0] in DrillActivityList:
+        return getBeforeConnectionDateTime(WellInfoDict, UserDateRange)
+    else:
+        return LastActSum_df
+def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
+    """
+    This function retrieves the last activity summary for a given well within a specified date range.
+    If the activity summary is empty, it adjusts the start date and time by subtracting 3 hours until it finds data or has adjusted a total of 24 hours.
+    If the last activity is in the DrillActivityList, it retrieves the last connection date and time.
+    
+    Parameters:
+    WellInfoDict (dict): Dictionary containing well information.
+    UserDateRange (dict): Dictionary containing the start and end date and time for the data retrieval.
+    DrillActivityList (list, optional): List of drilling activities to check in the last activity summary. Defaults to a predefined list of activities.
+    
+    Returns:
+    DataFrame or None: Returns the last activity summary as a DataFrame if found, else returns None.
+    """
+    
+    # Set default DrillActivityList if not provided
+    if DrillActivityList =='default':
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT']
+    
+    # Initialize variables
+    ActSum_df = None
+    total_hours_adjusted = 1
+    max_hours_to_adjust = 24
+
+    # Loop until we get a non-empty activity summary or have adjusted the start time by 24 hours
+    while ActSum_df is None or ActSum_df.empty:
+        # Get Activity Summary Data
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+
+        # If ActSum_df is not empty, break the loop
+        if not ActSum_df.empty:
+            break
+        
+        # Calculate the new StartDate and StartTime by subtracting 3 hours
+        end_datetime = datetime.datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
+        new_end_datetime = end_datetime + datetime.timedelta(hours=total_hours_adjusted)
+        
+        # Update the UserDateRange
+        UserDateRange["EndDate"] = new_end_datetime.date()
+        UserDateRange["EndTime"] = new_end_datetime.time()
+        
+        # Update the total hours adjusted
+        total_hours_adjusted += 1
+        # If we've adjusted more than 24 hours, stop adjusting
+        if total_hours_adjusted >= max_hours_to_adjust:
+            break
+    
+    # If ActSum_df is still empty after the loop, return None
+    if ActSum_df.empty:
+        return None
+
+    # Get the last row of the activity summary
+    NextActSum_df = ActSum_df.head(1)
+    
+    # If the last activity is in the DrillActivityList, get the last connection date and time
+    if NextActSum_df['LABEL_Activity'].values[0] in DrillActivityList:
+        return getNextConnectionDateTime(WellInfoDict, UserDateRange)
+    else:
+        return NextActSum_df
+
+
+# Section Parameter
+def DomeSectionParamsTable_Get(WellInfoDict):
+    API_Request = "http://127.0.0.1:8000/section-params-table/get/"
+    json_queries = json.dumps(
+        {
+            "wid": WellInfoDict['wid'],
+            "cid": WellInfoDict['cid'],
+        },
+        indent = 4
+    )
+    response = DomeRequestPOST(API_Request, json_queries)
+    SectionParamsTable_df =  pd.DataFrame(response.json())
+    # Convert 'wid' to integer
+    for colname in ['wid']:
+        SectionParamsTable_df[colname] = SectionParamsTable_df[colname].astype(int)
+
+    # Convert 'StartDateTime' and 'EndDateTime' to datetime
+    for colname in ['DateTime']:
+        SectionParamsTable_df[colname] = pd.to_datetime(SectionParamsTable_df[colname])
+
+    # 'OtherColumn' is already of type string (object in pandas), but if you need to ensure:
+    for colname in ['SectionSize',		'PIC']:
+        SectionParamsTable_df[colname] = SectionParamsTable_df[colname].astype(str)   
+    SectionParamsTable_df['InSlipThreshold'] = SectionParamsTable_df['InSlipThreshold'].astype(float)
+
+    SectionParamsTable_df.rename(columns={'SectionSize': 'Section Size',}, inplace=True)
+    SectionParamsTable_df.rename(columns={'InSlipThreshold': 'In-Slip Threshold',}, inplace=True)
+
+    return SectionParamsTable_df
+
+def DomeSectionParamsTable_Delete(DeleteJSON):
+    print("delete: ")
+    print(DeleteJSON)
+    # return None
+    API_Request = "http://127.0.0.1:8000/section-params-table/delete/"
+
+    # json_queries = json.dumps(
+    #     DeleteDict,
+    #     indent = 4
+    # )
+    # print(DomeRequestPOST(API_Request, json_queries))
+    if isinstance(DeleteJSON, dict):
+        DeleteJSON = json.dumps(
+            DeleteJSON,
+            indent = 4
+        )
+    print(DomeRequestPOST(API_Request, DeleteJSON))
+def DomeSectionParamsTable_Insert(InsertJSON):
+    print("insert: ")
+    print(InsertJSON)
+    # return None
+    API_Request = "http://127.0.0.1:8000/section-params-table/insert/"
+    if isinstance(InsertJSON, dict):
+        InsertJSON = json.dumps(
+            InsertJSON,
+            indent = 4
+        )
+    # print(DomeRequestPOST(API_Request, json_queries))
+    print(DomeRequestPOST(API_Request, InsertJSON))
+
+
+# Override Parameter
+def DomeOverrideActivity_Delete(DeleteJSON):
+    print("delete: ")
+    print(DeleteJSON)
+    # return None
+    API_Request = "http://127.0.0.1:8000/override-activity-table/delete/"
+
+    # json_queries = json.dumps(
+    #     DeleteDict,
+    #     indent = 4
+    # )
+    # print(DomeRequestPOST(API_Request, json_queries))
+    if isinstance(DeleteJSON, dict):
+        DeleteJSON = json.dumps(
+            DeleteJSON,
+            indent = 4
+        )
+    print(DomeRequestPOST(API_Request, DeleteJSON))
+    
+def DomeOverrideActivity_Insert(InsertJSON):
+    print("insert: ")
+    print(InsertJSON)
+    # return None
+    API_Request = "http://127.0.0.1:8000/override-activity-table/insert/"
+    if isinstance(InsertJSON, dict):
+        InsertJSON = json.dumps(
+            InsertJSON,
+            indent = 4
+        )
+    # print(DomeRequestPOST(API_Request, json_queries))
+    print(DomeRequestPOST(API_Request, InsertJSON))
+
+def DomeOverrideActivity_Get(WellInfoDict):
+    API_Request = "http://127.0.0.1:8000/override-activity-table/get/"
+    json_queries = json.dumps(
+        {
+    "wid": WellInfoDict['wid'],
+    "cid": WellInfoDict['cid'],
+        },
+        indent = 4
+    )
+    response = DomeRequestPOST(API_Request, json_queries)
+    OverideActivity_df =  pd.DataFrame(response.json())
+    # Convert 'wid' to integer
+    for colname in ['wid']:
+        OverideActivity_df[colname] = OverideActivity_df[colname].astype(int)
+
+    # Convert 'StartDateTime' and 'EndDateTime' to datetime
+    for colname in ['StartDateTime', 'EndDateTime']:
+        OverideActivity_df[colname] = pd.to_datetime(OverideActivity_df[colname])
+
+    # 'OtherColumn' is already of type string (object in pandas), but if you need to ensure:
+    for colname in ['LABEL_ACTIVITY', 'LABEL_SUBACTIVITY', 'PIC']:
+        OverideActivity_df[colname] = OverideActivity_df[colname].astype(str)   
+
+    return OverideActivity_df
 
 
 

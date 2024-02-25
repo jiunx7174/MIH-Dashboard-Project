@@ -148,23 +148,24 @@ def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
                     stand_num = stand_num+1
                 
                 idx_start = idx+1
-            ##################################################################################
-            ####### uncomment this code if you want to remove the latest post connection
-            ##################################################################################
-            # try:
-            #     ActSum_df_PostCon = ActSum_df_Temp[idx_start-2:]
-            #     # st.write(ActSum_df_PostCon)
+            
+            #################################################################################
+            ###### uncomment this code if you want to remove the latest post connection
+            #################################################################################
+            try:
+                ActSum_df_PostCon = ActSum_df_Temp[idx_start-2:]
+                # st.write(ActSum_df_PostCon)
 
-            #     PostCon_Start_idx = idx_start
-            #     PostCon_End_idx = ActSum_df_PostCon[ActSum_df_PostCon['LABEL_SubActivity']=='Reaming'].index[0]
-            #     ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
-            # except:
-            #     # st.write(ii)
-            #     try:
-            #         ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
-            #     except:
-            #         pass
-                # pass
+                PostCon_Start_idx = idx_start
+                PostCon_End_idx = ActSum_df_PostCon[ActSum_df_PostCon['LABEL_SubActivity']=='Reaming'].index[0]
+                ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(before_stand_num)
+            except:
+                # st.write(ii)
+                try:
+                    ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
+                except:
+                    pass
+                pass
 
     return ActSum_df
 def replace_connection_with_nearest_activity(ActSum_df):
@@ -633,6 +634,41 @@ def addSectionParams (RTSensor_df, InputActivity_DB, UserDateRange="All"):
         RTSensor_df.loc[idx_logic, ("In-Slip Threshold")] = activity_label_temp
         ii = ii+1
     return RTSensor_df
+
+def Override(RTSensor_df, Override_df, ):
+    if Override_df.empty:
+        return RTSensor_df
+    ii = 0
+ 
+    Override_df = Override_df.reset_index()
+    print(Override_df)
+
+
+    for i,row in Override_df.iterrows():
+
+
+        start_time_temp = row['StartDateTime']
+        end_time_temp = row['EndDateTime']
+
+        idx_logic = (RTSensor_df['dt'] >= start_time_temp) & (RTSensor_df['dt'] < end_time_temp)
+
+        activity_label_temp = Override_df.loc[ii, 'LABEL_ACTIVITY']
+        subactivity_label_temp = Override_df.loc[ii, 'LABEL_SUBACTIVITY']
+        pic_label_temp = Override_df.loc[ii, 'PIC']
+        # section_label_temp = Override_df.loc[ii, 'Section Size']
+        # remarks_label_temp = InputActivity_DB.loc[ii, 'Remarks']
+        # activity_label_temp = Override_df.loc[ii, 'In-Slip Threshold']
+
+        RTSensor_df.loc[idx_logic, ("Activity")] = activity_label_temp
+        RTSensor_df.loc[idx_logic, ("SubActivity")] = subactivity_label_temp
+        RTSensor_df.loc[idx_logic, ("PIC")] = pic_label_temp
+        # RTSensor_df.loc[idx_logic, ("Section Size")] = section_label_temp
+        # RTSensor_df.loc[idx_logic, ("remarks")] = remarks_label_temp
+        # RTSensor_df.loc[idx_logic, ("In-Slip Threshold")] = activity_label_temp
+        ii = ii+1
+    return RTSensor_df
+
+
 def translateRigActivity2Activity(RigActivityDF):
     replacement_dict = {
         "Cementing":"Cementing Job",

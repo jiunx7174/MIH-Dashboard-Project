@@ -4,12 +4,12 @@ import streamlit as st
 import numpy as np
 import json
 import time
-from Page import Welcome
+
 from datetime import datetime,timedelta
 from stqdm import stqdm
 
 # for IO trial
-def retry_on_error(max_retries=5, retry_interval=5):
+def retry_on_error(max_retries=10, retry_interval=10):
     def decorator(func):
         def wrapper(*args, **kwargs):
             for _ in range(max_retries):
@@ -73,8 +73,8 @@ def getAvailableWellDF(SelectComp,UserAuthDict):
     AvailableWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
     # st.dataframe(AvailableWellDF)
     if not AvailableWellDF.empty:
-        # st.stop()
-        # Welcome.App()
+
+
         AvailableWellDF['cid'] = cid
         AvailableWellDF = AvailableWellDF.astype({"cid": int,"wid": int, "well_name": 'string', 'rig_name':'string'})
     else:
@@ -458,6 +458,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
     mask = (Realtime_DF['dt'] > start) & (Realtime_DF['dt'] <= end)
     filtered_DF = Realtime_DF[mask]
     return filtered_DF[column_list]
+
 @retry_on_error()
 def DomeGetLastStandNumber(wid, SectionSize, BeforeDate):
     RequestDict = {
@@ -488,6 +489,20 @@ def DomeGetLastStandNumber(wid, SectionSize, BeforeDate):
         return None
 
 
+@retry_on_error()
+def DomeGetRealtimeRange(wid):
+    result = dict(requests.get(f"http://khansadev.xyz/dome_api/rtdc/get_realtime_interval/{wid}").json()['result'])
+
+    date_format = '%Y-%m-%d %H:%M:%S'
+    AllRealtime_DF = pd.DataFrame.from_dict([{
+        'StartDateTime':datetime.strptime(result['Start'], date_format),
+        'EndDateTime':datetime.strptime(result['End'], date_format),
+        'Y-Axis':'Realtime',
+    }]
+    )
+    return AllRealtime_DF
+
+
 def splitDateTime(UserDateRange, hours=0.5):
     startDateTimeStr = UserDateRange['StartDate'] + ' ' + UserDateRange['StartTime']
     endDateTimeStr = UserDateRange['EndDate'] + ' ' + UserDateRange['EndTime']
@@ -505,7 +520,7 @@ def splitDateTime(UserDateRange, hours=0.5):
 # def cache_RealTime_Data(well_id, StartDateTime_select, EndDateTime_select):
 #     Activity_DF = DomeGetRealtimeSensorData(well_id, StartDateTime_select, EndDateTime_select)
 #     Activity_DF['dt'] = Activity_DF['dt'].astype('datetime64')
-#     Activity_DF['bitdepth'] = Activity_DF['bitdepth'].astype('float64')
+#     Activity_DF['bitdepth'] = Activity_DF['bitdepth'].astyp e('float64')
 #     Activity_DF['blockpos'] = Activity_DF['blockpos'].astype('float64')
 #     Activity_DF['rop'] = Activity_DF['rop'].astype('float64')
 #     Activity_DF['hklda'] = Activity_DF['hklda'].astype('float64')

@@ -1,5 +1,6 @@
 import streamlit as st
 from PDU_Func import Activity, Authentification, IO_Data
+from Page import  Override
 from Page.SubPage import RealtimeDataViz
 from importlib import reload
 import pandas as pd
@@ -10,6 +11,7 @@ from time import sleep
 import streamlit_ext as ste
 reload(IO_Data)
 reload(Activity)
+reload(Override)
 reload(RealtimeDataViz)
 @st.cache_data(show_spinner="Retrieve Rig Activity")
 def cache_getRigActivity(WellInfoDict, **kwargs):
@@ -186,8 +188,11 @@ def App():
                         }
                     
                    )
-    with RigActivityCols[1]:
-        SectionParamsDataEditor(WellInfoDict, SectionParams_DF)
+    Override.SectionParamsTableWidget(WellInfoDict, RigActivityCols[1], 
+                          PrefixKey = 'SectionParamsTable' , 
+                          SectionSizeList='default',)
+    # with RigActivityCols[1]:
+    #     SectionParamsDataEditor(WellInfoDict, SectionParams_DF)
     # RigActivityCols[1].dataframe(SectionParams_DF[['DateTime', 'Section Size', 'In-Slip Threshold']].sort_values(by='DateTime', ascending=False),
     #                 use_container_width=True,
     #                 hide_index=True,
@@ -320,17 +325,20 @@ def App():
         with ActivitySummaryTable:
             st.dataframe(ActivitySummary_DF, height=500)
         with ActivitySummaryOverrideTable:
-            OverridedActivity_df = pd.DataFrame(columns=['StartDateTime','EndDateTime','Activity','SubActivity'], )
-            with st.form(key='OverridedActivityForm'):
-                OverrideActivityForm_ColumnConfig = {
-                                                        "StartDateTime": st.column_config.DatetimeColumn(
-                                                            "StartDateTime",
-                                                            format="D MMM YYYY, h:mm:ss",
-                                                            step=60,
-                                                        ),
-                                                    }
-                OverridedActivity_df = st.data_editor(OverridedActivity_df,column_config=OverrideActivityForm_ColumnConfig,  key="OverridedActivity_df", num_rows='dynamic')
-                st.form_submit_button(label='Submit')
+            Override.OverrideActivityTableWidget(WellInfoDict, st.container(), 
+                          PrefixKey = 'OverrideActivityTable' , 
+                          TripActivityList='default', DrillActivityList='default', OverrideActivityList='default')
+            # OverridedActivity_df = pd.DataFrame(columns=['StartDateTime','EndDateTime','Activity','SubActivity'], )
+            # with st.form(key='OverridedActivityForm'):
+            #     OverrideActivityForm_ColumnConfig = {
+            #                                             "StartDateTime": st.column_config.DatetimeColumn(
+            #                                                 "StartDateTime",
+            #                                                 format="D MMM YYYY, h:mm:ss",
+            #                                                 step=60,
+            #                                             ),
+            #                                         }
+            #     OverridedActivity_df = st.data_editor(OverridedActivity_df,column_config=OverrideActivityForm_ColumnConfig,  key="OverridedActivity_df", num_rows='dynamic')
+            #     st.form_submit_button(label='Submit')
         # ActivitySummary_DFColumnShow = [
         #     "StartDateTime","EndDateTime", "Duration", 'Hole_Depth_max', "Bit_Depth_avg", "DrillingMeterage"
         # ]
