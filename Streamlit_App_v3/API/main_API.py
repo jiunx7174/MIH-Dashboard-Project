@@ -18,8 +18,8 @@ from fastapi.responses import HTMLResponse
 from PDU_Func import Activity, Authentification, IO_Data
 from importlib import reload
 import datetime
-reload(IO_Data)
-reload(Activity)
+# reload(IO_Data)
+# reload(Activity)
 app = FastAPI()
 
 class SectionParamsDataModel(BaseModel):

@@ -1063,12 +1063,27 @@ def DomeSectionParamsTable_Get(WellInfoDict):
 
     SectionParamsTable_df.rename(columns={'SectionSize': 'Section Size',}, inplace=True)
     SectionParamsTable_df.rename(columns={'InSlipThreshold': 'In-Slip Threshold',}, inplace=True)
+    SectionParamsTable_df = SectionParamsTable_df[SectionParamsTable_df['wid'] == WellInfoDict['wid']]
 
     return SectionParamsTable_df
 
 def DomeSectionParamsTable_Delete(DeleteJSON):
     print("delete: ")
     print(DeleteJSON)
+    # DeleteJSON = json.loads(DeleteJSON)
+    key_mapping = {'DateTime': 'DateTime', 
+                   'Section Size': 'SectionSize',
+                   'In-Slip Threshold': 'InSlipThreshold',
+                     'PIC': 'PIC',
+                     'wid': 'wid',
+                   }
+
+    new_dict = {}
+    for old_key, new_key in key_mapping.items():
+        print(f"{old_key} = {new_key}")
+        if old_key in DeleteJSON:
+            new_dict[new_key] = DeleteJSON[old_key]
+    DeleteJSON = new_dict
     # return None
     API_Request = "http://127.0.0.1:8000/section-params-table/delete/"
 
@@ -1084,11 +1099,24 @@ def DomeSectionParamsTable_Delete(DeleteJSON):
         )
     print(DomeRequestPOST(API_Request, DeleteJSON))
 def DomeSectionParamsTable_Insert(InsertJSON):
+    # InsertJSON = json.loads(InsertJSON)
+    key_mapping = {'DateTime': 'DateTime', 
+                   'Section Size': 'SectionSize',
+                   'In-Slip Threshold': 'InSlipThreshold',
+                     'PIC': 'PIC',
+                     'wid': 'wid',
+                   }
+
+    new_dict = {}
+    for old_key, new_key in key_mapping.items():
+        if old_key in InsertJSON:
+            new_dict[new_key] = InsertJSON[old_key]
+    InsertJSON = new_dict
     print("insert: ")
     print(InsertJSON)
     # return None
     API_Request = "http://127.0.0.1:8000/section-params-table/insert/"
-    if isinstance(InsertJSON, dict):
+    if isinstance(new_dict, dict):
         InsertJSON = json.dumps(
             InsertJSON,
             indent = 4

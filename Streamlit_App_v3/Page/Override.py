@@ -135,23 +135,24 @@ def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
 
     SectionParamsTable_df = SectionParamsTable_df.copy()
     SectionParamsTable_df['wid'] = int(wid)
-    list_col_str = ['DateTime', 'SectionSize',	'PIC']
+    list_col_str = ['DateTime', 'Section Size',	'PIC']
     SectionParamsTable_df[list_col_str] = SectionParamsTable_df[list_col_str].astype(str)
-    SectionParamsTable_df['InSlipThreshold'] = SectionParamsTable_df['InSlipThreshold'].astype(float)
+    SectionParamsTable_df['In-Slip Threshold'] = SectionParamsTable_df['In-Slip Threshold'].astype(float)
     # SectionParamsTable_df['SectionSize'] = SectionParamsTable_df['SectionSize'].replace('"', '')
     print(st.session_state[f"{PrefixKey}_DataEditor"])
     ## If User Update the Table
     if st.session_state[f"{PrefixKey}_DataEditor"]['edited_rows'] != []:
         for key,val in st.session_state[f"{PrefixKey}_DataEditor"]['edited_rows'].items():
             
+
             IO_Data.DomeSectionParamsTable_Delete(
-                    SectionParamsTable_df.loc[int(key), ['wid','StartDateTime','EndDateTime']].to_json()
+                    SectionParamsTable_df.loc[int(key), ['wid','DateTime','Section Size', 'In-Slip Threshold', 'PIC']].to_dict()
                 )
 
             for colname,colval in val.items():
                 SectionParamsTable_df.loc[key, colname] = colval
             IO_Data.DomeSectionParamsTable_Insert(
-                    SectionParamsTable_df.loc[int(key), :].to_json()
+                    SectionParamsTable_df.loc[int(key), :].to_dict()
                 )
 
     
@@ -161,7 +162,7 @@ def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
     if st.session_state[f"{PrefixKey}_DataEditor"]['added_rows'] != []:
         for InsertDict in st.session_state[f"{PrefixKey}_DataEditor"]['added_rows']:
             InsertDict['wid'] = int(wid)
-            InsertDict['InSlipThreshold'] = float(InsertDict['InSlipThreshold'])
+            InsertDict['In-Slip Threshold'] = float(InsertDict['In-Slip Threshold'])
             # InsertDict['SectionSize'] = str(InsertDict['SectionSize']).replace('"', '')
             for datetime_key in ['DateTime']:
                 InsertDict[datetime_key] =  datetime.strptime(InsertDict[datetime_key],datetime_format)
@@ -172,7 +173,7 @@ def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
     if st.session_state[f"{PrefixKey}_DataEditor"]['deleted_rows'] != []:
         for idxrow in st.session_state[f"{PrefixKey}_DataEditor"]['deleted_rows']:
             IO_Data.DomeSectionParamsTable_Delete(
-                    SectionParamsTable_df.loc[int(idxrow), ['wid','DateTime','SectionSize', 'InSlipThreshold', 'PIC']].to_json()
+                    SectionParamsTable_df.loc[int(idxrow), ['wid','DateTime','Section Size', 'In-Slip Threshold', 'PIC']].to_dict()
                 )
     del st.session_state[f"{PrefixKey}_DataEditor"]
     del st.session_state[f"{PrefixKey}_df"]
@@ -194,13 +195,13 @@ def SectionParamsTableWidget(WellInfoDict, container,
                 width="medium",
                 required=True,
             ),
-            "SectionSize": st.column_config.SelectboxColumn(
+            "Section Size": st.column_config.SelectboxColumn(
                 "Section Size",
                 options=SectionSizeList,
                 width="medium",
                 required=True,
             ),
-            "InSlipThreshold": st.column_config.NumberColumn(
+            "In-Slip Threshold": st.column_config.NumberColumn(
                 "In-Slip Threshold",
                 min_value=0,
                 max_value=1000,
@@ -217,7 +218,7 @@ def SectionParamsTableWidget(WellInfoDict, container,
         }
     with container.form(f"{PrefixKey}_Form", clear_on_submit=True):
         output = st.data_editor(SectionParamsTable_df, 
-                                column_order=[ 'DateTime', 'SectionSize', 'InSlipThreshold', 'PIC'],
+                                column_order=[ 'DateTime', 'Section Size', 'In-Slip Threshold', 'PIC'],
                                 hide_index = True,
                                 column_config=SectionParamsTable_ColConfig,
                                 key=f"{PrefixKey}_DataEditor", num_rows='dynamic', use_container_width=True)
@@ -679,6 +680,7 @@ def App():
     SelectWell = st.session_state['SelWell']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
     st.markdown("## Override Activity Table")
+    st.write(WellInfoDict)
     OverrideActivityTableWidget(WellInfoDict, st.container(), 
                           PrefixKey = 'OverrideActivityTable' , 
                           TripActivityList='default', DrillActivityList='default', OverrideActivityList='default')
