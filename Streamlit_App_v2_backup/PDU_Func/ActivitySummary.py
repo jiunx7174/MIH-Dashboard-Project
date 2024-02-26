@@ -1,0 +1,1797 @@
+import pandas as pd
+import numpy as np
+from datetime import datetime,timedelta
+import requests
+import json
+from PDU_Func import IO_Data
+import matplotlib.pyplot as plt
+import streamlit as st
+import time
+def test():
+    print("Wakwaw")
+
+def _plotFalseSensor(df):
+    # assume df is your dataframe with columns LabelSubActivity and Duration
+
+    # group by LabelSubActivity and calculate count, sum, and mean of Duration
+    grouped = df.groupby('LABEL_SubActivity')['Duration'].agg(['count', 'sum', 'mean'])
+
+    # create a bar chart of the count of each LabelSubActivity
+    grouped['count'].plot(kind='bar', title='Count of LabelSubActivity')
+    plt.show()
+
+    # create a bar chart of the total duration of each LabelSubActivity
+    grouped['sum'].plot(kind='bar', title='Total Duration by LabelSubActivity')
+    plt.show()
+
+    # create a bar chart of the average duration of each LabelSubActivity
+    grouped['mean'].plot(kind='bar', title='Average Duration by LabelSubActivity')
+
+    # show the plots
+    plt.show()
+
+def _DataType():
+    data_type = {
+        "wid": int,
+        "date": 'datetime64',
+        "time_start": 'datetime64',
+        "time_end": 'datetime64',
+        "duration_minutes": float,
+        "hole_depth": float,
+        "bit_depth": float,
+        "meterage_drilling": float,
+        "rotate_drilling_time": float,
+        "slide_drilling_time": float,
+        "reaming_time": float,
+        "connection_time": float,
+        "on_bottom_hours": float,
+        "stand_duration": float,
+        "label_subactivity": 'string',
+        "label_activity": 'string',
+        "stand_meterage_drilling": float,
+        "stand_durationx": float,
+        "stand_on_bottom": float,
+        "pic": 'string',
+        "section": 'string',
+        "remark": 'string',
+        "stand_group": 'string',
+        'status': 'string',
+        }
+    # print(type(data))
+    return data_type
+def _ActivitySummaryColumnRenameDict():
+    ActivitySummaryColumnRenameDict = {"wid":"wid",
+                            "date":"Date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            # "stand_on_bottom":"OnBottomDurationPerStand",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            }
+    out= {
+        "ColumnName":{"wid":"wid",
+                            "date":"Date",
+                            "time_start":"StartDateTime",
+                            "time_end":"EndDateTime",
+                            "duration_minutes":"Duration",
+                            "hole_depth":"Hole_Depth_max",
+                            "bit_depth":"Bit_Depth_avg",
+                            "meterage_drilling":"DrillingMeterage",
+                            "rotate_drilling_time":"RotateDrillingDuration",
+                            "slide_drilling_time":"SlideDrillingDuration",
+                            "reaming_time":"ReamingDuration",
+                            "connection_time":"ConnectionDuration",
+                            "on_bottom_hours":"OnBottomDurationPerStand",
+                            "stand_duration":"StandDuration",
+                            "label_subactivity":"LABEL_SubActivity",
+                            "label_activity":"LABEL_Activity",
+                            "stand_meterage_drilling":"DrillingMeteragePerStand",
+                            "stand_durationx":"InSlip_Treshold",
+                            # "stand_on_bottom":"OnBottomDurationPerStand",
+                            "connection_activity":"LABEL_ConnectionActivity",
+                            "pic":"PIC",
+                            "section":"Section",
+                            "remark":"Remarks",
+                            "stand_group":"Stand Group_Pred",
+                            },
+        "DataTypeDict":{
+                    "wid": 'int',
+                    "Date": "datetime64[ns]",
+                    "StartDateTime": "datetime64[ns]",
+                    "EndDateTime": "datetime64[ns]",
+                    "Duration": "float",
+                    "Hole_Depth_max": "float",
+                    "Bit_Depth_avg": "float",
+                    "DrillingMeterage": "float",
+                    "RotateDrillingDuration": "float",
+                    "SlideDrillingDuration": "float",
+                    "ReamingDuration": "float",
+                    "ConnectionDuration": "float",
+                    "OnBottomDurationPerStand": "float",
+                    "StandDuration": "float",
+                    "LABEL_SubActivity": "string",
+                    "LABEL_Activity": "string",
+                    "DrillingMeteragePerStand": "float",
+                    "InSlip_Treshold": "float",
+                    "PIC": "string",
+                    "Section": "string",
+                    "Remarks": "string",
+                    "Stand Group_Pred": "string",
+                    "LABEL_ConnectionActivity":"string",
+                    },
+
+    }
+    return out
+
+class ActivitySummaryTable:
+    def __init__(self, WellInfoDict:dict, UserDateRange:dict):
+        ColumProperty = _ActivitySummaryColumnRenameDict()
+        self.Data = pd.DataFrame(
+                    columns = ColumProperty['ColumnName'].values(),
+                    # dtype=ColDataType,
+                    )
+        self.Data = self.Data.astype(ColumProperty['DataTypeDict'])
+        self.WellInfoDict = WellInfoDict
+        self.UserDateRange = UserDateRange
+        
+    
+    def getActivitySummary(self,ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1):
+        """
+        download the activity summary table from existing server
+        there's 3 major funciton in general
+        # getGroupDuration
+        ## Aggregate lv.1, keep it as it is
+        -datetime start 
+        -datetime end 
+        -date 
+        -well name
+        -activity
+        -sub-activity
+        -section size
+        -PIC
+        -in-slip threshold
+        -remarks
+
+        ## Aggregate lv.1, calculate duration
+        -Duration 
+        -Hole Depth 
+        -Bit Depth 
+        -Drilling Meterage
+        -Rotate Drilling Duration
+        -Slide Drilling Duration
+        -Reaming Duration
+        -Connection Duration
+
+        # LabelStand
+        ## Aggregate lv.2
+        # Connection Activity
+        # On Bottom Duration 
+        # Stand Duration 
+        """
+        UserDateRange = self.UserDateRange.copy()
+        WellInfoDict = self.WellInfoDict
+
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        StartDateTime = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+        EndDateTime = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+        
+        # get the ActivitySummaryTable data between the UserDateRange
+        temp_ActSum_df = IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="Activity Summary")
+        
+        # If the ActivitySummaryTable between the UserDateRange is exist or partially exist
+        # TODO, if we want to fill out a "Gap" ActSumTable case
+
+        if list(temp_ActSum_df.columns) != []:
+            self.Data[list(temp_ActSum_df.columns)] = temp_ActSum_df[list(temp_ActSum_df.columns)]
+            self.Data['wid'] =  int(WellInfoDict['wid'])
+            self.Data['status'] =  "FIRM"
+            self.Data['LABEL_All'] = self.Data['LABEL_Activity'] + "--" + self.Data['LABEL_SubActivity']
+            
+            # StartDateTime = self.Data['time_end'].max()
+            # st.write(self.Data)
+            # st.write(self.Data.dtypes)
+
+            StartDateTime = datetime.strptime(self.Data['EndDateTime'].max(), '%Y-%m-%d %H:%M:%S')
+            UserDateRange['StartDate'] = StartDateTime.date()
+            UserDateRange['StartTime'] = StartDateTime.time()
+            # st.text(StartDateTime)
+
+        # if the ActSumTable max end time is outside the UserDateRange, 
+        # then ActivityMapping is no longer needed
+        if  StartDateTime >= EndDateTime:
+            pass
+
+        # get the realtime data
+        # RTSensor_df = IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+        
+        #_________________________________________________
+        #% labelling the activity data with the ActLogData
+        # TODO if the ActivityLog_DF is outside the UserDateRange
+        RTSensor_df = getActivityLabel(RTSensor_df, ActivityLog_DF, UserDateRange=UserDateRange)
+
+
+        #_________________________________________________
+        #% apply the PDU mapping logic function
+        RTSensor_df = getSubActivityLabel(RTSensor_df)
+
+        
+        #_________________________________________________
+        #% group and aggregate the Realtime data into ActitivtySummaryTable, this function is categorized as lv.1 aggregate
+        ActSum_df = getGroupDuration(RTSensor_df, DrillActivityList='default')
+
+
+        #_________________________________________________
+        #% clean the False/Check and Look and define under the constraint
+        ActSum_df = cleanFalseSensor(ActSum_df, MinuteTolerances=MinuteTolerances, CleaningIteration=CleaningIteration)
+
+        #_________________________________________________
+        # label the group stand, this function are useful to determine the lv.2 aggregate
+        ActSum_df = getStandLabel(ActSum_df)
+        ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
+        ActSum_df['wid'] =  int(WellInfoDict['wid'])
+        ActSum_df['status'] =  "REVIEW"
+
+
+        self.Data= pd.concat([self.Data, ActSum_df])
+
+    ## Fill Gap function
+    def getActivitySummary_v2(self,ActivityLog_DF, RTSensor_df, MinuteTolerances=1, CleaningIteration=1):
+        """
+        download the activity summary table from existing server
+        there's 3 major funciton in general
+        # getGroupDuration
+        ## Aggregate lv.1, keep it as it is
+        -datetime start 
+        -datetime end 
+        -date 
+        -well name
+        -activity
+        -sub-activity
+        -section size
+        -PIC
+        -in-slip threshold
+        -remarks
+
+        ## Aggregate lv.1, calculate duration
+        -Duration 
+        -Hole Depth 
+        -Bit Depth 
+        -Drilling Meterage
+        -Rotate Drilling Duration
+        -Slide Drilling Duration
+        -Reaming Duration
+        -Connection Duration
+
+        # LabelStand
+        ## Aggregate lv.2
+        # Connection Activity
+        # On Bottom Duration 
+        # Stand Duration 
+        """
+        UserDateRange = self.UserDateRange
+        WellInfoDict = self.WellInfoDict
+        
+        UserDateRange = ExtendDateRange(UserDateRange, start_extend=-timedelta(hours=4), end_extend=timedelta(hours=4))
+
+ 
+
+        # Convert the date and time components into datetime objects
+        start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+
+        # Subtract 3 hours from the start datetime
+        new_start_datetime = start_datetime - timedelta(hours=24)
+
+        # Update the dictionary with the new start datetime
+        UserDateRange["StartDate"] = new_start_datetime.date()
+        UserDateRange["StartTime"] = new_start_datetime.time()
+
+
+
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        StartDateTime = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime']) 
+        EndDateTime = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+        
+        # get the ActivitySummaryTable data between the UserDateRange
+        temp_ActSum_df = IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="Activity Summary")
+
+
+    
+        
+        # If the ActivitySummaryTable between the UserDateRange is exist or partially exist
+        # TODO, if we want to fill out a "Gap" ActSumTable case
+
+        if list(temp_ActSum_df.columns) != []:
+            temp_ActSum_df = temp_ActSum_df.sort_values(by='StartDateTime')
+            self.Data[list(temp_ActSum_df.columns)] = temp_ActSum_df[list(temp_ActSum_df.columns)]
+            self.Data['wid'] =  int(WellInfoDict['wid'])
+            self.Data['status'] =  "FIRM"
+            self.Data['LABEL_All'] = self.Data['LABEL_Activity'] + "--" + self.Data['LABEL_SubActivity']
+
+            isOverride = True
+        else:
+            isOverride = False
+            # StartDateTime = self.Data['time_end'].max()
+            # st.write(self.Data)
+            # st.write(self.Data.dtypes)
+
+            # StartDateTime = datetime.strptime(self.Data['EndDateTime'].max(), '%Y-%m-%d %H:%M:%S')
+            # UserDateRange['StartDate'] = StartDateTime.date()
+            # UserDateRange['StartTime'] = StartDateTime.time()
+            # st.text(StartDateTime)
+
+        # if the ActSumTable max end time is outside the UserDateRange, 
+        # then ActivityMapping is no longer needed
+        if  StartDateTime >= EndDateTime:
+            pass
+
+        # get the realtime data
+        # RTSensor_df = IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+        
+
+        #_________________________________________________
+        #% labelling the activity data with the ActLogData
+        # TODO if the ActivityLog_DF is outside the UserDateRange
+        RTSensor_df = getActivityLabel(RTSensor_df, ActivityLog_DF, UserDateRange=UserDateRange)
+        # st.dataframe(RTSensor_df)
+
+        #_________________________________________________
+        #% apply the PDU mapping logic function
+        RTSensor_df = getSubActivityLabel(RTSensor_df)
+        # st.dataframe(RTSensor_df)
+        # st.dataframe(RTSensor_df)
+        # st.stop()
+        #________________________________________________
+        #% override the Realtime data, if exist
+        # st.write(self.Data)
+        if isOverride:
+            RTSensor_df = OverrideActivityLabel(RTSensor_df, self.Data, UserDateRange=UserDateRange)
+        else:
+            RTSensor_df['status'] = "REVIEW"
+
+
+
+        #_________________________________________________
+        #% group and aggregate the Realtime data into ActitivtySummaryTable, this function is categorized as lv.1 aggregate
+        
+        ActSum_df = getGroupDuration_v2(RTSensor_df, DrillActivityList='default')
+        # st.write(ActSum_df)
+
+        # st.write(RTSensor_df)
+        # st.write("inside sx")
+        # st.stop()
+        # RTSensor_df.to_csv("RealtimeOut.csv")
+        # st.write(ActSum_df)
+        # st.stop()
+
+
+        #_________________________________________________
+        #% clean the False/Check and Look and define under the constraint
+        ActSum_df = cleanFalseSensor(ActSum_df, MinuteTolerances=MinuteTolerances, CleaningIteration=CleaningIteration, includeStatus=True)
+
+        #_________________________________________________
+        # label the group stand, this function are useful to determine the lv.2 aggregate
+        ActSum_df = getStandLabel(ActSum_df, stand_num=getLastStandNum(WellInfoDict['wid'], ActSum_df))
+
+        
+        ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        ActSum_df['EndDateTime'] = (ActSum_df['EndDateTime']+ pd.Timedelta(seconds=5)).dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
+        ActSum_df['wid'] =  int(WellInfoDict['wid'])
+        # st.write(ActSum_df)
+        # st.write(temp_ActSum_df)
+        # st.stop()
+        self.Data = ActSum_df
+        # ActSum_df['status'] =  "REVIEW"
+
+        # ConversionDict = _ActivitySummaryColumnRenameDict()
+        # return ActSum_df
+        # self.Data = pd.concat([self.Data, ActSum_df])
+        # self.Data = self.Data.astype(ConversionDict['DataTypeDict'])
+
+         
+
+    ## Fill Gap function
+    def getActivitySummary_Firm(self):
+        """
+        download the activity summary table from existing server
+        there's 3 major funciton in general
+        # getGroupDuration
+        ## Aggregate lv.1, keep it as it is
+        -datetime start 
+        -datetime end 
+        -date 
+        -well name
+        -activity
+        -sub-activity
+        -section size
+        -PIC
+        -in-slip threshold
+        -remarks
+
+        ## Aggregate lv.1, calculate duration
+        -Duration 
+        -Hole Depth 
+        -Bit Depth 
+        -Drilling Meterage
+        -Rotate Drilling Duration
+        -Slide Drilling Duration
+        -Reaming Duration
+        -Connection Duration
+
+        # LabelStand
+        ## Aggregate lv.2
+        # Connection Activity
+        # On Bottom Duration 
+        # Stand Duration 
+        """
+        UserDateRange = self.UserDateRange
+        WellInfoDict = self.WellInfoDict
+
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        # StartDateTime = datetime.strptime(UserDateRange['StartDate'] + " " + UserDateRange['StartTime'], '%Y-%m-%d %H:%M:%S')
+        # EndDateTime = datetime.strptime(UserDateRange['EndDate'] + " " + UserDateRange['EndTime'], '%Y-%m-%d %H:%M:%S')
+        StartDateTime = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+        EndDateTime = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+        
+        # get the ActivitySummaryTable data between the UserDateRange
+        temp_ActSum_df = IO_Data.DomeGetData(WellInfoDict, UserDateRange, table_type="Activity Summary")
+        
+        # If the ActivitySummaryTable between the UserDateRange is exist or partially exist
+        # TODO, if we want to fill out a "Gap" ActSumTable case
+
+        if list(temp_ActSum_df.columns) != []:
+            self.Data[list(temp_ActSum_df.columns)] = temp_ActSum_df[list(temp_ActSum_df.columns)]
+            self.Data['wid'] =  int(WellInfoDict['wid'])
+            self.Data['status'] =  "FIRM"
+            self.Data['LABEL_All'] = self.Data['LABEL_Activity'] + "--" + self.Data['LABEL_SubActivity']
+            # StartDateTime = self.Data['time_end'].max()
+            # st.write(self.Data)
+            # st.write(self.Data.dtypes)
+            # st.text(StartDateTime)
+
+
+        
+
+    def LabelStand():
+        pass
+
+    def Update():
+        pass
+    def Insert():
+        pass
+    def Delete():
+        pass
+                    # if RadioButton=='No/RAW':
+                    #     SummaryActivity_DF = Activity.labelStand_v2(Activity.GenerateDuration_DF_v4(Activity_DF))
+                    # else:
+                    #     SummaryActivity_DF = Activity.labelStand_v2(Activity.cleanFalseSensor((Activity.GenerateDuration_DF_v4(Activity_DF))))
+
+# def getGroupDuration
+# def getSubActivityLabel
+# def getActivityLabel
+def getStandLabel_BU(ActSum_df, DrillActivityList='default'):
+
+    ActSum_df['DrillingMeteragePerStand'] = np.NaN
+    ActSum_df['StandDuration'] = np.NaN
+    ActSum_df['OnBottomDurationPerStand'] = np.NaN
+    ActSum_df['Stand Group_Pred'] = ""
+    ActSum_df['RotateDrillingDuration'] = ActSum_df['RotateDrillingDuration'].astype('float')
+    ActSum_df['SlideDrillingDuration']= ActSum_df['SlideDrillingDuration'].astype('float')
+    ActSum_df['DrillingMeterage']= ActSum_df['DrillingMeterage'].astype('float')
+    ActSum_df['Duration']= ActSum_df['Duration'].astype('float')
+
+    # ActSum_df['ConnectionDurationPerStand'] = np.NaN
+
+    ActSum_df = ActSum_df.reset_index(drop=True).fillna(0)
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'DRILL OUT CEMENT',]
+
+    ii = 0
+    ActSum_df_Drilling = ActSum_df[ActSum_df['LABEL_Activity'].isin(DrillActivityList)]
+    # st.write(ActSum_df_Drilling.index[0])
+    # for idx,row in ActSum_df[(ActSum_df['LABEL_SubActivity']=='Connection')].iterrows():
+    for idx,row in ActSum_df_Drilling[(ActSum_df_Drilling['LABEL_SubActivity']=='Connection')].iterrows():
+        # print(idx)
+        if ii==0:
+
+            idx_start = idx + 1
+
+            PreCon_idx = ActSum_df_Drilling[ActSum_df_Drilling['LABEL_SubActivity']=='Reaming'].index
+            PreCon_idx = PreCon_idx[PreCon_idx<idx][-1]
+
+            ActSum_df.loc[PreCon_idx:(idx-1), 'LABEL_ConnectionActivity'] = 'Pre Connection-' + str(ii+1)
+            ActSum_df.loc[(idx), 'LABEL_ConnectionActivity'] = 'Connection-' + str(ii+1)
+
+        else:
+            idx_end = idx - 1
+        
+            ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Stand Group-' + str(ii)
+
+
+            OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
+            StandDuration =  ActSum_df.loc[idx_start:idx_end+1, 'Duration'].sum()
+            DrillingMeteragePerStand = ActSum_df.loc[idx_start:idx_end, 'DrillingMeterage'].sum()
+
+
+            ActSum_df.loc[idx, 'OnBottomDurationPerStand'] = OnBottomDurationPerStand
+            ActSum_df.loc[idx, 'StandDuration'] = StandDuration
+            ActSum_df.loc[idx, "DrillingMeteragePerStand"] = DrillingMeteragePerStand
+
+            # print(str(idx_start) + " - " + str(idx_end))
+            idx_start = idx + 1
+
+        ii = ii + 1
+    
+    
+    # ActSum_df['Time_start'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_start'], format='%Y-%m-%d %H:%M:%S')
+    # ActSum_df['Time_end'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_end'])
+    return ActSum_df
+def getStandLabel_BU_2(ActSum_df, DrillActivityList='default',stand_num=None):
+
+    ActSum_df['DrillingMeteragePerStand'] = np.NaN
+    ActSum_df['StandDuration'] = np.NaN
+    ActSum_df['OnBottomDurationPerStand'] = np.NaN
+    ActSum_df['Stand Group_Pred'] = ""
+    ActSum_df['LABEL_ConnectionActivity'] = ""
+    ActSum_df['RotateDrillingDuration'] = ActSum_df['RotateDrillingDuration'].astype('float')
+    ActSum_df['SlideDrillingDuration']= ActSum_df['SlideDrillingDuration'].astype('float')
+    ActSum_df['DrillingMeterage']= ActSum_df['DrillingMeterage'].astype('float')
+    ActSum_df['Duration']= ActSum_df['Duration'].astype('float')
+
+    # ActSum_df['ConnectionDurationPerStand'] = np.NaN
+
+    ActSum_df = ActSum_df.reset_index(drop=True).fillna(0)
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'DRILL OUT CEMENT',]
+
+
+    ActSum_df['LABEL_Activity'] = ActSum_df['LABEL_Activity'].astype(str)
+    
+
+    if stand_num is None:
+        stand_num = 0
+    stand_num = stand_num+1
+
+    # st.write(ActSum_df_Drilling.index[0])
+    for k,ActSum_df_Temp in ActSum_df.groupby((ActSum_df['LABEL_Activity'].shift() != ActSum_df ['LABEL_Activity']).cumsum()):
+
+        # st.stop()
+        # break
+        if ActSum_df_Temp['LABEL_Activity'].tolist()[0] in (DrillActivityList):
+            ii = 1
+            idx_start = ActSum_df_Temp.index[0]
+
+            # ActSum_df_Drilling = ActSum_df[ActSum_df['LABEL_Activity'].isin(DrillActivityList)]
+        # for idx,row in ActSum_df[(ActSum_df['LABEL_SubActivity']=='Connection')].iterrows():
+            len_connection = len(ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')])
+            for idx,row in ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')].iterrows():
+                # if len_connection == 1:
+                #     idx_end=idx-1
+                # else:
+                idx_end=idx-1
+                ActSum_df_Stand = ActSum_df[idx_start:idx_end+1]
+
+                if 'Reaming' in ActSum_df_Stand['LABEL_SubActivity'].tolist():
+                    OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
+                    StandDuration =  ActSum_df.loc[idx_start:idx_end+1, 'Duration'].sum()
+                    DrillingMeteragePerStand = ActSum_df.loc[idx_start:idx_end, 'DrillingMeterage'].sum()
+
+
+                    ActSum_df.loc[idx, 'OnBottomDurationPerStand'] = OnBottomDurationPerStand
+                    ActSum_df.loc[idx, 'StandDuration'] = StandDuration
+                    ActSum_df.loc[idx, "DrillingMeteragePerStand"] = DrillingMeteragePerStand
+                    ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Drilling Stand-' + str(stand_num)
+                    if ii==1:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        # st.write(ActSum_df_Stand)
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # stand_num = stand_num-1
+                        ii = ii +1
+                        # st.write(PreCon_Start_idx)
+                    else:
+
+                        # try:
+                        PostCon_Start_idx = idx_start
+                        PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
+                        ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
+                        print(PostCon_Start_idx)
+                        print('PostCon')
+                        print(PostCon_End_idx)
+                        # if ii < len_connection:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # st.write(f"PreConIdx {PreCon_Start_idx} - {PreCon_End_idx}")
+
+                        # except:
+                        #     pass
+                        ii = ii+1
+                    # st.write()
+                    stand_num = stand_num+1
+                idx_start = idx+1
+            try:
+                ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
+            except:
+                pass
+                # if ii==0:
+
+                #     idx_start = idx + 1
+
+                #     PreCon_idx = ActSum_df_Temp[ActSum_df_Temp['LABEL_SubActivity']=='Reaming'].index
+                #     PreCon_idx = PreCon_idx[PreCon_idx<idx][-1]
+
+                #     ActSum_df.loc[PreCon_idx:(idx-1), 'LABEL_ConnectionActivity'] = 'Pre Connection-' + str(stand_num+1)
+                #     ActSum_df.loc[(idx), 'LABEL_ConnectionActivity'] = 'Connection-' + str(stand_num+1)
+
+                # else:
+                #     idx_end = idx - 1
+                
+                #     ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Stand Group-' + str(stand_num)
+
+
+                #     OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
+                #     StandDuration =  ActSum_df.loc[idx_start:idx_end+1, 'Duration'].sum()
+                #     DrillingMeteragePerStand = ActSum_df.loc[idx_start:idx_end, 'DrillingMeterage'].sum()
+
+
+                #     ActSum_df.loc[idx, 'OnBottomDurationPerStand'] = OnBottomDurationPerStand
+                #     ActSum_df.loc[idx, 'StandDuration'] = StandDuration
+                #     ActSum_df.loc[idx, "DrillingMeteragePerStand"] = DrillingMeteragePerStand
+
+
+                #     idx_start = idx + 1
+
+                # ii = ii + 1
+                # stand_num = stand_num+1
+    
+    
+    # ActSum_df['Time_start'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_start'], format='%Y-%m-%d %H:%M:%S')
+    # ActSum_df['Time_end'] = pd.to_datetime(ActSum_df['date'].dt.strftime('%Y-%m-%d') + " " + ActSum_df['Time_end'])
+    return ActSum_df
+def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
+    # if ActSum_df[ActSum_df['status']=='REVIEW'].empty:
+    #     return ActSum_df
+    # else:
+    # ActSum_df = ActSum_df[ActSum_df['status']=='REVIEW']
+
+    ActSum_df['DrillingMeteragePerStand'] = np.NaN
+    ActSum_df['StandDuration'] = np.NaN
+    ActSum_df['OnBottomDurationPerStand'] = np.NaN
+    ActSum_df['Stand Group_Pred'] = ""
+    ActSum_df['LABEL_ConnectionActivity'] = ""
+    ActSum_df['RotateDrillingDuration'] = ActSum_df['RotateDrillingDuration'].astype('float')
+    ActSum_df['SlideDrillingDuration']= ActSum_df['SlideDrillingDuration'].astype('float')
+    ActSum_df['DrillingMeterage']= ActSum_df['DrillingMeterage'].astype('float')
+    ActSum_df['Duration']= ActSum_df['Duration'].astype('float')
+
+    # ActSum_df['ConnectionDurationPerStand'] = np.NaN
+
+    ActSum_df = ActSum_df.reset_index(drop=True).fillna(0)
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'DRILL OUT CEMENT',]
+
+
+    ActSum_df['LABEL_Activity'] = ActSum_df['LABEL_Activity'].astype(str)
+    
+
+    if stand_num is None:
+        stand_num = 0
+    stand_num = stand_num+1
+
+    # st.write(ActSum_df_Drilling.index[0])
+    for k,ActSum_df_Temp in ActSum_df.groupby((ActSum_df['LABEL_Activity'].shift() != ActSum_df ['LABEL_Activity']).cumsum()):
+        if ActSum_df_Temp['LABEL_Activity'].tolist()[0] in (DrillActivityList):
+            ii = 1
+            idx_start = ActSum_df_Temp.index[0]
+
+
+
+            len_connection = len(ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')])
+            # First, define the stand first
+            for idx,row in ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')].iterrows():
+                idx_end=idx-1
+                ActSum_df_Stand = ActSum_df[idx_start:idx_end+1]
+
+                if 'Reaming' in ActSum_df_Stand['LABEL_SubActivity'].tolist():
+                    OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
+                    StandDuration =  ActSum_df.loc[idx_start:idx_end+1, 'Duration'].sum()
+                    DrillingMeteragePerStand = ActSum_df.loc[idx_start:idx_end, 'DrillingMeterage'].sum()
+
+
+                    ActSum_df.loc[idx, 'OnBottomDurationPerStand'] = OnBottomDurationPerStand
+                    ActSum_df.loc[idx, 'StandDuration'] = StandDuration
+                    ActSum_df.loc[idx, "DrillingMeteragePerStand"] = DrillingMeteragePerStand
+                    ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Drilling Stand-' + str(stand_num)
+                    if ii==1:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # stand_num = stand_num-1
+                        ii = ii +1
+                        # st.write(PreCon_Start_idx)
+                    else:
+                        
+
+
+                        # try:
+                        PostCon_Start_idx = idx_start
+                        PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
+                        ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
+                        print(PostCon_Start_idx)
+                        print('PostCon')
+                        print(PostCon_End_idx)
+                        # if ii < len_connection:
+                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
+                        PreCon_End_idx = (idx-1)
+                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
+                        # st.write(f"PreConIdx {PreCon_Start_idx} - {PreCon_End_idx}")
+
+                        # except:
+                        #     pass
+                        ii = ii+1
+
+
+
+                    # st.write()
+                    stand_num = stand_num+1
+                
+
+
+
+
+                idx_start = idx+1
+            # if len_connection == 1:
+            try:
+                ActSum_df_PostCon = ActSum_df_Temp[idx_start-2:]
+                # st.write(ActSum_df_PostCon)
+
+                PostCon_Start_idx = idx_start
+                PostCon_End_idx = ActSum_df_PostCon[ActSum_df_PostCon['LABEL_SubActivity']=='Reaming'].index[0]
+                ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num-1)
+            except:
+                # st.write(ii)
+                try:
+                    ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
+                except:
+                    pass
+                # pass
+
+
+
+
+
+            
+
+    return ActSum_df
+
+# TODO, plot the comparison result of cleanFalseSensor Algorithm using _plotFalseSensor()
+def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=1, includeStatus=False):
+    # st.write('clean')
+    if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
+        ActSum_df['LABEL_ConnectionActivity']  = ''
+    # ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('-')
+
+    # Set the Duration==0 to FALSE/Check
+    # ActSum_df.loc[, 'LABEL_SubActivity'] = "Look and define"
+
+    ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
+    for iter in range(CleaningIteration):
+        ActSum_df = ActSum_df.reset_index(drop=True)
+        # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
+        lookdefine_logic = ActSum_df['LABEL_SubActivity']=="Look and define"
+        falsecheck_logic = ActSum_df['LABEL_SubActivity']=="FALSE/Check"
+        duration_logic = (ActSum_df['Duration'] <= float(MinuteTolerances))
+        
+        idx_same = ActSum_df.index[
+            (lookdefine_logic | falsecheck_logic) & duration_logic
+            ]
+        idx_before = idx_same - 1
+
+        idx_same = idx_same[idx_before>=0]
+        idx_before = idx_before[idx_before>=0]
+        
+        ActSum_df.loc[idx_same, 'LABEL_SubActivity'] = ActSum_df.loc[idx_before, 'LABEL_SubActivity'].values
+        ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
+        AggDict = {'Date': 'max',
+                    'StartDateTime': 'min',
+                    'EndDateTime': 'max',
+                    'Duration': 'sum',
+                    'Hole_Depth_max': 'max',
+                    'Bit_Depth_avg': 'mean',
+                    'DrillingMeterage': 'sum',
+                    'RotateDrillingDuration': 'sum',
+                    'SlideDrillingDuration': 'sum',
+                    'ReamingDuration': 'sum',
+                    'ConnectionDuration': 'sum',
+                    'LABEL_SubActivity': 'first',
+                    'LABEL_Activity': 'first',
+                    'LABEL_All': 'first',
+                    'LABEL_ConnectionActivity': _first_non_empty,
+                    'PIC': 'first',
+                    'InSlip_Treshold': 'first',
+                    'Remarks': 'first',
+                    'Section': 'first'
+                    }
+        if includeStatus:
+            AggDict['status'] = 'first'
+        ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(AggDict)
+
+    return ActSum_df
+def getGroupDuration(RTSensor_df , DrillActivityList='default'):
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
+
+
+    RTSensor_df ['dt'] = pd.to_datetime(RTSensor_df ['dt'])
+    RTSensor_df ["LABEL_All"] =RTSensor_df ['SubActivity'].astype(str)+'--'+RTSensor_df ['Activity'].astype(str)
+    RTSensor_df ['Activity'] = RTSensor_df ['Activity'].fillna("N/A").astype(str)
+    RTSensor_df ['SubActivity'] = RTSensor_df ['SubActivity'].fillna("N/A").astype(str)
+    # TODO , a funtion that check the latest hole depth
+    Hole_Depth_max = 0
+    list_dict_out = []
+    for k,DF_Temp in RTSensor_df .groupby((RTSensor_df ['LABEL_All'].shift() != RTSensor_df ['LABEL_All']).cumsum()):
+
+        # if not(("Hole_Depth" in locals()) or ("Hole_Depth" in globals())):
+        #     Hole_Depth = 0
+
+        list_temp = []
+
+        # date = DF_Temp.head(1)['date'].values[0]
+
+        # Time_start = pd.to_datetime(date + " " + DF_Temp.head(1)['time'].values[0])
+        # Time_end_temp = DF_Temp.tail(1)['time'].values[0]
+        # Time_end = pd.to_datetime(DF_Temp.tail(1)['date'].values[0] + " " + str((datetime.strptime(Time_end_temp, "%H:%M:%S") + timedelta(seconds=5)).time()))
+        Date = DF_Temp['date'].iloc[0]
+        StartDateTime = DF_Temp['dt'].iloc[0]
+        EndDateTime = DF_Temp['dt'].iloc[-1]
+        # Time_start = DF_Temp.head(1)['time'].values[0]
+        # Time_end_temp = DF_Temp.tail(1)['time'].values[0]
+        # Time_end = str((datetime.strptime(Time_end_temp, "%H:%M:%S") + timedelta(seconds=5)).time())
+
+        LABEL_Activity = DF_Temp['Activity'].iloc[0]
+        LABEL_SubActivity = DF_Temp['SubActivity'].iloc[0]
+        section_data = DF_Temp['Section Size'].iloc[0]
+        pic_data = DF_Temp['PIC'].iloc[0]
+        InSlip_Treshold_data = DF_Temp['In-Slip Threshold'].iloc[0]
+        remarks_data = DF_Temp['remarks'].iloc[0]
+
+        # Duration(minutes)
+        Duration = (EndDateTime-StartDateTime).total_seconds() / 60.0 
+
+
+        Hole_Depth_Temp = DF_Temp['md'].max()
+        if float(Hole_Depth_Temp)>= float(Hole_Depth_max):
+            Hole_Depth_max = Hole_Depth_Temp
+        
+        Bit_Depth_avg = DF_Temp['bitdepth'].mean()
+
+        DrillingMeterage = np.nan
+
+        RotateDrillingDuration = np.nan
+        SlideDrillingDuration = np.nan
+        ReamingDuration = np.nan
+        ConnectionDuration = np.nan
+
+        # OnBottomHours = np.nan
+        # StandDuration = np.nan
+
+        if LABEL_Activity in DrillActivityList:
+            DrillingMeterage = round((DF_Temp['md'].max()-DF_Temp['md'].min()),2)
+
+        if LABEL_SubActivity == "Rotary Drilling":
+            RotateDrillingDuration = Duration
+
+        if LABEL_SubActivity == "Slide Drilling":
+            SlideDrillingDuration = Duration
+
+        if LABEL_SubActivity == "Reaming":
+            ReamingDuration = Duration
+        if LABEL_SubActivity == "Connection":
+            ConnectionDuration = Duration
+
+
+        list_dict_out.append(
+            {
+            'Date':Date,
+            'StartDateTime':StartDateTime,
+            'EndDateTime':EndDateTime,
+            'Duration':Duration,
+            'Hole_Depth_max':Hole_Depth_max,
+            'Bit_Depth_avg':Bit_Depth_avg,
+            "DrillingMeterage": DrillingMeterage,
+            'RotateDrillingDuration':RotateDrillingDuration,
+            'SlideDrillingDuration':SlideDrillingDuration,
+            'ReamingDuration':ReamingDuration,
+            'ConnectionDuration':ConnectionDuration,
+            # 'On Bottom Hours':OnBottomHours,
+            # 'Stand Duration': StandDuration,
+            'LABEL_SubActivity': LABEL_SubActivity,
+            "LABEL_Activity": LABEL_Activity,
+            "LABEL_All": LABEL_SubActivity+'--'+LABEL_Activity,
+            "PIC":pic_data,
+            "InSlip_Treshold":InSlip_Treshold_data,
+            "Remarks":remarks_data,
+            "Section":section_data,
+
+            }
+        )
+    ActSum_df = pd.DataFrame.from_dict(list_dict_out,orient='columns')
+
+    
+    listSetDecimals = ['Duration','Hole_Depth_max','Bit_Depth_avg','DrillingMeterage',
+                       'RotateDrillingDuration','SlideDrillingDuration','ReamingDuration',
+                       'ConnectionDuration','InSlip_Treshold',]
+    for ColumnName in listSetDecimals:
+        ActSum_df[ColumnName] = np.round(ActSum_df[ColumnName],2)
+    # TODO a function that validate the data type output
+        # ActSum_df = ActSum_df.astype({'date': np.dtype('<M8[ns]'),
+        # 'StartDateTime': np.dtype('<M8[ns]'),
+        # 'EndDateTime': np.dtype('<M8[ns]'),
+        # 'Duration': np.dtype('float64'),
+        # 'Hole_Depth_max': np.dtype('float64'),
+        # 'Bit_Depth_avg': np.dtype('float64'),
+        # 'DrillingMeterage': np.dtype('float64'),
+        # 'RotateDrillingDuration': dtype('float64'),
+        # 'SlideDrillingDuration': np.dtype('float64'),
+        # 'ReamingDuration': np.dtype('float64'),
+        # 'ConnectionDuration': np.dtype('float64'),
+        # 'LABEL_SubActivity': 'str',
+        # 'LABEL_Activity': 'str',
+        # 'PIC': 'str',
+        # 'InSlip_Treshold': np.dtype('float64'),
+        # 'Remarks': 'str',
+        # 'Section': 'str'})
+        #     # )
+    return ActSum_df
+    # RTSensor_df = Activity.GetActivity_DF(Activity_DF, Input_Temp)
+
+    # Activity_DF = Activity.GetSubActivity_DF_v3(Activity_DF)
+    
+    # if RadioButton=='No/RAW':
+    #     SummaryActivity_DF = Activity.labelStand_v2(Activity.GenerateDuration_DF_v4(Activity_DF))
+    # else:
+    #     SummaryActivity_DF = Activity.labelStand_v2(Activity.cleanFalseSensor((Activity.GenerateDuration_DF_v4(Activity_DF))))
+def getGroupDuration_v2(RTSensor_df , DrillActivityList='default'):
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
+
+
+    RTSensor_df ['dt'] = pd.to_datetime(RTSensor_df ['dt'])
+    RTSensor_df ["LABEL_All"] =RTSensor_df ['SubActivity'].astype(str)+'--'+RTSensor_df['Activity'].astype(str)+'--'+RTSensor_df['status'].astype(str)
+    RTSensor_df ['Activity'] = RTSensor_df ['Activity'].fillna("N/A").astype(str)
+    RTSensor_df ['SubActivity'] = RTSensor_df ['SubActivity'].fillna("N/A").astype(str)
+    # TODO , a funtion that check the latest hole depth
+    Hole_Depth_max = 0
+    list_dict_out = []
+    # st.write(RTSensor_df)
+    for k,DF_Temp in RTSensor_df .groupby((RTSensor_df ['LABEL_All'].shift() != RTSensor_df ['LABEL_All']).cumsum()):
+
+        # if not(("Hole_Depth" in locals()) or ("Hole_Depth" in globals())):
+        #     Hole_Depth = 0
+
+        list_temp = []
+
+        # date = DF_Temp.head(1)['date'].values[0]
+
+        # Time_start = pd.to_datetime(date + " " + DF_Temp.head(1)['time'].values[0])
+        # Time_end_temp = DF_Temp.tail(1)['time'].values[0]
+        # Time_end = pd.to_datetime(DF_Temp.tail(1)['date'].values[0] + " " + str((datetime.strptime(Time_end_temp, "%H:%M:%S") + timedelta(seconds=5)).time()))
+        Date = DF_Temp['date'].iloc[0]
+        StartDateTime = DF_Temp['dt'].iloc[0]
+        EndDateTime = DF_Temp['dt'].iloc[-1]
+        # Time_start = DF_Temp.head(1)['time'].values[0]
+        # Time_end_temp = DF_Temp.tail(1)['time'].values[0]
+        # Time_end = str((datetime.strptime(Time_end_temp, "%H:%M:%S") + timedelta(seconds=5)).time())
+
+        LABEL_Activity = DF_Temp['Activity'].iloc[0]
+        LABEL_SubActivity = DF_Temp['SubActivity'].iloc[0]
+        section_data = DF_Temp['Section Size'].iloc[0]
+        pic_data = DF_Temp['PIC'].iloc[0]
+        InSlip_Treshold_data = DF_Temp['In-Slip Threshold'].iloc[0]
+        remarks_data = DF_Temp['remarks'].iloc[0]
+        status_data = DF_Temp['status'].iloc[0]
+
+        # Duration(minutes)
+        # the duration should add 5 second to compensate the delta 5s
+        Duration = (((EndDateTime-StartDateTime).total_seconds()+5) / 60.0 )
+
+
+        Hole_Depth_Temp = DF_Temp['md'].max()
+        if float(Hole_Depth_Temp)>= float(Hole_Depth_max):
+            Hole_Depth_max = Hole_Depth_Temp
+        
+        Bit_Depth_avg = DF_Temp['bitdepth'].mean()
+
+        DrillingMeterage = np.nan
+
+        RotateDrillingDuration = np.nan
+        SlideDrillingDuration = np.nan
+        ReamingDuration = np.nan
+        ConnectionDuration = np.nan
+
+        # OnBottomHours = np.nan
+        # StandDuration = np.nan
+
+        if LABEL_Activity in DrillActivityList:
+            DrillingMeterage = round((DF_Temp['md'].max()-DF_Temp['md'].min()),2)
+
+        if LABEL_SubActivity == "Rotary Drilling":
+            RotateDrillingDuration = Duration
+
+        if LABEL_SubActivity == "Slide Drilling":
+            SlideDrillingDuration = Duration
+
+        if LABEL_SubActivity == "Reaming":
+            ReamingDuration = Duration
+        if LABEL_SubActivity == "Connection":
+            ConnectionDuration = Duration
+
+
+        list_dict_out.append(
+            {
+            'Date':Date,
+            'StartDateTime':StartDateTime,
+            'EndDateTime':EndDateTime,
+            'Duration':Duration,
+            'Hole_Depth_max':Hole_Depth_max,
+            'Bit_Depth_avg':Bit_Depth_avg,
+            "DrillingMeterage": DrillingMeterage,
+            'RotateDrillingDuration':RotateDrillingDuration,
+            'SlideDrillingDuration':SlideDrillingDuration,
+            'ReamingDuration':ReamingDuration,
+            'ConnectionDuration':ConnectionDuration,
+            # 'On Bottom Hours':OnBottomHours,
+            # 'Stand Duration': StandDuration,
+            'LABEL_SubActivity': LABEL_SubActivity,
+            "LABEL_Activity": LABEL_Activity,
+            "LABEL_All": LABEL_SubActivity+'--'+LABEL_Activity+'--'+status_data,
+            "PIC":pic_data,
+            "InSlip_Treshold":InSlip_Treshold_data,
+            "Remarks":remarks_data,
+            "Section":section_data,
+            "status":status_data,
+
+            }
+        )
+
+    ActSum_df = pd.DataFrame.from_dict(list_dict_out,orient='columns')
+    
+    # st.write(ActSum_df)
+
+    
+    listSetDecimals = ['Duration','Hole_Depth_max','Bit_Depth_avg','DrillingMeterage',
+                       'RotateDrillingDuration','SlideDrillingDuration','ReamingDuration',
+                       'ConnectionDuration','InSlip_Treshold',]
+    for ColumnName in listSetDecimals:
+        ActSum_df[ColumnName] = np.round(ActSum_df[ColumnName].astype('float'),2)
+    # TODO a function that validate the data type output
+        # ActSum_df = ActSum_df.astype({'date': np.dtype('<M8[ns]'),
+        # 'StartDateTime': np.dtype('<M8[ns]'),
+        # 'EndDateTime': np.dtype('<M8[ns]'),
+        # 'Duration': np.dtype('float64'),
+        # 'Hole_Depth_max': np.dtype('float64'),
+        # 'Bit_Depth_avg': np.dtype('float64'),
+        # 'DrillingMeterage': np.dtype('float64'),
+        # 'RotateDrillingDuration': dtype('float64'),
+        # 'SlideDrillingDuration': np.dtype('float64'),
+        # 'ReamingDuration': np.dtype('float64'),
+        # 'ConnectionDuration': np.dtype('float64'), 
+        # 'LABEL_SubActivity': 'str',
+        # 'LABEL_Activity': 'str',
+        # 'PIC': 'str',
+        # 'InSlip_Treshold': np.dtype('float64'),
+        # 'Remarks': 'str',
+        # 'Section': 'str'})
+        #     # )
+    
+    return ActSum_df
+    # RTSensor_df = Activity.GetActivity_DF(Activity_DF, Input_Temp)
+
+    # Activity_DF = Activity.GetSubActivity_DF_v3(Activity_DF)
+    
+    # if RadioButton=='No/RAW':
+    #     SummaryActivity_DF = Activity.labelStand_v2(Activity.GenerateDuration_DF_v4(Activity_DF))
+    # else:
+    #     SummaryActivity_DF = Activity.labelStand_v2(Activity.cleanFalseSensor((Activity.GenerateDuration_DF_v4(Activity_DF))))
+
+def getSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivityList='default', OverrideActivityList='default'):
+    #TODO makesure the column name and data type is match
+    RTSensor_df = RTSensor_df.astype(
+        {
+            "dt":"datetime64[ns]",
+            # "date":"object",
+            # "time":"object",
+            "bitdepth":"float64",
+            "md":"float64",
+            "blockpos":"float64",
+            "rop":"float64",
+            "hklda":"float64", 
+            "woba":"float64",
+            "torqa":"float64",
+            "rpm":"float64",
+            "stppress":"float64",
+            "mudflowin":"float64",
+            # "Activity":"object",
+            "In-Slip Threshold":"float64",
+            "PIC":'str',
+            "remarks":'str',
+            "Section Size":'str',
+            # "SubActivity":"object",
+            # "logic_status":"int64",
+            # "isBitDepthMoving":"bool",
+            # "LABEL_All":"object",
+        }
+    )
+    if TripActivityList=='default':
+        TripActivityList = ['NPT', 'N/D BOP', 'N/U BOP', 'OTHER', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 
+                            'TRIP IN', 'TRIP OUT', 'WAIT ON CEMENT', 'LAY DOWN BHA', 'MAKE UP BHA', 'WIPER TRIP']
+        
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
+
+    if OverrideActivityList=='default':
+        OverrideActivityList = ['CEMENTING JOB', 'CONNECTION', 'LAY DOWN BHA', 'MAKE UP BHA', 'NPT', 'N/D BOP', 
+                                'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR','N/A']
+
+    logic_status = 0
+    RTSensor_df["SubActivity"] = "FALSE/Check"
+    RTSensor_df["logic_status"] = logic_status
+
+    idx_logic_activity = RTSensor_df["Activity"].isin(
+                                                    DrillActivityList
+                                                    )
+    # print((RTSensor_df.dtypes))
+
+    idx_logic = idx_logic_activity & ((RTSensor_df['woba']>0) & (RTSensor_df['rpm']>10) & (RTSensor_df['stppress']>100) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']))
+    SubActivity_Label = "Rotary Drilling"
+    RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
+    # 1
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
+
+    idx_logic = idx_logic_activity &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['woba']>0) & (RTSensor_df['rpm']<10) & (RTSensor_df['stppress']>100) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']))
+    SubActivity_Label = "Slide Drilling"
+    RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
+    # 2
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
+    
+    idx_logic = idx_logic_activity &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['woba']==0) & (RTSensor_df['rpm']>10) & (RTSensor_df['stppress']>100) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']))
+    SubActivity_Label = "Reaming"
+    RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
+    #3
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
+
+    idx_logic = idx_logic_activity &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['woba']==0) & (RTSensor_df['rpm']==0) & (RTSensor_df['stppress']>100) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']))
+    SubActivity_Label = "Wash Up/Down"
+    RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
+    #4
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
+
+
+    idx_logic = idx_logic_activity &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['woba']==0) & (RTSensor_df['rpm']==0) & (RTSensor_df['stppress']<50))
+    SubActivity_Label = "Connection"
+    RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
+    #5
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
+
+    # idx_logic = idx_logic_activity & ((RTSensor_df["SubActivity"] == "FALSE/Check") & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']))
+    idx_logic = idx_logic & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold'])
+    SubActivity_Label="Look and define"
+    RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
+    #6
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
+    #7
+
+
+    # ############################
+    idx_logic_activity_2 = RTSensor_df["Activity"].isin(
+        TripActivityList
+        )
+    RTSensor_df['isBitDepthMoving'] = RTSensor_df['bitdepth'].shift(periods=-1) != RTSensor_df['bitdepth']
+
+    # RTSensor_df["LABEL_SubActivity"] = "Check"
+    idx_logic_2 = idx_logic_activity_2 & ((RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['rpm']==0) & (RTSensor_df['mudflowin']>10))
+    SubActivity_Label = "Wash Up/Down"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    # DisplayDF(RTSensor_df.loc[idx_logic_2, :])
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #8
+    
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['rpm']>10) & (RTSensor_df['stppress']>100) & (RTSensor_df['mudflowin']>10))
+    SubActivity_Label = "Reaming"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #9
+
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['rpm']<10) & (RTSensor_df['stppress']<100) & (RTSensor_df['mudflowin']<50))
+    SubActivity_Label = "Moving"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #10
+
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & (~(RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['mudflowin']>10))
+    SubActivity_Label = "Circulation"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #11
+
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['mudflowin']<10) & (RTSensor_df['rpm']<10) & (RTSensor_df['hklda']<RTSensor_df['In-Slip Threshold']))
+    SubActivity_Label = "Connection"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #12
+
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((~RTSensor_df['isBitDepthMoving']) & (RTSensor_df['mudflowin']<10) & (RTSensor_df['rpm']<10) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']))
+    SubActivity_Label = "Stationary"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #13
+    ## force to be same as activity
+
+    idx_logic_3 = RTSensor_df["Activity"].isin(
+                                                OverrideActivityList
+                                                )
+    RTSensor_df.loc[idx_logic_3, "SubActivity"] = RTSensor_df.loc[idx_logic_3, "Activity"]
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_3, "logic_status"] = logic_status
+    #14
+
+    # print(RTSensor_df.columns)
+
+    return RTSensor_df
+
+def getActivityLabel (RTSensor_df, InputActivity_DB, UserDateRange="All"):
+    ii = 0
+    if UserDateRange is not "All":
+        StartDateTime = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+        EndDateTime = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+        RTSensor_df = RTSensor_df[(RTSensor_df['dt'] >= StartDateTime) & (RTSensor_df['dt'] < EndDateTime)]
+
+
+    # print(RTSensor_df['dt'].head(2))
+    # print(RTSensor_df['dt'].tail(2))
+    InputActivity_DB = InputActivity_DB.reset_index()
+    # st.write(InputActivity_DB)
+    # st.stop()
+    # print('test')
+
+    # RTSensor_df['PIC'] = ''
+    # RTSensor_df['section'] = ''
+    # RTSensor_df['remarks'] = ''
+    for i,row in InputActivity_DB.iterrows():
+        # if ii<InputActivity_DB.shape[1]:
+
+        try:
+            start_time_temp = InputActivity_DB.loc[ii, 'DateTime']
+            end_time_temp = InputActivity_DB.loc[ii+1, 'DateTime']
+            # print(InputActivity_DB.iloc[ii+1, 0])
+            idx_logic = (RTSensor_df['dt'] >= start_time_temp) & (RTSensor_df['dt'] < end_time_temp)
+        except:
+            start_time_temp = InputActivity_DB.loc[ii, 'DateTime']
+            # print(InputActivity_DB.iloc[ii, 0])
+            # print('test')
+            # end_time_temp = InputActivity_DB.loc[ii+1, 'DateTime']
+            # print((RTSensor_df['DateTime'].dtypes))
+            # print(type(start_time_temp))
+            # print(start_time_temp)
+            idx_logic = (RTSensor_df['dt'] >= start_time_temp)
+        # print('testttt ardelia')
+        # print(InputActivity_DB.columns)
+        activity_label_temp = InputActivity_DB.loc[ii, 'Activity']
+        pic_label_temp = InputActivity_DB.loc[ii, 'PIC']
+        section_label_temp = InputActivity_DB.loc[ii, 'Section Size']
+        remarks_label_temp = InputActivity_DB.loc[ii, 'Remarks']
+
+        # print(idx_logic)
+        # print('----')
+        RTSensor_df.loc[idx_logic, ("Activity")] = activity_label_temp
+        RTSensor_df.loc[idx_logic, ("PIC")] = pic_label_temp
+        RTSensor_df.loc[idx_logic, ("Section Size")] = section_label_temp
+        RTSensor_df.loc[idx_logic, ("remarks")] = remarks_label_temp
+        # print(InputActivity_DB)
+        activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Threshold']
+        # print(RTSensor_df)
+        RTSensor_df.loc[idx_logic, ("In-Slip Threshold")] = activity_label_temp
+        ii = ii+1
+    # st.write(idx_logic)
+    # st.write(start_time_temp)
+    # st.stop()
+    return RTSensor_df
+
+def OverrideActivityLabel(RTSensor_df, ActSum_df, UserDateRange="All"):
+    RTSensor_df['status'] = 'REVIEW'
+    ConversionDict = _ActivitySummaryColumnRenameDict()
+    # ConversionDict['DataTypeDict']['status'] = 
+    ActSum_df = ActSum_df.astype(ConversionDict['DataTypeDict'])
+    # ii = 0
+    if UserDateRange != "All":
+        StartDateTime = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+        EndDateTime = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+        RTSensor_df = RTSensor_df[(RTSensor_df['dt'] >= StartDateTime) & (RTSensor_df['dt'] < EndDateTime)]
+
+    ActSum_df = ActSum_df.reset_index()
+
+    for i,row in ActSum_df.iterrows():
+        # if ii<InputActivity_DB.shape[1]:
+        
+        start_time_temp, end_time_temp = row['StartDateTime'], row['EndDateTime']
+
+        idx_logic = (RTSensor_df['dt'] >= start_time_temp) & (RTSensor_df['dt'] <= end_time_temp)
+
+        RTSensor_df.loc[idx_logic, ("Activity")] = row['LABEL_Activity']
+        RTSensor_df.loc[idx_logic, ("SubActivity")] = row['LABEL_SubActivity']
+        RTSensor_df.loc[idx_logic, ("PIC")] = row['PIC']
+        RTSensor_df.loc[idx_logic, ("Section Size")] = row['Section']
+        RTSensor_df.loc[idx_logic, ("remarks")] = row['Remarks']
+        RTSensor_df.loc[idx_logic, ("In-Slip Threshold")] = row['InSlip_Treshold']
+        RTSensor_df.loc[idx_logic, ("status")] = row['status']
+
+    return RTSensor_df
+
+def _first_non_empty(x):
+    non_empty_values = x[x != ''].tolist()
+    return non_empty_values[0] if non_empty_values else ''
+def RecalculateActSum(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, CleaningIteration=1, includeStatus=False):
+    ActSum_df = ActSum_df.reset_index(drop=True)
+    wid = ActSum_df['wid'][0]
+    status = ActSum_df['status']
+    ConversionDict = _ActivitySummaryColumnRenameDict()
+    if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
+        ActSum_df['LABEL_ConnectionActivity']  = '-'
+    ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('')
+    # st.write(ActSum_df)
+    ActSum_df = ActSum_df.astype(ConversionDict['DataTypeDict'])
+    
+    # ActivitySummaryColumnRenameDict = _ActivitySummaryColumnRenameDict()
+    # ActSum_df = ActSum_df[ActivitySummaryColumnRenameDict['ColumnName'].values]
+
+    # ActSum_df['Date'] = ActSum_df['Date'].astype('datetime64[ns]')
+    # ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].astype('datetime64[ns]')
+    # ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].astype('datetime64[ns]')
+    # ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
+    # ActSum_df['Hole_Depth_max'] = ActSum_df['Hole_Depth_max'].astype('float')
+    # ActSum_df['Bit_Depth_avg'] = ActSum_df['Bit_Depth_avg'].astype('float')
+
+
+
+
+    ActSum_df['LABEL_All'] = ActSum_df['LABEL_Activity'] + '--' + ActSum_df['LABEL_SubActivity']
+    
+    ActSum_df['LABEL_All'] = ActSum_df['LABEL_All'].astype(object)
+    # while ("FALSE/Check" in ActSum_df['LABEL_SubActivity'].values) or ("Look and define" in ActSum_df['LABEL_SubActivity'].values):
+    # idx_same = ActSum_df.index[
+    #     ((ActSum_df['LABEL_SubActivity']=="Look and define") | (ActSum_df['LABEL_SubActivity']=="FALSE/Check")) & (ActSum_df['Duration'] <= 1)
+    #     ]
+    # idx_before = idx_same - 1
+
+    # idx_same = idx_same[idx_before>=0]
+    # idx_before = idx_before[idx_before>=0]
+    
+    # ActSum_df.loc[idx_same, 'LABEL_SubActivity'] = ActSum_df.loc[idx_before, 'LABEL_SubActivity'].values
+    # ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
+    ActSum_df = cleanFalseSensor(ActSum_df, MinuteTolerances=MinuteTolerances, CleaningIteration=CleaningIteration, includeStatus=includeStatus)
+    ActSum_df['wid'] = wid
+    ActSum_df['status'] = status
+    # if IsStatusOverride:
+        # st.write("true")
+    ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
+    {
+    'wid':'first',
+    'Date': 'max',
+    'StartDateTime': 'min',
+    'EndDateTime': 'max',
+    'Duration': 'sum',
+    'Hole_Depth_max': 'max',
+    'Bit_Depth_avg': 'mean',
+    'DrillingMeterage': 'sum',
+    'RotateDrillingDuration': 'sum',
+    'SlideDrillingDuration': 'sum',
+    'ReamingDuration': 'sum',
+    'ConnectionDuration': 'sum',
+    'LABEL_SubActivity': 'first',
+    'LABEL_Activity': 'first',
+    'LABEL_All': 'first',
+    'LABEL_ConnectionActivity': _first_non_empty,
+    'PIC': 'first',
+    'InSlip_Treshold': 'first',
+    'Remarks': 'first',
+    'status':'first',
+    'Section': 'first'}
+    )
+    # else:
+    #     st.write("false")
+    #     ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
+    #     {
+    #     'wid':'first',
+    #     'Date': 'max',
+    #     'StartDateTime': 'min',
+    #     'EndDateTime': 'max',
+    #     'Duration': 'sum',
+    #     'Hole_Depth_max': 'max',
+    #     'Bit_Depth_avg': 'mean',
+    #     'DrillingMeterage': 'sum',
+    #     'RotateDrillingDuration': 'sum',
+    #     'SlideDrillingDuration': 'sum',
+    #     'ReamingDuration': 'sum',
+    #     'ConnectionDuration': 'sum',
+    #     'LABEL_SubActivity': 'first',
+    #     'LABEL_Activity': 'first',
+    #     'LABEL_All': 'first',
+    #     'PIC': 'first',
+    #     'InSlip_Treshold': 'first',
+    #     'Remarks': 'first',
+    #     'Section': 'first',
+    #     'status':'first',
+    #     }
+    #     )
+    #     # pass
+
+
+    #_________________________________________________
+    # label the group stand, this function are useful to determine the lv.2 aggregate
+    ActSum_df = getStandLabel(ActSum_df)
+    ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    ActSum_df['EndDateTime'] = (ActSum_df['EndDateTime']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    ActSum_df['Date'] = ActSum_df['Date'].dt.date.astype(str)
+    
+
+
+    # ActSum_df['wid'] =  int(WellInfoDict['wid'])
+
+    if IsStatusOverride:
+        ActSum_df['status'] =  "REVIEW"
+
+    return ActSum_df
+    # self.Data= pd.concat([self.Data, ActSum_df])
+def RecalculateActSum_v2(ActSum_df,IsStatusOverride=True,MinuteTolerances=1, CleaningIteration=1, includeStatus=False, DrillActivityList='default'):
+    ActSum_df = ActSum_df.reset_index(drop=True)
+    wid = ActSum_df['wid'][0]
+    status = ActSum_df['status']
+    ConversionDict = _ActivitySummaryColumnRenameDict()
+    if 'LABEL_ConnectionActivity' not in ActSum_df.columns:
+        ActSum_df['LABEL_ConnectionActivity']  = '-'
+    if DrillActivityList=='default':
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
+    ActSum_df['LABEL_ConnectionActivity'] = ActSum_df['LABEL_ConnectionActivity'].fillna('')
+    ActSum_df = ActSum_df.astype(ConversionDict['DataTypeDict'])
+    
+    # ActivitySummaryColumnRenameDict = _ActivitySummaryColumnRenameDict()
+    # ActSum_df = ActSum_df[ActivitySummaryColumnRenameDict['ColumnName'].values]
+
+    # ActSum_df['Date'] = ActSum_df['Date'].astype('datetime64[ns]')
+    # ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].astype('datetime64[ns]')
+    # ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].astype('datetime64[ns]')
+    # ActSum_df['Duration'] = ActSum_df['Duration'].astype('float')
+    # ActSum_df['Hole_Depth_max'] = ActSum_df['Hole_Depth_max'].astype('float')
+    # ActSum_df['Bit_Depth_avg'] = ActSum_df['Bit_Depth_avg'].astype('float')
+
+
+
+
+    ActSum_df['LABEL_All'] = ActSum_df['LABEL_Activity'] + '--' + ActSum_df['LABEL_SubActivity']
+    
+    ActSum_df['LABEL_All'] = ActSum_df['LABEL_All'].astype(object)
+
+    ActSum_df = cleanFalseSensor(ActSum_df, MinuteTolerances=MinuteTolerances, CleaningIteration=CleaningIteration, includeStatus=includeStatus)
+    ActSum_df['wid'] = wid
+    ActSum_df['status'] = status
+    # if IsStatusOverride:
+        # st.write("true")
+    ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(
+    {
+    'wid':'first',
+    'Date': 'max',
+    'StartDateTime': 'min',
+    'EndDateTime': 'max',
+    'Duration': 'sum',
+    'Hole_Depth_max': 'max',
+    'Bit_Depth_avg': 'mean',
+    'DrillingMeterage': 'sum',
+    'RotateDrillingDuration': 'sum',
+    'SlideDrillingDuration': 'sum',
+    'ReamingDuration': 'sum',
+    'ConnectionDuration': 'sum',
+    'LABEL_SubActivity': 'first',
+    'LABEL_Activity': 'first',
+    'LABEL_All': 'first',
+    'LABEL_ConnectionActivity': _first_non_empty,
+    'PIC': 'first',
+    'InSlip_Treshold': 'first',
+    'Remarks': 'first',
+    'status':'first',
+    'Section': 'first'}
+    )
+ 
+    for LabelName,ColName in zip(
+        ["Rotary Drilling", "Slide Drilling", "Reaming","Connection"],
+        ['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration','ConnectionDuration']
+    ):
+        
+        ActSum_df.loc[ActSum_df['LABEL_SubActivity'] == LabelName, ColName] = ActSum_df.loc[ActSum_df['LABEL_SubActivity'] == LabelName, 'Duration']
+
+    #_________________________________________________
+    # label the group stand, this function are useful to determine the lv.2 aggregate
+    ActSum_df = getStandLabel(ActSum_df, stand_num=getLastStandNum(wid, ActSum_df))
+    ActSum_df['StartDateTime'] = ActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    ActSum_df['EndDateTime'] = ActSum_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    ActSum_df['Date'] = ActSum_df['Date'].dt.date.astype(str)
+    
+    #TODO 
+    # 'Duration': 'sum',
+    # 'Bit_Depth_avg': 'mean',
+    # 'RotateDrillingDuration': 'sum',
+    # 'SlideDrillingDuration': 'sum',
+    # 'ReamingDuration': 'sum',
+    # 'ConnectionDuration': 'sum',
+    # the aggregation above should be recalculate
+    # ActSum_df
+
+
+ 
+
+
+    # ActSum_df['wid'] =  int(WellInfoDict['wid'])
+
+    if IsStatusOverride:
+        ActSum_df['status'] =  "REVIEW"
+
+    return ActSum_df
+    # self.Data= pd.concat([self.Data, ActSum_df])
+
+def UploadActivitySummary(ActSumdf, progressbar=False):
+    # st.write(ActSumdf.dtypes)
+    ConversionDict = _ActivitySummaryColumnRenameDict()
+    ActSumdf = ActSumdf[ActSumdf['status'] =='REVIEW']
+    ActSumdf = ActSumdf.drop(['LABEL_All','status'], axis=1)
+    ActSumdf = ActSumdf.rename(
+        columns={value: key for key, value in ConversionDict['ColumnName'].items()}
+    )
+    ActSumdf['stand_on_bottom']=0
+    ActSumdf = ActSumdf.astype('string')
+    i = 0
+    i_end = len(ActSumdf)
+    if progressbar:
+        ProgressBarContainer = st.session_state['PopUpWindow'].empty()
+        ProgressBarContainer.progress(0.0)
+
+    for idx,row in ActSumdf.iterrows():
+        i = i+1
+        dict_row = row.to_dict()
+        print(dict_row)
+        IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
+        if progressbar:
+            ProgressBarContainer.progress(np.round(i/i_end,2), text=f"Download Realtime Sensor Data, {np.round(i/i_end,2)*100} % Complete")
+    
+    if progressbar:
+        ProgressBarContainer.progress(1)
+        ProgressBarContainer.success("Upload Success!")
+        time.sleep(3)
+        ProgressBarContainer.empty()
+        # tes_df = ActSumdf.astype('string').iloc[24,:]
+
+    # dict_row = tes_df.to_dict()
+    # st.json(tes_df.to_dict())
+    # st.write(IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable'))
+    # st.stop()
+    # pass
+
+
+    # IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
+
+def ReAverage(AverageA,CountA,AverageB,CountB):
+    TotalSumA = AverageA * CountA
+    TotalSumB = AverageB * CountB
+    return (TotalSumA + TotalSumB )/(CountA + CountB)
+
+def ExtendDateRange(UserDateRange, start_extend=None, end_extend=None):
+    # Convert the date and time components into datetime objects
+    if start_extend != None:
+        start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+
+        # Subtract 3 hours from the start datetime
+        new_start_datetime = start_datetime + start_extend
+
+        # Update the dictionary with the new start datetime
+        UserDateRange["StartDate"] = new_start_datetime.date()
+        UserDateRange["StartTime"] = new_start_datetime.time()
+    if end_extend != None:
+        end_datetime = datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
+
+        # Subtract 3 hours from the start datetime
+        new_end_datetime = end_datetime + end_extend
+
+        # Update the dictionary with the new start datetime
+        UserDateRange["EndDate"] = new_end_datetime.date()
+        UserDateRange["EndTime"] = new_end_datetime.time()
+    return UserDateRange
+
+
+def getLastStandNum(wid, ActSum_df):
+
+    # try:
+    ActSum_df_temp = ActSum_df[ActSum_df['status'] == "REVIEW"]
+    ActSum_df_temp = ActSum_df_temp.head(1)
+    if ActSum_df_temp.empty:
+        
+    # except:
+        ActSum_df_temp = ActSum_df[ActSum_df['status'] == "FIRM"]
+        ActSum_df_temp = ActSum_df_temp.tail(1)
+
+    SectionSize = ActSum_df_temp["Section"].values[0]
+    BeforeDate = ActSum_df_temp["StartDateTime"].values[0]
+
+    LastStandNumber = IO_Data.DomeGetLastStandNumber(wid, SectionSize, BeforeDate)
+    # st.write(BeforeDate)
+    # st.write(LastStandNumber)
+    # st.stop()
+    return LastStandNumber
+
+
+
+
+def checkActSumDF_old(df):
+    df['StartDateTime'] = df['StartDateTime'].astype('datetime64[ns]')
+    df['EndDateTime'] = df['EndDateTime'].astype('datetime64[ns]')
+    idx_start = 0
+    len_date_error = 0
+    df = df.reset_index(drop=True)
+    for idx,row in df[df['StartDateTime'] > df['EndDateTime']].iterrows():
+        df.loc[idx, 'LABEL_SubActivity'] = "Date Error, look and define"
+        df.loc[idx, 'LABEL_All'] = df.loc[idx, 'LABEL_SubActivity'] + "--" + df.loc[idx, 'LABEL_Activity']
+        len_date_error = len_date_error +1
+
+
+
+    df['Diff'] = (df['StartDateTime'].shift(-1) - df['EndDateTime']).dt.total_seconds().astype(float) -5
+
+    len_time_overlap = 0
+    for idx,row in df[(df['Diff'] < -5)].iterrows():
+        df.loc[idx, 'LABEL_SubActivity'] = "Date Overlap, look and define"
+        df.loc[idx+1, 'LABEL_SubActivity'] = "Date Overlap, look and define"
+        df.loc[idx, 'LABEL_All'] = df.loc[idx, 'LABEL_SubActivity'] + "--" + df.loc[idx, 'LABEL_Activity']
+        len_time_overlap = len_time_overlap+1
+
+    df = df.reset_index(drop=True)
+    idx_start = 0
+    df_concat_list = []
+    len_time_gap = 0
+    
+
+        
+    for idx,row in df[(df['Diff'] > 0)].iterrows():
+        df_concat_list.append(df.loc[idx_start:idx])
+        if  df.loc[idx+1, 'LABEL_SubActivity'] not in (["Date Error, look and define","Date Overlap, look and define"]):
+            new_row = {
+                "wid":row["wid"],
+                "Date":row["Date"],
+                "LABEL_Activity":row["LABEL_Activity"],
+                "StartDateTime":row["EndDateTime"]+ timedelta(seconds=5),
+                "EndDateTime":df.loc[idx+1, 'StartDateTime']- timedelta(seconds=5),
+                "LABEL_SubActivity":"Time Gap, look and define",
+            }
+            new_row = pd.DataFrame([new_row])
+            new_row['LABEL_All'] = new_row['LABEL_SubActivity'] + "--" + new_row['LABEL_Activity']
+
+            df_concat_list.append(new_row)
+            len_time_gap = len_time_gap + 1
+        idx_start = idx+1
+
+    df_concat_list.append(df.loc[idx_start:])
+
+        
+    dict_out = {
+        'len_date_error':len_date_error,
+        "len_time_overlap":len_time_overlap,
+        "len_time_gap":len_time_gap,
+    }
+    df_out = pd.concat(df_concat_list, ignore_index=True,axis=0).drop('Duration', axis=1)
+    df_out['StartDateTime'] = df_out['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    df_out['EndDateTime'] = df_out['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    return df_out,dict_out
+def checkActSumDF(df):
+    df['StartDateTime'] = df['StartDateTime'].astype('datetime64[ns]')
+    df['EndDateTime'] = df['EndDateTime'].astype('datetime64[ns]')
+    # df['ErrorWarning'] = ""
+    idx_start = 0
+    len_date_error = 0
+    df = df.reset_index(drop=True)
+    for idx,row in df[df['StartDateTime'] > df['EndDateTime']].iterrows():
+        df.loc[idx, 'ErrorWarning'] = "Date Error, look and define"
+        len_date_error = len_date_error +1
+    df['Diff'] = (df['StartDateTime'].shift(-1) - df['EndDateTime']).dt.total_seconds().astype(float) -5
+
+    len_time_overlap = 0
+    for idx,row in df[(df['Diff'] < -5)].iterrows():
+        df.loc[idx, 'ErrorWarning'] = "Date Overlap, look and define"
+        df.loc[idx+1, 'ErrorWarning'] = "Date Overlap, look and define"
+        len_time_overlap = len_time_overlap+1
+
+    df = df.reset_index(drop=True)
+    idx_start = 0
+    df_concat_list = []
+    len_time_gap = 0
+    
+
+        
+    for idx,row in df[(df['Diff'] > 0)].iterrows():
+
+        df.loc[idx,"ErrorWarning"] = "Time Gap, look and define",
+        df.loc[idx+1,"ErrorWarning"] = "Time Gap, look and define",
+        len_time_gap = len_time_gap+1
+  
+    # if (len_date_error ==0) and (len_time_overlap == 0) and (len_time_gap == 0):
+    #     print("Drop Error WArning")
+        # df = df.drop("ErrorWarning", axis=1)
+    df = df.drop("Diff", axis=1)
+    error_list = ['FALSE/Check', "Look and define"]
+
+    if df['LABEL_SubActivity'].isin(error_list).any():
+        df.loc[df['LABEL_SubActivity'].isin(error_list), 'ErrorWarning'] = df.loc[df['LABEL_SubActivity'].isin(error_list), 'LABEL_SubActivity']
+
+
+    df['StartDateTime'] = df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    df['EndDateTime'] = df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    return df
