@@ -1,0 +1,17 @@
+From python:3.10-buster
+RUN mkdir streamlit-app && \
+    apt-get update && apt-get install -y libx11-dev libeigen3-dev libccd-dev octomap-tools ffmpeg libsm6 libxext6
+WORKDIR streamlit-app
+COPY requirements_PDU3.txt .
+COPY setup.sh .
+RUN pip install --upgrade pip
+RUN pip3 install -r requirements_PDU3.txt
+ENV PORT=8088
+RUN chmod +x setup.sh && ./setup.sh
+CMD ["streamlit","run","Streamlit_App_v3/Main.py"]
+WORKDIR streamlit-app/Streamlit_App_v3/API
+CMD ["uvicorn","main_API:app", "--reload", "--port", "8000"]
+
+
+EXPOSE 8088
+EXPOSE 8000
