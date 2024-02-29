@@ -85,6 +85,9 @@ def OverrideActivityTableWidget(WellInfoDict, container,
         OverrideActivityList = ['CEMENTING JOB', 'CONNECTION', 'LAY DOWN BHA', 'MAKE UP BHA', 'NPT', 'N/D BOP', 
                                 'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR','N/A', 'OTHER',]
 
+    
+    DrillSubActivityList = ['Rotary Drilling','Slide Drilling','Reaming','Wash Up/Down','Connection']
+    TripSubActivityList = ['Wash Up/Down','Reaming','Moving','Circulation','Connection','Stationary']
     if f"{PrefixKey}_df" not in st.session_state:
         st.session_state[f"{PrefixKey}_df"] =  IO_Data.DomeOverrideActivity_Get(WellInfoDict)
     OverideActivity_df = st.session_state[f"{PrefixKey}_df"]
@@ -111,7 +114,7 @@ def OverrideActivityTableWidget(WellInfoDict, container,
             ),
             "LABEL_SUBACTIVITY": st.column_config.SelectboxColumn(
                 "Sub Activity",
-                options=TripActivityList + DrillActivityList + OverrideActivityList,
+                options=DrillSubActivityList + TripSubActivityList+ TripActivityList + DrillActivityList + OverrideActivityList,
                 width="medium",
                 required=True,
             ),
@@ -680,7 +683,7 @@ def App():
     SelectWell = st.session_state['SelWell']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
     st.markdown("## Override Activity Table")
-    st.write(WellInfoDict)
+    # st.write(WellInfoDict)
     OverrideActivityTableWidget(WellInfoDict, st.container(), 
                           PrefixKey = 'OverrideActivityTable' , 
                           TripActivityList='default', DrillActivityList='default', OverrideActivityList='default')

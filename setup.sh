@@ -6,4 +6,6 @@ port = $PORT
 enableCORS = false
 [theme]
 base = 'light'
+[client]
+showErrorDetails=false
 " > ~/.streamlit/config.toml

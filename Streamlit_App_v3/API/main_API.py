@@ -67,7 +67,7 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
     }
     reload(Activity)
     # TODO change with the SectionParams Table
-    SectionParams_DF = pd.read_excel('../Data/SectionParams.xlsx')
+    SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
     df_list = []
     # LastDateTime_obj = datetime.datetime.strptime(sync_datetime, '%Y-%m-%d %H:%M:%S')
     try:
@@ -163,10 +163,10 @@ class Delete_OverrideActivityDataModel(BaseModel):
 
 @app.post("/override-activity-table/insert/")
 def override_activity_insert(data: Insert_OverrideActivityDataModel):
-    OverrideActivity_df = pd.read_parquet('../Data/OverrideActivity_TABLE.parquet')
+    OverrideActivity_df = pd.read_parquet('Data/OverrideActivity_TABLE.parquet')
     insert_df = pd.DataFrame.from_records([data.model_dump()])
     OverrideActivity_df = pd.concat([OverrideActivity_df,insert_df], ignore_index=True)
-    OverrideActivity_df.to_parquet('../Data/OverrideActivity_TABLE.parquet', index=False)
+    OverrideActivity_df.to_parquet('Data/OverrideActivity_TABLE.parquet', index=False)
     return {"message": "Data inserted successfully"}
 
 @app.post("/override-activity-table/delete/")
@@ -174,7 +174,7 @@ def override_activity_delete(data: Delete_OverrideActivityDataModel):
     # Load the DataFrame
     DeleteDict = data.model_dump()
     try:
-        OverrideActivity_df = pd.read_parquet('../Data/OverrideActivity_TABLE.parquet')
+        OverrideActivity_df = pd.read_parquet('Data/OverrideActivity_TABLE.parquet')
         # Filtering condition
         condition = (OverrideActivity_df['wid'] == DeleteDict['wid']) & \
                     (OverrideActivity_df['StartDateTime'] == DeleteDict['StartDateTime']) & \
@@ -184,7 +184,7 @@ def override_activity_delete(data: Delete_OverrideActivityDataModel):
         OverrideActivity_df = OverrideActivity_df[~condition]
 
         # Save the DataFrame back to parquet
-        OverrideActivity_df.to_parquet('../Data/OverrideActivity_TABLE.parquet', index=False)
+        OverrideActivity_df.to_parquet('Data/OverrideActivity_TABLE.parquet', index=False)
         return {"message": "Data deleted successfully"}
     except:
         raise HTTPException(status_code=404, detail="data not found")
@@ -194,7 +194,7 @@ def override_activity_delete(data: Delete_OverrideActivityDataModel):
 def override_activity_get(data: Get_OverrideActivityDataModel):
     list_col_str = 'StartDateTime'
     WellInfoDict = data.model_dump()
-    OverrideActivity_df = pd.read_parquet('../Data/OverrideActivity_TABLE.parquet')
+    OverrideActivity_df = pd.read_parquet('Data/OverrideActivity_TABLE.parquet')
     OverrideActivity_df = OverrideActivity_df[OverrideActivity_df['wid'] == WellInfoDict['wid']]
     if OverrideActivity_df.empty:
         empty_data = {col: [] for col in ['wid', 'StartDateTime', 'EndDateTime', 'LABEL_ACTIVITY', 'LABEL_SUBACTIVITY', 'PIC']}
@@ -224,10 +224,10 @@ class Delete_SectionParamsDataModel(BaseModel):
 
 @app.post("/section-params-table/insert/")
 def section_params_insert(data: Insert_SectionParamsDataModel):
-    SectionParams_df = pd.read_parquet('../Data/SectionParams_TABLE.parquet')
+    SectionParams_df = pd.read_parquet('Data/SectionParams_TABLE.parquet')
     insert_df = pd.DataFrame.from_records([data.model_dump()])
     SectionParams_df = pd.concat([SectionParams_df,insert_df], ignore_index=True)
-    SectionParams_df.to_parquet('../Data/SectionParams_TABLE.parquet', index=False)
+    SectionParams_df.to_parquet('Data/SectionParams_TABLE.parquet', index=False)
     return {"message": "Data inserted successfully"}
 
 @app.post("/section-params-table/delete/")
@@ -235,7 +235,7 @@ def section_params_delete(data: Delete_SectionParamsDataModel):
     # Load the DataFrame
     DeleteDict = data.model_dump()
     try:
-        SectionParams_df = pd.read_parquet('../Data/SectionParams_TABLE.parquet')
+        SectionParams_df = pd.read_parquet('Data/SectionParams_TABLE.parquet')
         # Filtering condition
         condition = (SectionParams_df['wid'] == DeleteDict['wid']) & \
                     (SectionParams_df['DateTime'] == DeleteDict['DateTime']) & \
@@ -247,7 +247,7 @@ def section_params_delete(data: Delete_SectionParamsDataModel):
         SectionParams_df = SectionParams_df[~condition]
 
         # Save the DataFrame back to parquet
-        SectionParams_df.to_parquet('../Data/SectionParams_TABLE.parquet', index=False)
+        SectionParams_df.to_parquet('Data/SectionParams_TABLE.parquet', index=False)
         return {"message": "Data deleted successfully"}
     except:
         raise HTTPException(status_code=404, detail="data not found")
@@ -255,7 +255,7 @@ def section_params_delete(data: Delete_SectionParamsDataModel):
 def section_params_get(data: Get_SectionParamsDataModel):
     list_col_str = 'DateTime'
     WellInfoDict = data.model_dump()
-    SectionParams_df = pd.read_parquet('../Data/SectionParams_TABLE.parquet')
+    SectionParams_df = pd.read_parquet('Data/SectionParams_TABLE.parquet')
     SectionParams_df = SectionParams_df[SectionParams_df['wid'] == WellInfoDict['wid']]
     if SectionParams_df.empty:
         empty_data = {col: [] for col in ['wid', 'DateTime', 'SectionSize', 'InSlipThreshold',  'PIC']}
