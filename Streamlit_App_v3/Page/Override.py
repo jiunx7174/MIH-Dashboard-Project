@@ -22,7 +22,10 @@ def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
 
     OverideActivity_df = OverideActivity_df.copy()
     OverideActivity_df['wid'] = int(WellInfoDict['wid'])
-    list_col_str = ['StartDateTime', 'EndDateTime', 'LABEL_ACTIVITY', 'LABEL_SUBACTIVITY', 'PIC']
+    # 'StartDateTime', 'EndDateTime', 
+    OverideActivity_df['StartDateTime'] = OverideActivity_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    OverideActivity_df['EndDateTime'] = OverideActivity_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    list_col_str = ['LABEL_ACTIVITY', 'LABEL_SUBACTIVITY', 'PIC']
     OverideActivity_df[list_col_str] = OverideActivity_df[list_col_str].astype(str)
     print(st.session_state[f"{PrefixKey}_DataEditor"])
     list_startdatetime = []
@@ -137,8 +140,11 @@ def OverrideActivityTableWidget(WellInfoDict, container,
 def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
 
     SectionParamsTable_df = SectionParamsTable_df.copy()
+    print("===================================")
+    print(SectionParamsTable_df)
     SectionParamsTable_df['wid'] = int(wid)
-    list_col_str = ['DateTime', 'Section Size',	'PIC']
+    SectionParamsTable_df['DateTime'] = SectionParamsTable_df['DateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    list_col_str = ['Section Size',	'PIC']
     SectionParamsTable_df[list_col_str] = SectionParamsTable_df[list_col_str].astype(str)
     SectionParamsTable_df['In-Slip Threshold'] = SectionParamsTable_df['In-Slip Threshold'].astype(float)
     # SectionParamsTable_df['SectionSize'] = SectionParamsTable_df['SectionSize'].replace('"', '')
@@ -226,6 +232,9 @@ def SectionParamsTableWidget(WellInfoDict, container,
                                 column_config=SectionParamsTable_ColConfig,
                                 key=f"{PrefixKey}_DataEditor", num_rows='dynamic', use_container_width=True)
         st.form_submit_button("Submit", on_click=UpdateSectionParamsTable, args=(SectionParamsTable_df,WellInfoDict['wid'],PrefixKey))
+    # print(st.session_state[f"{PrefixKey}_df"])
+    # st.write(st.session_state[f"{PrefixKey}_df"])
+    # st.write(st.session_state[f"{PrefixKey}_df"]['DateTime'].astype(str))
 # =================================================================================================
 def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime):
     print(list_startdatetime)
@@ -247,9 +256,15 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
     df_list = []
 
-
-    StartDateTime_obj =  datetime.strptime(startdatetime, '%Y-%m-%d %H:%M:%S')
-    EndDateTime_obj =  datetime.strptime(enddatetime, '%Y-%m-%d %H:%M:%S')
+    # try:
+    StartDateTime_obj = datetime.strptime(startdatetime, '%Y-%m-%d %H:%M:%S')
+    EndDateTime_obj = datetime.strptime(enddatetime, '%Y-%m-%d %H:%M:%S')
+    # except ValueError:
+    #     try:
+    #         StartDateTime_obj = datetime.strptime(startdatetime, '%Y-%m-%dT%H:%M:%S.%f')
+    #         EndDateTime_obj = datetime.strptime(enddatetime, '%Y-%m-%dT%H:%M:%S.%f')  
+    #     except ValueError:
+    #         print("Error: Unable to parse datetime strings.")
 
     # UserDateRange_Sync = {
     # "StartDate": StartDateTime_obj.date(),

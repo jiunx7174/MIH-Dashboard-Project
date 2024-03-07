@@ -382,6 +382,7 @@ def groupActivity(RTSensor_df , DrillActivityList='default'):
     return ActSum_df
 def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivityList='default', OverrideActivityList='default'):
     #TODO makesure the column name and data type is match
+
     RTSensor_df = RTSensor_df.astype(
         {
             "dt":"datetime64[ns]",
@@ -406,7 +407,8 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
             # "logic_status":"int64",
             # "isBitDepthMoving":"bool",
             # "LABEL_All":"object",
-        }
+        },
+    # errors='coerce'
     )
     if TripActivityList=='default':
         TripActivityList = ['TRIP IN', 'TRIP OUT', 'WIPER TRIP']
