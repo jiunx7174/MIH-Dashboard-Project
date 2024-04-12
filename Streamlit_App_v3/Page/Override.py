@@ -69,8 +69,10 @@ def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
                 )
             list_startdatetime.append(OverideActivity_df.loc[int(idxrow), 'StartDateTime'])
             list_enddatetime.append(OverideActivity_df.loc[int(idxrow), 'EndDateTime'])
-    st.toast(list_startdatetime)
-    st.toast(list_enddatetime)
+    for startdatetime, enddatetime in zip(list_startdatetime, list_enddatetime):
+        st.toast(f"Override Activity Summary StartDateTime: {startdatetime} - EndDateTime: {enddatetime}")
+    # st.toast(list_startdatetime)
+    # st.toast(list_enddatetime)
     SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime)
     del st.session_state[f"{PrefixKey}_DataEditor"]
     del st.session_state[f"{PrefixKey}_df"]
@@ -237,8 +239,8 @@ def SectionParamsTableWidget(WellInfoDict, container,
     # st.write(st.session_state[f"{PrefixKey}_df"]['DateTime'].astype(str))
 # =================================================================================================
 def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime):
-    print(list_startdatetime)
-    print(list_enddatetime)
+    # print(list_startdatetime)
+    # print(list_enddatetime)
 
     # TODO uncomment the code below
     for startdatetime, enddatetime in zip(list_startdatetime, list_enddatetime):
@@ -440,6 +442,8 @@ def RedefinedUserDateRange(WellInfoDict, UserDateRange):
       "EndTime": defined_starttime
     }
     LastActSum = (getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'))
+    StartDateTime_obj =  datetime.strptime(LastActSum['StartDateTime'].values[0], '%Y-%m-%d %H:%M:%S')
+
     UserDateRange = {
       "StartDate": defined_enddate,
       "StartTime": defined_endtime,
@@ -447,9 +451,8 @@ def RedefinedUserDateRange(WellInfoDict, UserDateRange):
       "EndTime":  datetime_module.time(11, 9)
     }
     NextActSum = (getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'))
-    StartDateTime_obj =  datetime.strptime(LastActSum['StartDateTime'].values[0], '%Y-%m-%d %H:%M:%S')
-
     EndDateTime_obj =  datetime.strptime(NextActSum['EndDateTime'].values[0], '%Y-%m-%d %H:%M:%S')
+
     NewUserDateRange = {
         "StartDate": StartDateTime_obj.date(),
         "StartTime": StartDateTime_obj.time(),
@@ -505,13 +508,21 @@ def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
         if total_hours_adjusted >= max_hours_to_adjust:
             break
     
-    # If ActSum_df is still empty after the loop, return None
-    if ActSum_df.empty:
-        return None
+        # return None
 
     # Get the last row of the activity summary
     LastActSum_df = ActSum_df.tail(1)
     
+    # If ActSum_df is still empty after the loop, return None
+    if ActSum_df.empty:
+        LastActSum_df = pd.DataFrame({
+            # "StartDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
+            "StartDateTime": [datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])],
+            # "StartDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
+            # "EndDateTime": [datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])],
+            'LABEL_Activity': ['N/A'],
+        })
+        LastActSum_df['StartDateTime'] = LastActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     # If the last activity is in the DrillActivityList, get the last connection date and time
     if LastActSum_df['LABEL_Activity'].values[0] in DrillActivityList:
         return getBeforeConnectionDateTime(WellInfoDict, UserDateRange)
@@ -564,13 +575,20 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
         if total_hours_adjusted >= max_hours_to_adjust:
             break
     
-    # If ActSum_df is still empty after the loop, return None
-    if ActSum_df.empty:
-        return None
 
     # Get the last row of the activity summary
     NextActSum_df = ActSum_df.head(1)
     
+    # If ActSum_df is still empty after the loop, return the same values
+    if ActSum_df.empty:
+        NextActSum_df = pd.DataFrame({
+            "EndDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
+            # "StartDateTime": [datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])],
+            # "StartDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
+            # "EndDateTime": [datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])],
+            'LABEL_Activity': ['N/A'],
+        })
+        NextActSum_df['StartDateTime'] = NextActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     # If the last activity is in the DrillActivityList, get the last connection date and time
     if NextActSum_df['LABEL_Activity'].values[0] in DrillActivityList:
         return getNextConnectionDateTime(WellInfoDict, UserDateRange)

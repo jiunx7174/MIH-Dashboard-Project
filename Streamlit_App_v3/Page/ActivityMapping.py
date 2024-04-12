@@ -13,7 +13,7 @@ reload(IO_Data)
 reload(Activity)
 reload(Override)
 reload(RealtimeDataViz)
-@st.cache_data(show_spinner="Retrieve Rig Activity")
+# @st.cache_data(show_spinner="Retrieve Rig Activity")
 def cache_getRigActivity(WellInfoDict, **kwargs):
     return IO_Data.getRigActivity(WellInfoDict, **kwargs)
 
@@ -146,7 +146,7 @@ def App():
     SelectWell = st.session_state['SelWell']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
     # IO_Data.initiateTable(WellInfoDict)
-    # st.write(WellInfoDict)
+    st.write(WellInfoDict)
     # st.write(IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type="ActivityLogTable"))
     # st.stop()
     # SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
@@ -174,7 +174,7 @@ def App():
     # st.dataframe(SectionParams_DF)
 
     RigActivityCols = st.container(border=False).columns([5,5])
-    RigActivityCols[0].markdown(f"##### Rig Status: *{RigName}*")
+    RigActivityCols[0].markdown(f"##### Rig Name: *{RigName}*")
     if RigActivity_DF.empty:
         RigActivityCols[0].error("No Rig Activity")
 
@@ -184,14 +184,19 @@ def App():
 
     if RigActivity_DF.empty or SectionParams_DF.empty:
         st.stop()
-    RigActivityCols[0].dataframe(RigActivity_DF[['DateTime', 'Activity']].sort_values(by='DateTime', ascending=False),
+    RigActivity_DF_Display = RigActivity_DF.copy()
+    RigActivity_DF_Display['Detail Rig Activity'] = RigActivity_DF_Display['Activity']
+    RigActivity_DF_Display['Simple Activity'] = Activity.translateRigActivity2Activity(RigActivity_DF_Display)['Activity']
+    # st.write()
+    # RigActivity_DF_Display['Simple Activity'] = RigActivity_DFg
+    RigActivityCols[0].dataframe(RigActivity_DF_Display[['DateTime', 'Detail Rig Activity', 'Simple Activity']].sort_values(by='DateTime', ascending=False),
                     use_container_width=True,
                     hide_index=True,
                     height=200,
                     column_config={
                         "DateTime": st.column_config.DatetimeColumn(
                             "DateTime",
-                            format="D MMM YYYY, h:mm a",
+                            format="YYYY-MM-DD | HH:mm:ss",
                             )
                         }
                     
