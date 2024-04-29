@@ -5,7 +5,7 @@ from Page.SubPage import RealtimeDataViz
 from importlib import reload
 import pandas as pd
 from datetime import datetime,timedelta
-from streamlit_date_picker import date_range_picker, PickerType, Unit, date_picker
+# from streamlit_date_picker import date_range_picker, PickerType, Unit, date_picker
 from stqdm import stqdm
 from time import sleep
 import streamlit_ext as ste
@@ -146,7 +146,7 @@ def App():
     SelectWell = st.session_state['SelWell']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
     # IO_Data.initiateTable(WellInfoDict)
-    st.write(WellInfoDict)
+    # st.write(WellInfoDict)
     # st.write(IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type="ActivityLogTable"))
     # st.stop()
     # SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
