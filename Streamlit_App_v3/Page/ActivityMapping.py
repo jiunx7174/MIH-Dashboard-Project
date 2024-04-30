@@ -5,7 +5,7 @@ from Page.SubPage import RealtimeDataViz
 from importlib import reload
 import pandas as pd
 from datetime import datetime,timedelta
-from streamlit_date_picker import date_range_picker, PickerType, Unit, date_picker
+# from streamlit_date_picker import date_range_picker, PickerType, Unit, date_picker
 from stqdm import stqdm
 from time import sleep
 import streamlit_ext as ste
@@ -13,7 +13,7 @@ reload(IO_Data)
 reload(Activity)
 reload(Override)
 reload(RealtimeDataViz)
-@st.cache_data(show_spinner="Retrieve Rig Activity")
+# @st.cache_data(show_spinner="Retrieve Rig Activity")
 def cache_getRigActivity(WellInfoDict, **kwargs):
     return IO_Data.getRigActivity(WellInfoDict, **kwargs)
 
@@ -53,7 +53,11 @@ def validate_start_end_dates(UserDateRange):
 def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit'):
         # st.session_state["SectionParams_DF"] = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
         cache_getWellParams.clear()
-        num = int(st.session_state['DataEditorKey'].split('_')[1]) + 1
+        try:
+            num = int(st.session_state['DataEditorKey'].split('_')[1]) + 1
+        except:
+            st.write(st.session_state['DataEditorKey'])
+            st.stop()
         st.session_state['DataEditorKey'] = InitialKey + f"_{num}"
 
 def initiateDataEditorKey(InitialKey = 'SectionParamsEdit'):
@@ -116,7 +120,6 @@ def SectionParamsDataEditor(WellInfoDict, SectionParams_DF):
              required=True,
         )
     }
-    initiateDataEditorKey()
    
     with st.form(key='SectionParamsFormKey', border=False):
         
@@ -136,6 +139,7 @@ def SectionParamsDataEditor(WellInfoDict, SectionParams_DF):
 
 
 def App():
+    initiateDataEditorKey()
 
     UserAuthDict = st.session_state['UserAuthDict']
     SelectComp = st.session_state['SelComp']
@@ -150,7 +154,11 @@ def App():
     # SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
     # if "SectionParams_DF" not in st.session_state:
     #     st.session_state["SectionParams_DF"] = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
-    SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
+    # SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
+    # SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
+    if "SectionParamsTable_df" not in st.session_state:
+        st.session_state["SectionParamsTable_df"] =  IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+    SectionParams_DF = st.session_state["SectionParamsTable_df"]
     st.sidebar.button("🔄 Refresh Data", key="RefreshSectionParamsTable", on_click=resetDataEditorKey, args=(WellInfoDict,))
     
 
@@ -166,7 +174,7 @@ def App():
     # st.dataframe(SectionParams_DF)
 
     RigActivityCols = st.container(border=False).columns([5,5])
-    RigActivityCols[0].markdown(f"##### Rig Status: *{RigName}*")
+    RigActivityCols[0].markdown(f"##### Rig Name: *{RigName}*")
     if RigActivity_DF.empty:
         RigActivityCols[0].error("No Rig Activity")
 
@@ -176,14 +184,19 @@ def App():
 
     if RigActivity_DF.empty or SectionParams_DF.empty:
         st.stop()
-    RigActivityCols[0].dataframe(RigActivity_DF[['DateTime', 'Activity']].sort_values(by='DateTime', ascending=False),
+    RigActivity_DF_Display = RigActivity_DF.copy()
+    RigActivity_DF_Display['Detail Rig Activity'] = RigActivity_DF_Display['Activity']
+    RigActivity_DF_Display['Simple Activity'] = Activity.translateRigActivity2Activity(RigActivity_DF_Display)['Activity']
+    # st.write()
+    # RigActivity_DF_Display['Simple Activity'] = RigActivity_DFg
+    RigActivityCols[0].dataframe(RigActivity_DF_Display[['DateTime', 'Detail Rig Activity', 'Simple Activity']].sort_values(by='DateTime', ascending=False),
                     use_container_width=True,
                     hide_index=True,
                     height=200,
                     column_config={
                         "DateTime": st.column_config.DatetimeColumn(
                             "DateTime",
-                            format="D MMM YYYY, h:mm a",
+                            format="YYYY-MM-DD | HH:mm:ss",
                             )
                         }
                     

@@ -51,7 +51,8 @@ st.set_page_config(
     page_icon=None, layout="wide",)
 # addHeader()
 
-query_params = st.experimental_get_query_params()
+# query_params = st.experimental_get_query_params()
+query_params = st.query_params
 UserAuthDict = Authentification.getUserID(query_params)
 st.session_state['UserAuthDict'] = UserAuthDict
 
@@ -74,6 +75,9 @@ with SelCompWellContainer:
     if SelectComp != None:
         AvailWell_DF = IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)
         SelectWell = ste.selectbox("Select Well",['-'] + AvailWell_DF['well_name'].tolist(), index=None,key='SelWell')
+if SelectWell == None:
+    st.warning("Please select a well")
+    st.stop()
 
 # TODO:
 # * add User Module auth

@@ -120,7 +120,7 @@ def getAvailableCompanyDF(UserAuthDict):
 
     return CompDF
 
-
+# @retry_on_error()
 def getAvailableWellDF(SelectComp,UserAuthDict):
     CompDF = getAvailableCompanyDF(UserAuthDict)
     # st.dataframe(CompDF)
@@ -137,9 +137,9 @@ def getAvailableWellDF(SelectComp,UserAuthDict):
 
 
         AvailableWellDF['cid'] = cid
-        AvailableWellDF = AvailableWellDF.astype({"cid": int,"wid": int, "well_name": 'string', 'rig_name':'string'})
+        AvailableWellDF = AvailableWellDF.astype({"cid": int,"wid": int, "well_name": 'string', 'rig_name':'string', 'active_date':'string', 'end_date':'string'})
     else:
-        AvailableWellDF =pd.DataFrame.from_dict({"cid":[],"wid": [], "well_name": [], 'active_date': [], 'end_date': [], 'rig_name':[]})
+        AvailableWellDF =pd.DataFrame.from_dict({"cid":[],"wid": [], "well_name": [], 'active_date': [], 'end_date': [], 'rig_name':[], 'active_date': [], 'end_date': []})
     return AvailableWellDF
 
 def getWellInfoDict(UserAuthDict, SelectComp, SelectWell):
@@ -160,7 +160,39 @@ def getWellInfoDict(UserAuthDict, SelectComp, SelectWell):
         'EndDate':WellEndDate
     }
     return SelectWellInfoDict
+# @retry_on_error()
+def getWellInfoDict_byID(cid, wid):
+    GetAvailableWellAPI =  "http://khansadev.xyz/dome_api/rtdc/get_well?cid=" + str(cid)
+    AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
+    # st.json(AvailableWell_JSON)
+    SelectWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
+    print("------------------")
+    print(SelectWellDF)
+    # print(SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'well_name'])
 
+    WellName = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'well_name'].tolist()[0]
+    WellActiveDate = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'active_date'].tolist()[0]
+    WellEndDate = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'end_date'].tolist()[0]
+    RigName = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'rig_name']
+
+    SelectWellInfoDict = {
+        'wid': wid,
+        'cid': cid,
+        'WellName':WellName,
+        'RigName':RigName,
+        'ActiveDate':WellActiveDate,
+        'EndDate':WellEndDate
+    }
+
+    return SelectWellInfoDict
+def round_seconds_to_nearest_5_seconds(dt):
+    # dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+    rounded_seconds = round(dt.second / 5) * 5
+    if rounded_seconds >= 60:
+        dt += timedelta(minutes=1)
+        rounded_seconds = 0
+    dt = dt.replace(second=rounded_seconds)
+    return dt
 def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01"):
     """
     Retrieves the drilling activity for a specific well within a given time range.
@@ -196,6 +228,7 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
     RigActivityDF.sort_values(by='dt', inplace=True)
     RigActivityDF.rename(columns={'activity': 'Activity', 'dt':'DateTime'}, inplace=True)
     RigActivityDF['DateTime'] = pd.to_datetime(RigActivityDF['DateTime'])
+    # RigActivityDF['DateTime'] = RigActivityDF['DateTime'].apply(round_seconds_to_nearest_5_seconds)
     RigActivityDF = RigActivityDF.reset_index(drop=True)
     return RigActivityDF
 
@@ -290,7 +323,7 @@ def splitDateTime(UserDateRange, hours=0.5):
     StartDateTimeList, EndDateTimeList = date_list[:-1], date_list[1:]
 
     return StartDateTimeList, EndDateTimeList
-@retry_on_error()
+@retry_on_error(max_retries=2, retry_interval=1)
 def DomeGetRealtimeSensorDataChunk(Data_params):
     # UserDateRange = {
     #         "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
@@ -304,6 +337,7 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
     #     "start" : str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime']),
     #     "end" : str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime']),
     # }
+    # print(Data_params)
     column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
     WellData = (
         (
@@ -311,8 +345,13 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
             requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
         ).text
     )
-
-    return pd.json_normalize(json.loads(WellData), record_path='result')
+    WellData = json.loads(WellData)
+    # print(WellData)
+    print(WellData['status'])
+    if WellData['status'] == 404:
+        return pd.DataFrame(columns=column_list)
+    else:
+        return pd.json_normalize(WellData, record_path='result')
 @st.cache_data(ttl=60*60*1.5, show_spinner="Downloading Realtime Data...")
 def DomeGetRealtimeSensorDataChunk_Cache(Data_params):
     return DomeGetRealtimeSensorDataChunk(Data_params)
@@ -338,13 +377,26 @@ def ShowProgress(container, i, total):
         # container.progress(i/total)
 
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progress=True,runOnStreamlit=True, container=None):
+    print(WellInfoDict)
+    active_start_date = datetime.strptime(WellInfoDict['ActiveDate'], '%Y-%m-%d').date()
+    active_end_date = datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d').date()
+    if active_start_date > UserDateRange['StartDate']:
+        UserDateRange['StartDate'] = active_start_date
+        UserDateRange['StartTime'] = datetime.strptime("00:00:00", '%H:%M:%S')
+    if active_end_date < UserDateRange['EndDate']:
+        UserDateRange['EndDate'] = active_end_date
+        UserDateRange['EndTime'] = datetime.strptime("23:59:55", '%H:%M:%S')
+
     UserDateRange = {
             "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
             "StartTime": UserDateRange['StartTime'].strftime('%H:%M:%S'),
             "EndDate": UserDateRange['EndDate'].strftime('%Y-%m-%d'),
             "EndTime": UserDateRange['EndTime'].strftime('%H:%M:%S'),
             }
-
+    # active_date_dict = {
+    #     "start_date": WellInfoDict['active_date'],
+    #     "end_date": WellInfoDict['end_date'],
+    # }
     StartDateTimeList,EndDateTimeList = splitDateTime(UserDateRange, hours=hours)
 
     column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
@@ -366,28 +418,36 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
         print(StartEndList[ii])
         # my_bar.progress(np.round(ii/len(StartEndList),2), text=f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
         StartDateTime,EndDateTime = StartEndList[ii]
-        loopStartTime = time.time()
+        # loopStartTime = time.time()
         Data_params ={
             "wid" : int(WellInfoDict['wid']),
             "start" : str(StartDateTime),
             "end" : str(EndDateTime),
         }
+        
         if runOnStreamlit:
             Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_Cache(Data_params)
         else:
             Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
         # Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
-        Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
-        Realtime_List.append(Realtime_DF_temp)
+        # print(Realtime_DF_temp)
+        if not Realtime_DF_temp.empty:
+            # st.warning(f"No data found for {StartDateTime} - {EndDateTime}")
+            # st.stop()
+            Realtime_DF_temp['dt'] = Realtime_DF_temp['dt'].astype('datetime64[ns]')
+            Realtime_List.append(Realtime_DF_temp)
 
-        loopEndTime = time.time()
+        # loopEndTime = time.time()
         i=i+1
-        time_elapsed.append(loopEndTime-loopStartTime)
+        # time_elapsed.append(loopEndTime-loopStartTime)
         if show_progress:
             ShowProgress(my_bar, ii, (len((StartEndList))))
     if show_progress:
         container.empty()
-
+    if Realtime_List == []:
+        st.warning(f"No data found for {UserDateRange['StartDate']} {UserDateRange['StartTime']} - {UserDateRange['EndDate']} {UserDateRange['EndTime']}")
+        st.stop()
+        # return pd.DataFrame(columns=column_list)
     Realtime_DF = pd.concat(Realtime_List, axis=0, ignore_index=True)
 
     start = str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime'])
@@ -528,12 +588,16 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
 
     response = DomeRequestGET(TableAPI, json_queries)
     # print((response.json()))
+    
     ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
     # print("Columns:")
     # print(ActivitySummary_DF.columns)
     ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict()['ColumnName'], inplace = True)
     
-    return ActivitySummary_DF
+    if ActivitySummary_DF.empty:
+        return pd.DataFrame(columns=ActivitySummaryColumnRenameDict()['ColumnName'].values())
+    else:
+        return ActivitySummary_DF
 # def DomeInsertActivitySummaryData():
 #     # TODO create API for Activity Summary upload
 #     pass
@@ -541,7 +605,11 @@ def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict):
     TableAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/delete"
     if isinstance(DateTimeRangeList, dict):
         ActSum_df = DomeGetActivitySummaryData(WellInfoDict, DateTimeRangeList)
-        DeleteList = ActSum_df['StartDateTime'].astype('str').tolist()
+        try:
+            DeleteList = ActSum_df['StartDateTime'].astype('str').tolist()
+        except:
+            print(f"No data to delete | {DateTimeRangeList}")
+            pass
     else:
         DeleteList = DateTimeRangeList
     for ID_or_timestart in DeleteList:
@@ -664,7 +732,7 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf ):
             DomeRequestPOST(AddRowAPI, json_queries)
         )
         # st.stop()
-        st.toast(dict(response.json())['message'])
+        # st.toast(dict(response.json())['message'])
 
 
         # if progressbar:
@@ -770,8 +838,8 @@ def getLastActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
             break
         
         # Calculate the new StartDate and StartTime by subtracting 3 hours
-        start_datetime = datetime.datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
-        new_start_datetime = start_datetime - datetime.timedelta(hours=total_hours_adjusted)
+        start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+        new_start_datetime = start_datetime - timedelta(hours=total_hours_adjusted)
         
         # Update the UserDateRange
         UserDateRange["StartDate"] = new_start_datetime.date()
@@ -784,12 +852,19 @@ def getLastActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
         if total_hours_adjusted >= max_hours_to_adjust:
             break
     
-    # If ActSum_df is still empty after the loop, return None
-    if ActSum_df.empty:
-        return None
 
     # Get the last row of the activity summary
     LastActSum_df = ActSum_df.tail(1)
+    # If ActSum_df is still empty after the loop, return None
+    if ActSum_df.empty:
+        LastActSum_df = pd.DataFrame({
+            # "StartDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
+            "StartDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
+            # "StartDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
+            # "EndDateTime": [datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])],
+            'LABEL_Activity': ['N/A'],
+        })
+        LastActSum_df['StartDateTime'] = LastActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     
     # If the last activity is in the DrillActivityList, get the last connection date and time
     if LastActSum_df['LABEL_Activity'].values[0] in DrillActivityList:
@@ -1042,7 +1117,7 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
 
 # Section Parameter
 def DomeSectionParamsTable_Get(WellInfoDict):
-    API_Request = "http://fastapi-server:8000/section-params-table/get/"
+    API_Request = "http://localhost:8000/section-params-table/get/"
     json_queries = json.dumps(
         {
             "wid": WellInfoDict['wid'],
@@ -1092,7 +1167,7 @@ def DomeSectionParamsTable_Delete(DeleteJSON):
             new_dict[new_key] = DeleteJSON[old_key]
     DeleteJSON = new_dict
     # return None
-    API_Request = "http://fastapi-server:8000/section-params-table/delete/"
+    API_Request = "http://localhost:8000/section-params-table/delete/"
 
     # json_queries = json.dumps(
     #     DeleteDict,
@@ -1122,7 +1197,7 @@ def DomeSectionParamsTable_Insert(InsertJSON):
     print("insert: ")
     print(InsertJSON)
     # return None
-    API_Request = "http://fastapi-server:8000/section-params-table/insert/"
+    API_Request = "http://localhost:8000/section-params-table/insert/"
     if isinstance(new_dict, dict):
         InsertJSON = json.dumps(
             InsertJSON,
@@ -1137,7 +1212,7 @@ def DomeOverrideActivity_Delete(DeleteJSON):
     print("delete: ")
     print(DeleteJSON)
     # return None
-    API_Request = "http://fastapi-server:8000/override-activity-table/delete/"
+    API_Request = "http://localhost:8000/override-activity-table/delete/"
 
     # json_queries = json.dumps(
     #     DeleteDict,
@@ -1155,7 +1230,7 @@ def DomeOverrideActivity_Insert(InsertJSON):
     print("insert: ")
     print(InsertJSON)
     # return None
-    API_Request = "http://fastapi-server:8000/override-activity-table/insert/"
+    API_Request = "http://localhost:8000/override-activity-table/insert/"
     if isinstance(InsertJSON, dict):
         InsertJSON = json.dumps(
             InsertJSON,
@@ -1165,7 +1240,7 @@ def DomeOverrideActivity_Insert(InsertJSON):
     print(DomeRequestPOST(API_Request, InsertJSON))
 
 def DomeOverrideActivity_Get(WellInfoDict):
-    API_Request = "http://fastapi-server:8000/override-activity-table/get/"
+    API_Request = "http://localhost:8000/override-activity-table/get/"
     json_queries = json.dumps(
         {
     "wid": WellInfoDict['wid'],
@@ -1181,6 +1256,8 @@ def DomeOverrideActivity_Get(WellInfoDict):
 
     # Convert 'StartDateTime' and 'EndDateTime' to datetime
     for colname in ['StartDateTime', 'EndDateTime']:
+        # st.write(OverideActivity_df[colname])
+        # st.stop()
         OverideActivity_df[colname] = pd.to_datetime(OverideActivity_df[colname])
 
     # 'OtherColumn' is already of type string (object in pandas), but if you need to ensure:

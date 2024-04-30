@@ -61,13 +61,15 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
                cid: int = Query(None, title="cid"), 
                sync_datetime: str = Query(None, title="sync_datetime")):
 
-    WellInfoDict = {
-    "cid": cid,
-    "wid": wid,
-    }
+    # WellInfoDict = {
+    # "cid": cid,
+    # "wid": wid,
+    # }
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     reload(Activity)
-    # TODO change with the SectionParams Table
-    SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
+
+    # SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
+    SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
     df_list = []
     # LastDateTime_obj = datetime.datetime.strptime(sync_datetime, '%Y-%m-%d %H:%M:%S')
     try:
@@ -92,6 +94,7 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
     "EndDate": LastDateTime_obj.date(),
     "EndTime": LastDateTime_obj.time()
     }
+    print(f"request realtime data {UserDateRange_Sync}")
     df_list.append(pd.DataFrame.from_records([UserDateRange_Sync]))
     RTSensor_DF = IO_Data.DomeGetRealtimeSensorData(WellInfoDict,
                                                         UserDateRange_Sync, 

@@ -25,7 +25,7 @@ def getUserID(UserDict):
         # UserNotFound.App()
         # st.stop()
 
-    elif UserDict['ID'][0] == '71unxv':
+    elif UserDict['ID'] == '71unxv':
         UserLogin_dict = {
             'data':{"user_name":"Admin(TEST)",
                     "user_id":"MIH",
@@ -39,7 +39,7 @@ def getUserID(UserDict):
 
     elif UserDict != {}:
         # UserDict
-        UniqueID = UserDict['ID'][0]
+        UniqueID = UserDict['ID']
         # print((UniqueID))
 
         getWellAPI = "http://khansadev.xyz/dome_api/rtdc/get_verifikasi/" + UniqueID
