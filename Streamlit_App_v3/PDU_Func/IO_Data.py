@@ -1117,7 +1117,7 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
 
 # Section Parameter
 def DomeSectionParamsTable_Get(WellInfoDict):
-    API_Request = "http://localhost:8000/section-params-table/get/"
+    API_Request = "http://pdumitradome.id:8000/section-params-table/get/"
     json_queries = json.dumps(
         {
             "wid": WellInfoDict['wid'],
@@ -1167,7 +1167,7 @@ def DomeSectionParamsTable_Delete(DeleteJSON):
             new_dict[new_key] = DeleteJSON[old_key]
     DeleteJSON = new_dict
     # return None
-    API_Request = "http://localhost:8000/section-params-table/delete/"
+    API_Request = "http://pdumitradome.id:8000/section-params-table/delete/"
 
     # json_queries = json.dumps(
     #     DeleteDict,
@@ -1197,7 +1197,7 @@ def DomeSectionParamsTable_Insert(InsertJSON):
     print("insert: ")
     print(InsertJSON)
     # return None
-    API_Request = "http://localhost:8000/section-params-table/insert/"
+    API_Request = "http://pdumitradome.id:8000/section-params-table/insert/"
     if isinstance(new_dict, dict):
         InsertJSON = json.dumps(
             InsertJSON,
@@ -1212,7 +1212,7 @@ def DomeOverrideActivity_Delete(DeleteJSON):
     print("delete: ")
     print(DeleteJSON)
     # return None
-    API_Request = "http://localhost:8000/override-activity-table/delete/"
+    API_Request = "http://pdumitradome.id:8000/override-activity-table/delete/"
 
     # json_queries = json.dumps(
     #     DeleteDict,
@@ -1230,7 +1230,7 @@ def DomeOverrideActivity_Insert(InsertJSON):
     print("insert: ")
     print(InsertJSON)
     # return None
-    API_Request = "http://localhost:8000/override-activity-table/insert/"
+    API_Request = "http://pdumitradome.id:8000/override-activity-table/insert/"
     if isinstance(InsertJSON, dict):
         InsertJSON = json.dumps(
             InsertJSON,
@@ -1240,7 +1240,7 @@ def DomeOverrideActivity_Insert(InsertJSON):
     print(DomeRequestPOST(API_Request, InsertJSON))
 
 def DomeOverrideActivity_Get(WellInfoDict):
-    API_Request = "http://localhost:8000/override-activity-table/get/"
+    API_Request = "http://pdumitradome.id:8000/override-activity-table/get/"
     json_queries = json.dumps(
         {
     "wid": WellInfoDict['wid'],

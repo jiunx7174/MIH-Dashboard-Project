@@ -105,8 +105,8 @@ with MenuNavigationContainer:
         sac.MenuItem('Activity Mapping', icon='bi bi-table', disabled=(SelectWell==None or SelectWell=='-')),
         # sac.MenuItem('Activity Mappingx', icon='bi bi-ui-checks'),
         sac.MenuItem('Dashboard', icon='bi bi-graph-up', disabled=(SelectWell==None or SelectWell=='-')),
-        sac.MenuItem('Data Analytics', icon='bi bi-motherboard', disabled=(SelectWell==None or SelectWell=='-')),
-        sac.MenuItem('Override Activity', icon='bi bi-motherboard', disabled=(SelectWell==None or SelectWell=='-')),
+        # sac.MenuItem('Data Analytics', icon='bi bi-motherboard', disabled=(SelectWell==None or SelectWell=='-')),
+        # sac.MenuItem('Override Activity', icon='bi bi-motherboard', disabled=(SelectWell==None or SelectWell=='-')),
     ], format_func='title',size='small', open_all=True,key='AppName')
 # st.write(f"Selected Menu: {AppName}")
 if AppName is '':
