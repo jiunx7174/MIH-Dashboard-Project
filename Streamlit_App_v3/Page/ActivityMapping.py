@@ -48,6 +48,10 @@ def validate_start_end_dates(UserDateRange):
     if startDateTime >= endDateTime:
         st.error("***Start*** *Datetime* must be less than ***End*** *Datetime*. Please adjust the dates/times.")
         st.stop()
+    # Check if the range is more than 2 days
+    if (endDateTime - startDateTime) > timedelta(days=2):
+        st.error("Date range cannot be more than ***48 hours***. Please adjust the dates/times.")
+        st.stop()
         # return False
 
 def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit'):
@@ -316,11 +320,13 @@ def App():
                             DrillActivityList='default', 
                             OverrideActivityList='default')
         # WellActivityContainer.divider()
-        WellActivityContainer.write("##### Realtime Activity Data")
-        RTDataContainer,RTVizContainer = WellActivityContainer.tabs(['Table', 'Visualization'])
+        # WellActivityContainer.write("#### Realtime Activity Data")
+        # RTDataContainer,RTVizContainer = WellActivityContainer.tabs(['Table', 'Visualization'])
+        RTVizContainer = WellActivityContainer.container()
+        RTDataContainer = WellActivityContainer.container()
 
         with RTDataContainer: 
-            st.dataframe(RTSensor_DF, height = 400,)
+            st.dataframe(RTSensor_DF, height = 300,)
         with RTVizContainer:
 
             RealtimeDataViz.App(st, RTSensor_DF)
@@ -336,11 +342,13 @@ def App():
         WellActivityContainer.write("##### Activity Summary")
         ActivitySummaryTable, ActivitySummaryOverrideTable = WellActivityContainer.tabs(['Table','Override Table'])
         with ActivitySummaryTable:
-            st.dataframe(ActivitySummary_DF, height=500)
+            with st.container(height=600):
+                st.dataframe(ActivitySummary_DF, height=500)
         with ActivitySummaryOverrideTable:
-            Override.OverrideActivityTableWidget(WellInfoDict, st.container(), 
-                          PrefixKey = 'OverrideActivityTable' , 
-                          TripActivityList='default', DrillActivityList='default', OverrideActivityList='default')
+            with st.container(height=600):
+                Override.OverrideActivityTableWidget(WellInfoDict, st.container(), 
+                            PrefixKey = 'OverrideActivityTable' , 
+                            TripActivityList='default', DrillActivityList='default', OverrideActivityList='default')
             # OverridedActivity_df = pd.DataFrame(columns=['StartDateTime','EndDateTime','Activity','SubActivity'], )
             # with st.form(key='OverridedActivityForm'):
             #     OverrideActivityForm_ColumnConfig = {
@@ -375,7 +383,7 @@ def App():
         # Stand Group_Pred
         # st.write(ActivitySummary_DF.columns)
         
-        st.button("Upload Activity Summary", on_click=IO_Data.DomeInsertActivitySummaryData, args=(WellInfoDict, ActivitySummary_DF ))
+        # st.button("Upload Activity Summary", on_click=IO_Data.DomeInsertActivitySummaryData, args=(WellInfoDict, ActivitySummary_DF ))
 
 
 

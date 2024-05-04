@@ -75,9 +75,11 @@ with SelCompWellContainer:
     if SelectComp != None:
         AvailWell_DF = IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)
         SelectWell = ste.selectbox("Select Well",['-'] + AvailWell_DF['well_name'].tolist(), index=None,key='SelWell')
-if SelectWell == None:
-    st.warning("Please select a well")
-    st.stop()
+    else:
+        st.sidebar.warning("Please select a company")
+# if SelectWell == None:
+#     st.warning("Please select a well")
+#     st.stop()
 
 # TODO:
 # * add User Module auth
@@ -85,7 +87,7 @@ if SelectWell == None:
 #     st.session_state.BeforeAppName = 'Home'
 # # else:
 # st.session_state.AppName = str(st.session_state.BeforeAppName)
-
+# st.sidebar.dataframe(AvailWell_DF[AvailWell_DF['well_name']==SelectWell][['well_name', 'rig_name', 'active_date', 'end_date']].T)
 # st.write(st.session_state.Menu)
 listbutton = ['Home', 'Activity Mapping', 'Dashboard', 'Data Analytics']
 # if 'AppName' in st.session_state:
@@ -97,6 +99,9 @@ listbutton = ['Home', 'Activity Mapping', 'Dashboard', 'Data Analytics']
 #     SelMenu = 'Home'
 # if SelMenu is '':
 #     SelMenu = 'Home'
+
+# if 'BeforeAppName' in st.session_state:
+#     st.session_state['AppName'] = st.session_state['BeforeAppName']
 with MenuNavigationContainer:
 
     AppName  = sac.menu([
@@ -111,7 +116,9 @@ with MenuNavigationContainer:
 # st.write(f"Selected Menu: {AppName}")
 if AppName is '':
     AppName = 'Home'
-
+if SelectComp != None and SelectWell == None:
+    st.sidebar.warning("Please select a well")
+    st.stop()
 AppDict = {
     'Home': Welcome.App,
     'Activity Mapping': ActivityMapping.App,
@@ -119,7 +126,7 @@ AppDict = {
     'Data Analytics': DataAnalytics.App,
     'Override Activity': Override.App,
 }
-
+# st.session_state['BeforeAppName'] = AppName
 AppDict[AppName]()
 
 # st.write(out)

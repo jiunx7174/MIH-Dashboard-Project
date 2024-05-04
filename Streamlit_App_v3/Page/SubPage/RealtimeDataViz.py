@@ -71,7 +71,7 @@ def getRealtimeVisualization(df, plot_params):
 
     # Update layout
     fig.update_layout(
-        height=600,
+        height=500,
         width=1000,
         margin=dict(l=100, r=100, t=50, b=50),
         hovermode='y unified',
@@ -89,13 +89,19 @@ def getRealtimeVisualization(df, plot_params):
     fig.update_layout(legectDict)
 
     return fig
-
+@st.experimental_fragment
 def App(container, RTSensor_DF):
-    TitleContainer, NumberContainer = container.columns([7,3])
-    TitleContainer.markdown("#### Realtime Data Visualization")
+    TitleContainer, NumberContainer, EmptyRightCol_title = container.columns([3,2,4])
+    TitleContainer.markdown("### Realtime Data Visualization")
     EmptyLeftCol, PlotParamContainer, EmptyRightCol = container.columns([0.075,1,0.075])
 
-    NumPlot = NumberContainer.number_input("Number of Plot", min_value=1, max_value=5, value=3, step=1, key="NumPlot")
+    if "NumPlot" not in st.session_state:
+        st.session_state["NumPlot"] = 3
+
+    with NumberContainer.popover(f"Number of Plot: {st.session_state['NumPlot']}", use_container_width=True ):
+        NumPlot = st.number_input("Number of Plot", min_value=1, max_value=5, value=3, step=1, key="NumPlot")
+        # st.markdown("Hello World 👋")
+        # name = st.text_input("What's your name?")
 
     PlotParamCol_list = PlotParamContainer.columns(NumPlot)
     DefaultPlotDict = {
