@@ -142,7 +142,7 @@ def OverrideActivityTableWidget(WellInfoDict, container,
 def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
 
     SectionParamsTable_df = SectionParamsTable_df.copy()
-    print("===================================")
+    print("x===================================")
     print(SectionParamsTable_df)
     SectionParamsTable_df['wid'] = int(wid)
     SectionParamsTable_df['DateTime'] = SectionParamsTable_df['DateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -155,7 +155,6 @@ def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
     if st.session_state[f"{PrefixKey}_DataEditor"]['edited_rows'] != []:
         for key,val in st.session_state[f"{PrefixKey}_DataEditor"]['edited_rows'].items():
             
-
             IO_Data.DomeSectionParamsTable_Delete(
                     SectionParamsTable_df.loc[int(key), ['wid','DateTime','Section Size', 'In-Slip Threshold', 'PIC']].to_dict()
                 )
@@ -166,18 +165,13 @@ def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
                     SectionParamsTable_df.loc[int(key), :].to_dict()
                 )
 
-    
 
-    datetime_format = "%Y-%m-%dT%H:%M:%S.%f"
     ## If User Insert the Table
     if st.session_state[f"{PrefixKey}_DataEditor"]['added_rows'] != []:
         for InsertDict in st.session_state[f"{PrefixKey}_DataEditor"]['added_rows']:
             InsertDict['wid'] = int(wid)
             InsertDict['In-Slip Threshold'] = float(InsertDict['In-Slip Threshold'])
             # InsertDict['SectionSize'] = str(InsertDict['SectionSize']).replace('"', '')
-            for datetime_key in ['DateTime']:
-                InsertDict[datetime_key] =  datetime.strptime(InsertDict[datetime_key],datetime_format)
-                InsertDict[datetime_key] =  datetime.strftime(InsertDict[datetime_key],"%Y-%m-%d %H:%M:%S")
             IO_Data.DomeSectionParamsTable_Insert(InsertDict)
 
     ## If User Delete the Table
@@ -233,6 +227,8 @@ def SectionParamsTableWidget(WellInfoDict, container,
                                 hide_index = True,
                                 column_config=SectionParamsTable_ColConfig,
                                 key=f"{PrefixKey}_DataEditor", num_rows='dynamic', use_container_width=True)
+        if SectionParamsTable_df.empty:
+            st.error("No Data")
         st.form_submit_button("Submit", on_click=UpdateSectionParamsTable, args=(SectionParamsTable_df,WellInfoDict['wid'],PrefixKey))
     # print(st.session_state[f"{PrefixKey}_df"])
     # st.write(st.session_state[f"{PrefixKey}_df"])

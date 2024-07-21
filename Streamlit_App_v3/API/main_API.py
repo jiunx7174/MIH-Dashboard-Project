@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request,Query
 from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 from importlib import reload
 import sys
 import os
@@ -54,6 +55,86 @@ def getHTML_Table(df_list):
     html_content += "</body></html>"
 
     return html_content
+class UpdateDataRequest(BaseModel):
+    wid: int
+    cid: int
+    sync_datetime: str
+
+@app.post("/update-activity-summary-data/")
+def update_realtime_data(data: UpdateDataRequest):
+    wid = data.wid
+    cid = data.cid
+    sync_datetime = data.sync_datetime
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+
+    SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+    df_list = []
+    try:
+        LastDateTime_obj = datetime.datetime.strptime(sync_datetime, '%Y-%m-%d %H:%M:%S')
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid sync_datetime format. Please use 'YYYY-MM-DD HH:MM:SS'.")
+    UserDateRange_Sync = {
+    "StartDate": datetime.date(2000, 4, 9),
+    "StartTime": datetime.time(00, 00),
+    "EndDate": LastDateTime_obj.date(),
+    "EndTime": LastDateTime_obj.time()
+    }
+
+    df_list.append(pd.DataFrame.from_records([UserDateRange_Sync]))
+    StartDateTime = IO_Data.getLastActSum(WellInfoDict, UserDateRange_Sync, DrillActivityList='default')['StartDateTime']
+    StartDateTime_obj = datetime.datetime.strptime(StartDateTime.values[0], '%Y-%m-%d %H:%M:%S')
+
+    UserDateRange_Sync = {
+    "StartDate": StartDateTime_obj.date(),
+    "StartTime": StartDateTime_obj.time(),
+    "EndDate": LastDateTime_obj.date(),
+    "EndTime": LastDateTime_obj.time()
+    }
+
+    print(f"request realtime data {UserDateRange_Sync}")
+    df_list.append(pd.DataFrame.from_records([UserDateRange_Sync]))
+    RTSensor_DF = IO_Data.DomeGetRealtimeSensorData(WellInfoDict,
+                                                        UserDateRange_Sync, 
+                                                        hours=0.5, 
+                                                        show_progress=False, 
+                                                        runOnStreamlit=False,
+                                                        )
+    RigActivity_DF = (IO_Data.getRigActivity(WellInfoDict, 
+                    start_date="2000-01-01 00:00:01", 
+                    end_date="2100-01-01 00:00:01"))
+    RTSensor_DF = Activity.addRigActivityLabel (
+                        RTSensor_DF, 
+                        Activity.translateRigActivity2Activity(RigActivity_DF)
+                        )
+    RTSensor_DF = Activity.addSectionParams (
+                        RTSensor_DF, 
+                        SectionParams_DF
+                        )
+    RTSensor_DF = Activity.predictSubActivityLabel(
+                        RTSensor_DF, 
+                        TripActivityList='default', 
+                        DrillActivityList='default', 
+                        OverrideActivityList='default')
+    Override_df = IO_Data.DomeOverrideActivity_Get(WellInfoDict)
+    RTSensor_DF = Activity.Override(RTSensor_DF, Override_df)
+    ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
+    ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
+    ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
+    df_list.append(ActivitySummary_DF)
+
+    IO_Data.DomeDeleteActivitySummaryData(UserDateRange_Sync, WellInfoDict)
+    IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF )
+    
+
+    return JSONResponse(status_code=200, content=ActivitySummary_DF.to_dict())
+
+
+
+
+    # Your logic here
+    return WellInfoDict
+
+
 
 ### Automatic API Update API
 @app.get("/update-data/",response_class=HTMLResponse)

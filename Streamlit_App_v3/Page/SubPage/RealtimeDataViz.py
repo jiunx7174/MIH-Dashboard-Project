@@ -99,7 +99,7 @@ def App(container, RTSensor_DF):
         st.session_state["NumPlot"] = 3
 
     with NumberContainer.popover(f"Number of Plot: {st.session_state['NumPlot']}", use_container_width=True ):
-        NumPlot = st.number_input("Number of Plot", min_value=1, max_value=5, value=3, step=1, key="NumPlot")
+        NumPlot = st.number_input("Number of Plot", min_value=1, max_value=5,  step=1, key="NumPlot")
         # st.markdown("Hello World 👋")
         # name = st.text_input("What's your name?")
 

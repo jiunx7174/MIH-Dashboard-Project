@@ -376,7 +376,7 @@ def ShowProgress(container, i, total):
         # container.empty()
         # container.progress(i/total)
 
-def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progress=True,runOnStreamlit=True, container=None):
+def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progress=True,runOnStreamlit=True, _container=None):
     print(WellInfoDict)
     active_start_date = datetime.strptime(WellInfoDict['ActiveDate'], '%Y-%m-%d').date()
     active_end_date = datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d').date()
@@ -410,7 +410,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     # retry_delay = 5
     if show_progress:
         # container.empty()
-        my_bar = container.progress(0.0,)
+        my_bar = _container.progress(0.0,)
 
 
     for ii in range(len((StartEndList))):
@@ -443,7 +443,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
         if show_progress:
             ShowProgress(my_bar, ii, (len((StartEndList))))
     if show_progress:
-        container.empty()
+        _container.empty()
     if Realtime_List == []:
         st.warning(f"No data found for {UserDateRange['StartDate']} {UserDateRange['StartTime']} - {UserDateRange['EndDate']} {UserDateRange['EndTime']}")
         st.stop()
@@ -1136,7 +1136,7 @@ def DomeSectionParamsTable_Get(WellInfoDict):
 
     # Convert 'StartDateTime' and 'EndDateTime' to datetime
     for colname in ['DateTime']:
-        SectionParamsTable_df[colname] = pd.to_datetime(SectionParamsTable_df[colname])
+        SectionParamsTable_df[colname] = pd.to_datetime(SectionParamsTable_df[colname],  format="%Y-%m-%d %H:%M:%S")
 
     # 'OtherColumn' is already of type string (object in pandas), but if you need to ensure:
     for colname in ['SectionSize',		'PIC']:
@@ -1193,9 +1193,16 @@ def DomeSectionParamsTable_Insert(InsertJSON):
     for old_key, new_key in key_mapping.items():
         if old_key in InsertJSON:
             new_dict[new_key] = InsertJSON[old_key]
+    
     InsertJSON = new_dict
+    try:
+        new_dict['DateTime'] =  datetime.strptime(new_dict['DateTime'],"%Y-%m-%dT%H:%M:%S.%f")
+        new_dict['DateTime'] =  datetime.strftime(new_dict['DateTime'],"%Y-%m-%d %H:%M:%S")
+    except:
+        pass
     print("insert: ")
     print(InsertJSON)
+    
     # return None
     API_Request = "http://pdumitradome.id:8000/section-params-table/insert/"
     if isinstance(new_dict, dict):

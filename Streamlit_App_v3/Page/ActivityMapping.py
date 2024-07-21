@@ -57,6 +57,8 @@ def validate_start_end_dates(UserDateRange):
 def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit'):
         # st.session_state["SectionParams_DF"] = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
         cache_getWellParams.clear()
+        # cache_DomeGetRealtimeSensorData.clear()
+        # cache_getRigActivity.clear()
         try:
             num = int(st.session_state['DataEditorKey'].split('_')[1]) + 1
         except:
@@ -183,11 +185,9 @@ def App():
         RigActivityCols[0].error("No Rig Activity")
 
     RigActivityCols[1].markdown(f"##### Well Parameters: *{SelectWell}*")
-    if SectionParams_DF.empty:
-        RigActivityCols[1].error("No Well Parameters")
+    # if SectionParams_DF.empty:
+    #     RigActivityCols[1].error("No Well Parameters")
 
-    if RigActivity_DF.empty or SectionParams_DF.empty:
-        st.stop()
     RigActivity_DF_Display = RigActivity_DF.copy()
     RigActivity_DF_Display['Detail Rig Activity'] = RigActivity_DF_Display['Activity']
     RigActivity_DF_Display['Simple Activity'] = Activity.translateRigActivity2Activity(RigActivity_DF_Display)['Activity']
@@ -208,22 +208,9 @@ def App():
     Override.SectionParamsTableWidget(WellInfoDict, RigActivityCols[1], 
                           PrefixKey = 'SectionParamsTable' , 
                           SectionSizeList='default',)
-    # with RigActivityCols[1]:
-    #     SectionParamsDataEditor(WellInfoDict, SectionParams_DF)
-    # RigActivityCols[1].dataframe(SectionParams_DF[['DateTime', 'Section Size', 'In-Slip Threshold']].sort_values(by='DateTime', ascending=False),
-    #                 use_container_width=True,
-    #                 hide_index=True,
-    #                 height=200,
-    #                 column_config={
-    #                     "DateTime": st.column_config.DatetimeColumn(
-    #                         "DateTime",
-    #                         format="D MMM YYYY, h:mm a",
-    #                         )
-    #                     }
-                    
-    #                )
+    if RigActivity_DF.empty or SectionParams_DF.empty:
+        st.stop()
 
-    # WellActivityHeaderCol = st.columns([6,5])
     WellActivityContainer = st.container(border=True)
     DatetimeRangeCol = WellActivityContainer.container()
 
@@ -303,7 +290,8 @@ def App():
                                                       hours=0.5, 
                                                       show_progress=True, 
                                                       runOnStreamlit=True,
-                                                      container=RealtimeLoadingContainer)
+                                                      _container=RealtimeLoadingContainer
+                                                      )
         RealtimeLoadingContainer.empty()
         # InputActivity_DB = ActivityMapping.translateRigActivity2Activity(RigActivity_DF)
         RTSensor_DF = Activity.addRigActivityLabel (
@@ -388,7 +376,7 @@ def App():
 
 
 
-            
+
 
 
         st.stop()
