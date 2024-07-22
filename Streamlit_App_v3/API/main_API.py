@@ -124,9 +124,10 @@ def update_realtime_data(data: UpdateDataRequest):
 
     IO_Data.DomeDeleteActivitySummaryData(UserDateRange_Sync, WellInfoDict)
     IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF )
+    output_dict = {"Last Data":ActivitySummary_DF.tail(1).astype(str).to_dict()}
     
 
-    return JSONResponse(status_code=200, content=ActivitySummary_DF.to_dict())
+    return JSONResponse(status_code=200, content=output_dict)
 
 
 

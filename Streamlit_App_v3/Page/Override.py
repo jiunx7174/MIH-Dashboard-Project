@@ -549,7 +549,7 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     max_hours_to_adjust = 24
 
     # Loop until we get a non-empty activity summary or have adjusted the start time by 24 hours
-    while ActSum_df is None or ActSum_df.empty:
+    while (ActSum_df is None or ActSum_df.empty) and total_hours_adjusted <= max_hours_to_adjust:
         # Get Activity Summary Data
         ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
 
@@ -566,10 +566,10 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
         UserDateRange["EndTime"] = new_end_datetime.time()
         
         # Update the total hours adjusted
-        total_hours_adjusted += 1
+        total_hours_adjusted =total_hours_adjusted+ 1
         # If we've adjusted more than 24 hours, stop adjusting
-        if total_hours_adjusted >= max_hours_to_adjust:
-            break
+        # if total_hours_adjusted >= max_hours_to_adjust:
+        #     break
     
 
     # Get the last row of the activity summary
@@ -579,12 +579,12 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     if ActSum_df.empty:
         NextActSum_df = pd.DataFrame({
             "EndDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
-            # "StartDateTime": [datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])],
+            "StartDateTime": [datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])],
             # "StartDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])],
             # "EndDateTime": [datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])],
             'LABEL_Activity': ['N/A'],
         })
-        NextActSum_df['StartDateTime'] = NextActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        # NextActSum_df['StartDateTime'] = NextActSum_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     # If the last activity is in the DrillActivityList, get the last connection date and time
     if NextActSum_df['LABEL_Activity'].values[0] in DrillActivityList:
         return getNextConnectionDateTime(WellInfoDict, UserDateRange)
