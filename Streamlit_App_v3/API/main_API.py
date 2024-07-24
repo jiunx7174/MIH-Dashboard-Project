@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request,Query
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
 from fastapi.responses import JSONResponse
+from typing import List, Dict , Literal
 from importlib import reload
 import sys
 import os
@@ -135,6 +136,133 @@ def update_realtime_data(data: UpdateDataRequest):
     # Your logic here
     return WellInfoDict
 
+### Visualization API
+class VisualDataModel(BaseModel):
+    wid: int
+    cid: int
+    start_time: str
+    end_time: str
+
+@app.get("/get-activity-duration/")
+def get_activity_duration(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ActivityType: Literal["activity", "subactivity"] = Query(None, title="type"),
+               ):
+
+    if ActivityType == "activity":
+        ColumnName = 'LABEL_Activity'
+    elif ActivityType == "subactivity":
+        ColumnName = 'LABEL_SubActivity'
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+
+
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    DurationCol = 'Duration'
+
+    ActSum_df[DurationCol] = ActSum_df[DurationCol].astype(float)
+    SumDuration_DF = (ActSum_df.groupby([ColumnName])[DurationCol].sum().reset_index())
+    return SumDuration_DF.to_dict(orient='records')
+
+
+
+@app.get("/get-activity-drilling-meterage/")
+def get_activity_drilling_meterage(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    ActSum_df['DrillingMeterage'] = ActSum_df['DrillingMeterage'].astype(float)
+    # Group by the new 'Date' column and sum the 'DrillingMeterage'
+    ActSum_df['Date'] = pd.to_datetime(ActSum_df['Date']).dt.date
+    DrilingMeterage_df = ActSum_df.groupby('Date')['DrillingMeterage'].sum().reset_index()
+    return DrilingMeterage_df.to_dict(orient='records')
+
+@app.get("/get-activity-rop-per-stand/")
+def get_activity_rop_per_stand(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    ROP_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    ROP_df['StartDateTime'] = pd.to_datetime(ROP_df['StartDateTime'])
+    ROP_df['EndDateTime'] = pd.to_datetime(ROP_df['EndDateTime'])
+    ROP_df[['DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration']] = ROP_df[['DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration']].astype(float)
+
+    # Calculate MidDateTime as the average of StartDateTime and EndDateTime
+    ROP_df['MidDateTime'] = ROP_df['StartDateTime'] + (ROP_df['EndDateTime'] - ROP_df['StartDateTime']) / 2
+
+    idx_logic = (ROP_df['LABEL_Activity'].isin(["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','DRILL OUT CEMENT',])) & (ROP_df['LABEL_SubActivity'] == 'Connection')
+
+
+    ROP_df = ROP_df[idx_logic]
+
+    ROP_df['ROP_OnBottom'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['OnBottomDurationPerStand']/60) 
+    ROP_df['ROP_Stand'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['StandDuration']/60)
+    # display(ROP_df[['MidDateTime', 'LABEL_SubActivity', 'LABEL_Activity', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand']])
+    # ROP stand m/hr 
+
+
+
+    # Assuming your DataFrame is named df and contains columns 'ROP_OnBottom', 'ROP_Stand', and 'DateTime'
+    # First, convert your 'DateTime' column to a datetime type if it's not already
+    df = pd.DataFrame(ROP_df)
+    return df.to_dict(orient='records')
+
+
+@app.get("/get-activity-stand-time/")
+def get_activity_stand_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    StandTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']] = StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']].astype(float)
+    StandTime_df = StandTime_df.groupby('Stand Group_Pred').agg({
+        'RotateDrillingDuration': 'sum',
+        'SlideDrillingDuration': 'sum',
+        'ReamingDuration': 'sum',
+        'ConnectionDuration': 'sum',
+        'EndDateTime': 'max'
+    })
+    return StandTime_df.to_dict(orient='records')
 
 
 ### Automatic API Update API
@@ -224,6 +352,8 @@ def hello_func():
     html_content = df.to_html()
     
     return HTMLResponse(content=html_content)
+
+
 
 ### Override Activity Table API
 
