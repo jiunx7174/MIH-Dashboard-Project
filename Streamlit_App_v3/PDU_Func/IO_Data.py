@@ -1297,7 +1297,7 @@ def DomeOverrideActivity_Get(WellInfoDict):
     for colname in ['StartDateTime', 'EndDateTime']:
         # st.write(OverideActivity_df[colname])
         # st.stop()
-        OverideActivity_df[colname] = pd.to_datetime(OverideActivity_df[colname])
+        OverideActivity_df[colname] = pd.to_datetime(OverideActivity_df[colname], format='mixed')
 
     # 'OtherColumn' is already of type string (object in pandas), but if you need to ensure:
     for colname in ['LABEL_ACTIVITY', 'LABEL_SUBACTIVITY', 'PIC']:
