@@ -9,7 +9,14 @@ from datetime import datetime,timedelta
 # from stqdm import stqdm
 
 
+def getURLAPI_pdu():
+    with open('app_config.json') as json_file:
+        return dict(json.load(json_file))['url_pdu_api']
+def getURLAPI_FastAPI():
+    with open('app_config.json') as json_file:
+        return dict(json.load(json_file))['url_pdu_fastapi']
 
+    
 # for IO trial
 def retry_on_error(max_retries=10, retry_interval=10):
     def decorator(func):
@@ -37,8 +44,9 @@ def DomeRequestPOST(API, Data_params):
 
 @retry_on_error()
 def DomeCheckTable(wid: int, table_type: str="ActivityLogTable"):
+    url_pdu_api = getURLAPI_pdu()
     if table_type=="ActivityLogTable":    
-        WellAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitylogRT/cek_table"
+        WellAPI = f"{url_pdu_api}rtdc/ActivitylogRT/cek_table"
         json_queries = {
         "wid": wid
         }
@@ -52,7 +60,7 @@ def DomeCheckTable(wid: int, table_type: str="ActivityLogTable"):
         return dict(response.json())
     
     elif table_type=="ActivitySummaryTable":
-        WellAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummaryRT/cek_table"
+        WellAPI = f"{url_pdu_api}rtdc/ActivitySummaryRT/cek_table"
         json_queries = {
         "wid": wid
         }
@@ -67,8 +75,9 @@ def DomeCheckTable(wid: int, table_type: str="ActivityLogTable"):
 
 @retry_on_error()
 def DomeCreateTable(wid: int, table_type: str="ActivityLogTable"):
+    url_pdu_api = getURLAPI_pdu()
     if table_type=="ActivityLogTable":    
-        WellAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitylogRT/create_table"
+        WellAPI = f"{url_pdu_api}rtdc/ActivitylogRT/create_table"
         json_queries = {
         "wid": wid
         }
@@ -82,7 +91,7 @@ def DomeCreateTable(wid: int, table_type: str="ActivityLogTable"):
 
         return dict(response.json())
     elif table_type=="ActivitySummaryTable":    
-        WellAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummaryRT/create_table"
+        WellAPI = f"{url_pdu_api}rtdc/ActivitySummaryRT/create_table"
         json_queries = {
         "wid": wid
         }
@@ -103,13 +112,14 @@ def initiateTable(WellInfoDict):
         if DomeCheckTable(wid, table_type)['table'] == 0:
             DomeCreateTable(wid, table_type)
 
-@retry_on_error()
+# @retry_on_error()
 def getAvailableCompanyDF(UserAuthDict):
+    url_pdu_api = getURLAPI_pdu()
     UserAuthDict = UserAuthDict['data']
     if UserAuthDict["user_cid"]=='1':
-        GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" 
+        GetCompAPI = f"{url_pdu_api}rtdc/get_company/" 
     else :
-        GetCompAPI = "http://khansadev.xyz/dome_api/rtdc/get_company/" + UserAuthDict["user_cid"]
+        GetCompAPI = f"{url_pdu_api}rtdc/get_company/" + UserAuthDict["user_cid"]
     # st.text(GetCompAPI)
     CompName_JSON = requests.get(GetCompAPI).json()  
 
@@ -122,13 +132,14 @@ def getAvailableCompanyDF(UserAuthDict):
 
 # @retry_on_error()
 def getAvailableWellDF(SelectComp,UserAuthDict):
+    url_pdu_api = getURLAPI_pdu()
     CompDF = getAvailableCompanyDF(UserAuthDict)
     # st.dataframe(CompDF)
     cid = CompDF.loc[CompDF['company_name']==SelectComp, 'cid'].values[0]
     # st.text(cid)
     # print(cid.values[0])
     # st.text(cid)
-    GetAvailableWellAPI =  "http://khansadev.xyz/dome_api/rtdc/get_well?cid=" + str(cid)
+    GetAvailableWellAPI =  f"{url_pdu_api}rtdc/get_well?cid=" + str(cid)
     AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
     # st.json(AvailableWell_JSON)
     AvailableWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
@@ -162,7 +173,8 @@ def getWellInfoDict(UserAuthDict, SelectComp, SelectWell):
     return SelectWellInfoDict
 # @retry_on_error()
 def getWellInfoDict_byID(cid, wid):
-    GetAvailableWellAPI =  "http://khansadev.xyz/dome_api/rtdc/get_well?cid=" + str(cid)
+    url_pdu_api = getURLAPI_pdu()
+    GetAvailableWellAPI =  f"{url_pdu_api}rtdc/get_well?cid=" + str(cid)
     AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
     # st.json(AvailableWell_JSON)
     SelectWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
@@ -206,8 +218,9 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
     - dict: A dictionary containing the drilling activity response.
 
     """
+    url_pdu_api = getURLAPI_pdu()
     # getRigActAPI = 'https://pdumitradome.id/dome_api/rtdc/get_drilling_activity'
-    getRigActAPI = 'http://khansadev.xyz/dome_api/rtdc/get_drilling_activity'
+    getRigActAPI = f'{url_pdu_api}rtdc/get_drilling_activity'
 
     getRigActAPI_json = json.dumps(
     {
@@ -235,8 +248,9 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
 
 @retry_on_error()
 def DomeGetRealtimeRange(WellInfoDict):
+    url_pdu_api = getURLAPI_pdu()
     wid = WellInfoDict['wid']
-    result = dict(requests.get(f"http://khansadev.xyz/dome_api/rtdc/get_realtime_interval/{wid}").json()['result'])
+    result = dict(requests.get(f"{url_pdu_api}rtdc/get_realtime_interval/{wid}").json()['result'])
 
     date_format = '%Y-%m-%d %H:%M:%S'
     AllRealtime_DF = pd.DataFrame.from_dict([{
@@ -338,11 +352,12 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
     #     "end" : str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime']),
     # }
     # print(Data_params)
+    url_pdu_api = getURLAPI_pdu()
     column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
     WellData = (
         (
             # requests.get("https://pdumitradome.id/dome_api/rtdc/rtdc/get_data", data=json.dumps(Data_params))
-            requests.get("http://khansadev.xyz/dome_api/rtdc/get_data", data=json.dumps(Data_params))
+            requests.get(f"{url_pdu_api}rtdc/get_data", data=json.dumps(Data_params))
         ).text
     )
     WellData = json.loads(WellData)
@@ -462,6 +477,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
 
 # Activity Log
 def DomeGetActivityLogData(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01"):
+    url_pdu_api = getURLAPI_pdu()
     ActivityLogColumnRenameDict = {
                             'id': 'id',
                             'dt': 'DateTime',
@@ -475,7 +491,7 @@ def DomeGetActivityLogData(WellInfoDict, start_date="2000-01-01 00:00:01", end_d
                             }
     
     # ActivityLogColumns = ['id', 'dt', 'date', 'time', 'activity', 'in_slip_threshold', 'remarks', 'pic', 'section']
-    TableAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/get_data"
+    TableAPI = f"{url_pdu_api}rtdc/Activitylog/get_data"
 
     json_queries = json.dumps(
         {
@@ -501,6 +517,7 @@ def DomeGetActivityLogData(WellInfoDict, start_date="2000-01-01 00:00:01", end_d
     return ActivityLog_DF
 
 def DomeInsertActivityLogData(WellInfoDict, ActLogDF):
+    url_pdu_api = getURLAPI_pdu()
     ActivityLogColumnRenameDict = {
         'id': 'id',
         'DateTime': 'dt',
@@ -538,7 +555,7 @@ def DomeInsertActivityLogData(WellInfoDict, ActLogDF):
     ActLogDF['wid'] = ActLogDF['wid'].astype(int)
 
     
-    AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/create"
+    AddRowAPI = f"{url_pdu_api}rtdc/Activitylog/create"
 
     for index, row in ActLogDF.iterrows():
 
@@ -555,8 +572,8 @@ def DomeInsertActivityLogData(WellInfoDict, ActLogDF):
     # return dict(response.json())
 
 def DomeDeleteActivityLogData(WellInfoDict, row_id):
-    
-    DeleteRowAPI = "http://khansadev.xyz/dome_api/rtdc/Activitylog/delete"
+    url_pdu_api = getURLAPI_pdu()
+    DeleteRowAPI = f"{url_pdu_api}rtdc/Activitylog/delete"
     error_msg = ""
     dict_row = {
         "wid": WellInfoDict['wid'],
@@ -576,7 +593,8 @@ def DomeDeleteActivityLogData(WellInfoDict, row_id):
 
 # Activity Summary
 def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
-    TableAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/get_data"
+    url_pdu_api = getURLAPI_pdu()
+    TableAPI = f"{url_pdu_api}rtdc/ActivitySummary/get_data"
     # print(wid)
     json_queries = json.dumps(
         {"wid" : int(WellInfoDict['wid']),
@@ -602,7 +620,8 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
 #     # TODO create API for Activity Summary upload
 #     pass
 def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict):
-    TableAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/delete"
+    url_pdu_api = getURLAPI_pdu()
+    TableAPI = f"{url_pdu_api}rtdc/ActivitySummary/delete"
     if isinstance(DateTimeRangeList, dict):
         ActSum_df = DomeGetActivitySummaryData(WellInfoDict, DateTimeRangeList)
         try:
@@ -690,6 +709,7 @@ def ActivitySummaryColumnRenameDict():
     }
     return out
 def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf ):
+    url_pdu_api = getURLAPI_pdu()
     # try:
     # TODO create API for Activity Summary upload
     # st.write(ActSumdf.dtypes)
@@ -721,7 +741,7 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf ):
         # IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
 
 
-        AddRowAPI = "http://khansadev.xyz/dome_api/rtdc/ActivitySummary/create"
+        AddRowAPI = f"{url_pdu_api}rtdc/ActivitySummary/create"
         json_queries = json.dumps(
                 dict_row,
                 indent = 4
@@ -1117,7 +1137,9 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
 
 # Section Parameter
 def DomeSectionParamsTable_Get(WellInfoDict):
-    API_Request = "http://pdumitradome.id:8000/section-params-table/get/"
+    url_pdu_fastapi = getURLAPI_FastAPI()
+
+    API_Request = f"{url_pdu_fastapi}section-params-table/get/"
     json_queries = json.dumps(
         {
             "wid": WellInfoDict['wid'],
@@ -1167,7 +1189,9 @@ def DomeSectionParamsTable_Delete(DeleteJSON):
             new_dict[new_key] = DeleteJSON[old_key]
     DeleteJSON = new_dict
     # return None
-    API_Request = "http://pdumitradome.id:8000/section-params-table/delete/"
+    url_pdu_fastapi = getURLAPI_FastAPI()
+
+    API_Request = f"{url_pdu_fastapi}section-params-table/delete/"
 
     # json_queries = json.dumps(
     #     DeleteDict,
@@ -1204,7 +1228,9 @@ def DomeSectionParamsTable_Insert(InsertJSON):
     print(InsertJSON)
     
     # return None
-    API_Request = "http://pdumitradome.id:8000/section-params-table/insert/"
+    url_pdu_fastapi = getURLAPI_FastAPI()
+
+    API_Request = f"{url_pdu_fastapi}section-params-table/insert/"
     if isinstance(new_dict, dict):
         InsertJSON = json.dumps(
             InsertJSON,
@@ -1219,7 +1245,9 @@ def DomeOverrideActivity_Delete(DeleteJSON):
     print("delete: ")
     print(DeleteJSON)
     # return None
-    API_Request = "http://pdumitradome.id:8000/override-activity-table/delete/"
+    url_pdu_fastapi = getURLAPI_FastAPI()
+
+    API_Request = f"{url_pdu_fastapi}override-activity-table/delete/"
 
     # json_queries = json.dumps(
     #     DeleteDict,
@@ -1237,7 +1265,9 @@ def DomeOverrideActivity_Insert(InsertJSON):
     print("insert: ")
     print(InsertJSON)
     # return None
-    API_Request = "http://pdumitradome.id:8000/override-activity-table/insert/"
+    url_pdu_fastapi = getURLAPI_FastAPI()
+
+    API_Request = f"{url_pdu_fastapi}override-activity-table/insert/"
     if isinstance(InsertJSON, dict):
         InsertJSON = json.dumps(
             InsertJSON,
@@ -1247,7 +1277,9 @@ def DomeOverrideActivity_Insert(InsertJSON):
     print(DomeRequestPOST(API_Request, InsertJSON))
 
 def DomeOverrideActivity_Get(WellInfoDict):
-    API_Request = "http://pdumitradome.id:8000/override-activity-table/get/"
+    url_pdu_fastapi = getURLAPI_FastAPI()
+
+    API_Request = f"{url_pdu_fastapi}override-activity-table/get/"
     json_queries = json.dumps(
         {
     "wid": WellInfoDict['wid'],

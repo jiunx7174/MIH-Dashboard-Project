@@ -69,6 +69,7 @@ def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
                 )
             list_startdatetime.append(OverideActivity_df.loc[int(idxrow), 'StartDateTime'])
             list_enddatetime.append(OverideActivity_df.loc[int(idxrow), 'EndDateTime'])
+    
     for startdatetime, enddatetime in zip(list_startdatetime, list_enddatetime):
         st.toast(f"Override Activity Summary StartDateTime: {startdatetime} - EndDateTime: {enddatetime}")
     # st.toast(list_startdatetime)
@@ -129,7 +130,7 @@ def OverrideActivityTableWidget(WellInfoDict, container,
                 disabled =True,
             )
         }
-    with container.form(f"{PrefixKey}_Form", clear_on_submit=True):
+    with container.form(f"{PrefixKey}_Form"):
         output = st.data_editor(OverideActivity_df, 
                                 column_order=[ 'StartDateTime', 'EndDateTime', 'LABEL_ACTIVITY', 'LABEL_SUBACTIVITY', 'PIC'],
                                 hide_index = True,
@@ -481,7 +482,7 @@ def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     max_hours_to_adjust = 24
 
     # Loop until we get a non-empty activity summary or have adjusted the start time by 24 hours
-    while ActSum_df is None or ActSum_df.empty:
+    while (ActSum_df is None or ActSum_df.empty) and (total_hours_adjusted <= max_hours_to_adjust):
         # Get Activity Summary Data
         ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
 
@@ -626,6 +627,7 @@ def getBeforeConnectionDateTime(WellInfoDict, UserDateRange):
         
         # # If we've adjusted more than 24 hours, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
+            isRun = False
             break
     
     # # If ActSum_df is still empty after the loop, return None or handle as needed
@@ -682,6 +684,7 @@ def getNextConnectionDateTime(WellInfoDict, UserDateRange):
         
         # # If we've adjusted more than 24 hours, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
+            isRun = False
             break
     
     # # If ActSum_df is still empty after the loop, return None or handle as needed
