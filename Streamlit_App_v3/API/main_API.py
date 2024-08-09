@@ -375,12 +375,29 @@ class Delete_OverrideActivityDataModel(BaseModel):
     StartDateTime: str
     EndDateTime : str
 
+def convert_datetime_column(df, column_list, datetime_format = "%Y-%m-%dT%H:%M:%S.%f"):
+    for column_name in column_list:
+        try:
+            # Convert the column to datetime using the provided format
+            df[column_name] = pd.to_datetime(df[column_name], format=datetime_format)
+            # Reformat the datetime to the desired string format
+            df[column_name] = df[column_name].dt.strftime("%Y-%m-%d %H:%M:%S")
+            
+        except:
+            pass
+    return df
+        # print(f"An error occurred: {e}")
+
 
 @app.post("/override-activity-table/insert/")
 def override_activity_insert(data: Insert_OverrideActivityDataModel):
     OverrideActivity_df = pd.read_parquet('Data/OverrideActivity_TABLE.parquet')
+    OverrideActivity_df = convert_datetime_column(OverrideActivity_df, ['StartDateTime', 'EndDateTime'])
     insert_df = pd.DataFrame.from_records([data.model_dump()])
+    insert_df = convert_datetime_column(insert_df, ['StartDateTime', 'EndDateTime'])
+
     OverrideActivity_df = pd.concat([OverrideActivity_df,insert_df], ignore_index=True)
+
     OverrideActivity_df.to_parquet('Data/OverrideActivity_TABLE.parquet', index=False)
     return {"message": "Data inserted successfully"}
 
@@ -440,7 +457,10 @@ class Delete_SectionParamsDataModel(BaseModel):
 @app.post("/section-params-table/insert/")
 def section_params_insert(data: Insert_SectionParamsDataModel):
     SectionParams_df = pd.read_parquet('Data/SectionParams_TABLE.parquet')
+    SectionParams_df = convert_datetime_column(SectionParams_df, ['StartDateTime', 'EndDateTime'])
     insert_df = pd.DataFrame.from_records([data.model_dump()])
+    insert_df = convert_datetime_column(insert_df, ['StartDateTime', 'EndDateTime'])
+    
     SectionParams_df = pd.concat([SectionParams_df,insert_df], ignore_index=True)
     SectionParams_df.to_parquet('Data/SectionParams_TABLE.parquet', index=False)
     return {"message": "Data inserted successfully"}

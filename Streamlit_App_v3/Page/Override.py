@@ -54,8 +54,13 @@ def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
         for InsertDict in st.session_state[f"{PrefixKey}_DataEditor"]['added_rows']:
             InsertDict['wid'] = int(int(WellInfoDict['wid']))
             for datetime_key in ['StartDateTime', 'EndDateTime']:
-                InsertDict[datetime_key] =  datetime.strptime(InsertDict[datetime_key],datetime_format)
-                InsertDict[datetime_key] =  datetime.strftime(InsertDict[datetime_key],"%Y-%m-%d %H:%M:%S")
+                try:
+                    InsertDict[datetime_key] =  datetime.strptime(InsertDict[datetime_key],datetime_format)
+                    InsertDict[datetime_key] =  datetime.strftime(InsertDict[datetime_key],"%Y-%m-%d %H:%M:%S")
+                except:
+                    # InsertDict[datetime_key] =  datetime.strftime(InsertDict[datetime_key],"%Y-%m-%d %H:%M:%S")
+                    pass
+
             IO_Data.DomeOverrideActivity_Insert(InsertDict)
             list_startdatetime.append(InsertDict['StartDateTime'])
             list_enddatetime.append(InsertDict['EndDateTime'])
@@ -254,10 +259,20 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     # TODO change with the SectionParams Table
     SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
     df_list = []
-
-    # try:
-    StartDateTime_obj = datetime.strptime(startdatetime, '%Y-%m-%d %H:%M:%S')
-    EndDateTime_obj = datetime.strptime(enddatetime, '%Y-%m-%d %H:%M:%S')
+    datetime_format = "%Y-%m-%dT%H:%M:%S.%f"
+    # InsertDict[datetime_key] =  datetime.strptime(InsertDict[datetime_key],datetime_format)
+    # InsertDict[datetime_key] =  datetime.strftime(InsertDict[datetime_key],"%Y-%m-%d %H:%M:%S")
+    # datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S.%f")
+    print(startdatetime)
+    print(enddatetime)
+    try:
+        EndDateTime_obj = datetime.strptime(enddatetime, datetime_format)
+    except:
+        EndDateTime_obj = datetime.strptime(enddatetime, '%Y-%m-%d %H:%M:%S')
+    try:
+        StartDateTime_obj = datetime.strptime(startdatetime, datetime_format)
+    except:
+        StartDateTime_obj = datetime.strptime(startdatetime, '%Y-%m-%d %H:%M:%S')
     # except ValueError:
     #     try:
     #         StartDateTime_obj = datetime.strptime(startdatetime, '%Y-%m-%dT%H:%M:%S.%f')
