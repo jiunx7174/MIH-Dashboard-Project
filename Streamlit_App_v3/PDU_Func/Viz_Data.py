@@ -91,6 +91,7 @@ def getTimeVsDepthChart(ActSum_df, height=600,width=1200,):
     'WAIT ON CEMENT': '#FF3388',
     'RIG REPAIR': '#C6F980',
     'N/A': '#FFC0FF',
+    'nan':'#FFC0FF',
     'OTHER': '#FED752'}
 
     # Temporary list to track activities for legend display

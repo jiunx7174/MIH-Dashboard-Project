@@ -141,7 +141,10 @@ def OverrideActivityTableWidget(WellInfoDict, container,
                                 hide_index = True,
                                 column_config=OverrideActivity_ColConfig,
                                 key=f"{PrefixKey}_DataEditor", num_rows='dynamic', use_container_width=True)
-        st.form_submit_button("Submit", on_click=UpdateOverrideTable, args=(OverideActivity_df,WellInfoDict,PrefixKey))
+        # st.form_submit_button("Submit", on_click=UpdateOverrideTable, args=(OverideActivity_df,WellInfoDict,PrefixKey))
+        if st.form_submit_button("Submit"):
+            UpdateOverrideTable(OverideActivity_df,WellInfoDict,PrefixKey)
+            st.rerun()
 # =================================================================================================
 
 
@@ -439,7 +442,7 @@ def Override(RTSensor_df, Override_df, UserDateRange="All"):
 
 # =================================================================================================
 def RedefinedUserDateRange(WellInfoDict, UserDateRange):
-    print(UserDateRange)
+    # print(UserDateRange)
     defined_startdate = UserDateRange['StartDate']
     defined_starttime = UserDateRange['StartTime']
     defined_enddate = UserDateRange['EndDate']
