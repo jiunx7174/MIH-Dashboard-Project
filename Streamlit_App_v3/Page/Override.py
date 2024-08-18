@@ -82,6 +82,8 @@ def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
     SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime)
     del st.session_state[f"{PrefixKey}_DataEditor"]
     del st.session_state[f"{PrefixKey}_df"]
+    if 'OverrideActivityTable_df' in st.session_state:
+        del st.session_state['OverrideActivityTable_df']
     # pass
 
 
@@ -141,6 +143,7 @@ def OverrideActivityTableWidget(WellInfoDict, container,
                                 hide_index = True,
                                 column_config=OverrideActivity_ColConfig,
                                 key=f"{PrefixKey}_DataEditor", num_rows='dynamic', use_container_width=True)
+        st.write(f"{PrefixKey}_DataEditor")
         # st.form_submit_button("Submit", on_click=UpdateOverrideTable, args=(OverideActivity_df,WellInfoDict,PrefixKey))
         if st.form_submit_button("Submit"):
             UpdateOverrideTable(OverideActivity_df,WellInfoDict,PrefixKey)
@@ -242,11 +245,38 @@ def SectionParamsTableWidget(WellInfoDict, container,
     # print(st.session_state[f"{PrefixKey}_df"])
     # st.write(st.session_state[f"{PrefixKey}_df"])
     # st.write(st.session_state[f"{PrefixKey}_df"]['DateTime'].astype(str))
+
+def SimplifyTimeRange(list_startdatetime, list_enddatetime):
+    time_intervals = [(datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), datetime.strptime(end, '%Y-%m-%d %H:%M:%S')) for start, end in zip(list_startdatetime, list_enddatetime)]
+
+    # Sort intervals by start time
+    time_intervals.sort(key=lambda x: x[0])
+
+    # Merging overlapping intervals
+    merged_intervals = [time_intervals[0]]
+
+    for current_start, current_end in time_intervals[1:]:
+        last_start, last_end = merged_intervals[-1]
+        
+        if current_start <= last_end:  # There is an overlap
+            merged_intervals[-1] = (last_start, max(last_end, current_end))  # Merge intervals
+        else:
+            merged_intervals.append((current_start, current_end))
+
+    # Convert the datetime objects back to strings for display
+    reduced_start_list = [interval[0].strftime('%Y-%m-%d %H:%M:%S') for interval in merged_intervals]
+    reduced_end_list = [interval[1].strftime('%Y-%m-%d %H:%M:%S') for interval in merged_intervals]
+    return reduced_start_list, reduced_end_list
+
 # =================================================================================================
 def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime):
     # print(list_startdatetime)
     # print(list_enddatetime)
-
+    list_startdatetime, list_enddatetime = SimplifyTimeRange(list_startdatetime, list_enddatetime)
+    print("===================")
+    print(list_startdatetime)
+    print(list_enddatetime)
+    print("===================")
     # TODO uncomment the code below
     for startdatetime, enddatetime in zip(list_startdatetime, list_enddatetime):
         DomeUpdateRealtimeData(WellInfoDict, startdatetime, enddatetime)
@@ -300,7 +330,12 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
                                             "EndDate": EndDateTime_obj.date(),
                                             "EndTime": EndDateTime_obj.time(),
                                             })
-    st.toast(UserDateRange_Sync)
+    print("===============")
+    print("===============")
+    print(UserDateRange_Sync)
+    print("===============")
+    print("===============")
+    # st.toast(UserDateRange_Sync)
     # defined_startdate = StartDateTime_obj.date()
     # defined_starttime = StartDateTime_obj.time()
     # defined_enddate = EndDateTime_obj.date()
@@ -457,7 +492,15 @@ def RedefinedUserDateRange(WellInfoDict, UserDateRange):
       "EndTime": defined_starttime
     }
     LastActSum = (getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'))
-    StartDateTime_obj =  datetime.strptime(LastActSum['StartDateTime'].values[0], '%Y-%m-%d %H:%M:%S')
+    try:
+        StartDateTime_obj =  datetime.strptime(LastActSum['StartDateTime'].values[0], '%Y-%m-%d %H:%M:%S')
+    except:
+        # Convert the array of numpy.datetime64 objects to an array of strings
+        try:
+            StartDateTime_obj =  datetime.strptime(LastActSum['StartDateTime'].values[0], "%Y-%m-%dT%H:%M:%S.%f")
+        except:
+            # Convert to pandas datetime object
+            StartDateTime_obj = pd.to_datetime(LastActSum['StartDateTime'].values[0])
 
     UserDateRange = {
       "StartDate": defined_enddate,
@@ -466,7 +509,15 @@ def RedefinedUserDateRange(WellInfoDict, UserDateRange):
       "EndTime":  datetime_module.time(11, 9)
     }
     NextActSum = (getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'))
-    EndDateTime_obj =  datetime.strptime(NextActSum['EndDateTime'].values[0], '%Y-%m-%d %H:%M:%S')
+    try:
+        EndDateTime_obj =  datetime.strptime(NextActSum['EndDateTime'].values[0], '%Y-%m-%d %H:%M:%S')
+    except:
+        # Convert the array of numpy.datetime64 objects to an array of strings
+        # datetime_strings = 
+        try:
+            EndDateTime_obj =  datetime.strptime(NextActSum['EndDateTime'].values[0], "%Y-%m-%dT%H:%M:%S.%f")
+        except:
+            EndDateTime_obj =  pd.to_datetime(NextActSum['EndDateTime'].values[0])
 
     NewUserDateRange = {
         "StartDate": StartDateTime_obj.date(),

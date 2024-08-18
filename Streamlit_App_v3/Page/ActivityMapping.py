@@ -24,6 +24,10 @@ def cache_getWellParams(WellInfoDict, **kwargs):
 # @st.cache_data(show_spinner="Retrieve Realtime Sensor Data")
 def cache_DomeGetRealtimeSensorData(WellInfoDict,UserDateRange, **kwargs):
     return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, **kwargs)
+
+# @st.cache_data(show_spinner="Retrieve Override Activity Data")
+def cache_DomeOverrideActivity_Get(WellInfoDict, **kwargs):
+    return IO_Data.DomeOverrideActivity_Get(WellInfoDict, **kwargs)
 def IsSubmitFormTrue(UserDateRange):
     # st.session_state['IsFormSubmit'] = CheckUserDateRange(UserDateRange)
     # if st.session_state['IsFormSubmit']:
@@ -54,7 +58,7 @@ def validate_start_end_dates(UserDateRange):
         st.stop()
         # return False
 
-def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit'):
+def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit', PrefixKey = 'OverrideActivityTable'):
         # st.session_state["SectionParams_DF"] = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
         cache_getWellParams.clear()
         # cache_DomeGetRealtimeSensorData.clear()
@@ -65,6 +69,11 @@ def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit'):
             st.write(st.session_state['DataEditorKey'])
             st.stop()
         st.session_state['DataEditorKey'] = InitialKey + f"_{num}"
+        del st.session_state[f"{PrefixKey}_DataEditor"]
+
+        del st.session_state[f"{PrefixKey}_df"]
+        if 'OverrideActivityTable_df' in st.session_state:
+            del st.session_state['OverrideActivityTable_df']
 
 def initiateDataEditorKey(InitialKey = 'SectionParamsEdit'):
     if 'DataEditorKey' not in st.session_state:
@@ -165,7 +174,8 @@ def App():
     if "SectionParamsTable_df" not in st.session_state:
         st.session_state["SectionParamsTable_df"] =  IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
     SectionParams_DF = st.session_state["SectionParamsTable_df"]
-    st.sidebar.button("🔄 Refresh Data", key="RefreshSectionParamsTable", on_click=resetDataEditorKey, args=(WellInfoDict,))
+    if st.sidebar.button("🔄 Refresh Data", key="RefreshSectionParamsTable", on_click=resetDataEditorKey, args=(WellInfoDict,)):
+        st.rerun()
     
 
     # st.stop()
@@ -285,13 +295,14 @@ def App():
         st.warning("Please select a date range")
     else:
         validate_start_end_dates(UserDateRange)
-        RTSensor_DF = cache_DomeGetRealtimeSensorData(WellInfoDict,
+        RTSensor_DF = IO_Data.DomeGetRealtimeSensorData(WellInfoDict,
                                                       UserDateRange, 
                                                       hours=0.5, 
                                                       show_progress=True, 
                                                       runOnStreamlit=True,
                                                       _container=RealtimeLoadingContainer
                                                       )
+
         RealtimeLoadingContainer.empty()
         # InputActivity_DB = ActivityMapping.translateRigActivity2Activity(RigActivity_DF)
         RTSensor_DF = Activity.addRigActivityLabel (
@@ -324,6 +335,10 @@ def App():
         # st.write(OverridedActivity_df)
         # st.write(st.session_state['OverridedActivity_df'])
         # st.stop()
+        if 'OverrideActivityTable_df' not in st.session_state:
+            st.session_state['OverrideActivityTable_df'] = IO_Data.DomeOverrideActivity_Get(WellInfoDict)
+        Override_df = st.session_state['OverrideActivityTable_df']
+        RTSensor_DF = Activity.Override(RTSensor_DF, Override_df)
         ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
         ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
         ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)

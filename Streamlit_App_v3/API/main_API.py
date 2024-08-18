@@ -5,7 +5,7 @@ from typing import List, Dict , Literal
 from importlib import reload
 import sys
 import os
-
+import time
 # Get the directory of the current file
 current_dir = os.path.dirname(__file__)
 # If you specifically want to use os.path.join() for clarity
@@ -18,6 +18,7 @@ sys.path.append(library_path)
 import pandas as pd
 from fastapi.responses import HTMLResponse
 from PDU_Func import Activity, Authentification, IO_Data
+from Page import Override
 from importlib import reload
 import datetime
 # reload(IO_Data)
@@ -31,7 +32,9 @@ class SectionParamsDataModel(BaseModel):
     DateTime : str
     SectionSize : str
     PIC : str
-
+class updateDataRequest(BaseModel):
+    wid: int
+    cid: int
 
 def getHTML_Table(df_list):
     html_content = f"""
@@ -60,6 +63,23 @@ class UpdateDataRequest(BaseModel):
     wid: int
     cid: int
     sync_datetime: str
+@app.post("/update-data-multiuser/")
+def update_data_multiuser(data: updateDataRequest):
+    wid = data.wid
+    cid = data.cid
+
+    for i in range(20):
+        if i==0:
+            new_wid = wid
+            new_cid = cid
+        else:
+            new_wid = new_wid+wid
+            new_cid = new_cid+cid
+        print({"new_wid":new_wid, "new_cid":new_cid})
+        time.sleep(3)
+
+
+    return {"new_wid":new_wid, "new_cid":new_cid}
 
 @app.post("/update-activity-summary-data/")
 def update_realtime_data(data: UpdateDataRequest):
@@ -135,6 +155,23 @@ def update_realtime_data(data: UpdateDataRequest):
 
     # Your logic here
     return WellInfoDict
+
+class RecalculateDataRequest(BaseModel):
+    wid: int
+    cid: int
+    startdatetime: str
+    enddatetime: str
+@app.post("/recalculate-activity-summary-data/")
+def recalculate_data(data: RecalculateDataRequest):
+    wid = data.wid
+    cid = data.cid
+    startdatetime = data.startdatetime
+    enddatetime = data.enddatetime
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+
+    # TODO redefine the startdatetime and enddatetime readjustment
+    Override.DomeUpdateRealtimeData(WellInfoDict, startdatetime, enddatetime) 
+
 
 ### Visualization API
 class VisualDataModel(BaseModel):
@@ -374,6 +411,8 @@ class Delete_OverrideActivityDataModel(BaseModel):
     wid:int
     StartDateTime: str
     EndDateTime : str
+
+
 
 def convert_datetime_column(df, column_list, datetime_format = "%Y-%m-%dT%H:%M:%S.%f"):
     for column_name in column_list:

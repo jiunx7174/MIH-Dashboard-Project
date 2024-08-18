@@ -89,7 +89,7 @@ def getRealtimeVisualization(df, plot_params):
     fig.update_layout(legectDict)
 
     return fig
-@st.experimental_fragment
+# @st.experimental_fragment
 def App(container, RTSensor_DF):
     TitleContainer, NumberContainer, EmptyRightCol_title = container.columns([3,2,4])
     TitleContainer.markdown("### Realtime Data Visualization")
