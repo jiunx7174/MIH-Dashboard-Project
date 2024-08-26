@@ -17,12 +17,20 @@ def SingleWellChart(ActSum_df, MainContainer=None):
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
 
     if MainContainer is None:
-        MainContainer = st.container()
-    FirstRowContainer = MainContainer.columns([1, 1, 1])
-    SecondRowContainer = MainContainer.columns([1, 1, 1])
+        MainContainer = st.container(border=False)
+    FirstRowContainer = MainContainer.columns([1, 1, 1], vertical_alignment="bottom")
+    SecondRowContainer = MainContainer.columns([1, 1, 1], vertical_alignment="bottom")
+    ThirdRowContainer = MainContainer.columns([1, 1, 1], vertical_alignment="bottom")
+    for i, Container_temp in enumerate(FirstRowContainer):
+        FirstRowContainer[i] = Container_temp.container(border=True, height=550)
+    for i, Container_temp in enumerate(SecondRowContainer):
+        SecondRowContainer[i] = Container_temp.container(border=True, height=550)
+    for i, Container_temp in enumerate(ThirdRowContainer):
+        ThirdRowContainer[i] = Container_temp.container(border=True, height=550)
 
     PieChartCol, DrillingMeterageCol, TimeVsDepthCol = FirstRowContainer
     ROP_PerStandCol, ConnectionTimeCol, StandTimeCol = SecondRowContainer
+    BHA_TripBreakdownCol, CasingTripSpeedCol,CasingTripBreakdownCol = ThirdRowContainer
 
 
     SectionSize = "All"
@@ -87,7 +95,9 @@ def SingleWellChart(ActSum_df, MainContainer=None):
         use_container_width=True
     )
 
-
+    BHA_TripBreakdownCol.markdown(f"BHA Trip Breakdown <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
+    CasingTripSpeedCol.markdown(f"Casing Trip Speed <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
+    CasingTripBreakdownCol.markdown(f"Casing Trip Breakdown <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     st.write(ActSum_df)
 
 
