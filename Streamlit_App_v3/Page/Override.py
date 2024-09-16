@@ -247,7 +247,15 @@ def SectionParamsTableWidget(WellInfoDict, container,
     # st.write(st.session_state[f"{PrefixKey}_df"]['DateTime'].astype(str))
 
 def SimplifyTimeRange(list_startdatetime, list_enddatetime):
-    time_intervals = [(datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), datetime.strptime(end, '%Y-%m-%d %H:%M:%S')) for start, end in zip(list_startdatetime, list_enddatetime)]
+    time_intervals = []
+    for start, end in zip(list_startdatetime, list_enddatetime):
+        try:
+            time_intervals.append((datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), datetime.strptime(end, '%Y-%m-%d %H:%M:%S')))
+        except:
+            print(start)
+            print(end)
+            time_intervals.append((datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), datetime.strptime(end, '%Y-%m-%d %H:%M:%S')))
+            # raise
 
     # Sort intervals by start time
     time_intervals.sort(key=lambda x: x[0])

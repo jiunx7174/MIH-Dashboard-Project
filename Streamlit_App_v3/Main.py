@@ -12,6 +12,8 @@ def showUserInfo(UserAuthDict, container):
     {UserAuthDict["user_email"]}\n
     {UserAuthDict["user_company_name"]}\n
     """
+    if 'streamlit_version' in UserAuthDict:
+        user_info += f"{UserAuthDict['streamlit_version']}\n"
 
 
     container.markdown(user_info)

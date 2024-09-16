@@ -1,5 +1,6 @@
 import requests
 import time
+import streamlit as st
 def retry_on_error(max_retries=10, retry_interval=5):
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -32,6 +33,7 @@ def getUserID(UserDict):
                     "user_email":"irsyadhbtlh96@gmail.com",
                     "user_company_name":"PDU",
                     "user_cid":"",
+                    'streamlit_version': f'Streamlit version: {st.__version__}',
                     "status":"Authorized"},
             'verification': 'verified'}
 
