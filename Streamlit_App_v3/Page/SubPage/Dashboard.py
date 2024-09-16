@@ -89,13 +89,23 @@ def SingleWellChart(ActSum_df, MainContainer=None):
         use_container_width=True
     )
     ConnectionTimeCol.markdown(f"Connection time <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
+    # ConnectionTimeCol.plotly_chart(Viz_Data.getConnectionTimeChart(ActSum_df))
+    ConnectionTimeCol.plotly_chart(
+        Viz_Data.getConnectionTimeChart(ActSum_df, height=400, width=800),
+        use_container_width=True
+    )
     StandTimeCol.markdown(f"Time Stand Break Down <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     StandTimeCol.plotly_chart(
         Viz_Data.getStandTimeChart(ActSum_df, height=400, width=800),
         use_container_width=True
     )
-
+    
     BHA_TripBreakdownCol.markdown(f"BHA Trip Breakdown <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
+    # BHA_TripBreakdownCol.write( Viz_Data.getBHA_TripBreakdownChart(ActSum_df, height=400, width=800))
+    BHA_TripBreakdownCol.plotly_chart(
+        Viz_Data.getBHA_TripBreakdownChart(ActSum_df, height=400, width=800),
+        use_container_width=True
+    )
     CasingTripSpeedCol.markdown(f"Casing Trip Speed <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     CasingTripBreakdownCol.markdown(f"Casing Trip Breakdown <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     st.write(ActSum_df)

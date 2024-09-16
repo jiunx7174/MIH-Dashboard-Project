@@ -168,7 +168,107 @@ def getTimeVsDepthChart(ActSum_df, height=600,width=1200,):
     )
     return fig
 
+def getConnectionTimeChart(ActSum_df, height=400, width=800):
+    ConnectionTime_df = ActSum_df.copy()
+    ConnectionTime_df[['ConnectionCategory', 'ConnectionID']] = ConnectionTime_df['LABEL_ConnectionActivity'].str.split('-', expand=True)
+    ConnectionTime_df['StartDateTime'] = pd.to_datetime(ConnectionTime_df['StartDateTime'])
+    ConnectionTime_df['EndDateTime'] = pd.to_datetime(ConnectionTime_df['EndDateTime'])
+    # Calculate MidDateTime as the average of StartDateTime and EndDateTime
+    # ConnectionTime_df['MidDateTime'] = ConnectionTime_df['StartDateTime'] + (ConnectionTime_df['EndDateTime'] - ConnectionTime_df['StartDateTime']) / 2
 
+    ConnectionTime_agg_df = ConnectionTime_df.groupby(['ConnectionID', 'ConnectionCategory']).agg(
+        Total_Duration=('Duration', 'sum'),
+        First_StartDatetime=('StartDateTime', 'min'),
+        Latest_EndDatetime=('EndDateTime', 'max')
+    ).reset_index()
+    # Pivot the data to match the requested output format
+    ConnectionTime_pivot_df = ConnectionTime_agg_df.pivot(index='ConnectionID', columns='ConnectionCategory', values='Total_Duration').reset_index()
+
+    # Renaming columns to match the desired output
+    # ConnectionTime_pivot_df.columns = ['ConnectionID', 'ConnectionDuration', 'PostConnectionDuration', 'PreConnectionDuration']
+    ConnectionTime_pivot_df = ConnectionTime_pivot_df.rename(columns={
+        'Connection': 'ConnectionDuration', 
+        'Post Connection': 'PostConnectionDuration', 
+        'Pre Connection': 'PreConnectionDuration'
+    })
+    # Merge with the original DataFrame to get the StartDatetime and EndDatetime
+    start_end_times = ConnectionTime_df.groupby('ConnectionID').agg(
+        StartDatetime=('StartDateTime', 'min'),
+        EndDatetime=('EndDateTime', 'max')
+    ).reset_index()
+
+    # Merging the pivoted DataFrame with the start and end times
+    ConnectionTime_pivot_df = pd.merge(ConnectionTime_pivot_df, start_end_times, on='ConnectionID')
+
+
+    ConnectionTime_fig = go.Figure()
+    ConnectionTime_fig.add_trace(go.Bar(
+        x=ConnectionTime_pivot_df['StartDatetime'],
+        y=ConnectionTime_pivot_df['PreConnectionDuration'],
+        name='PreConnection Duration',
+        marker_color='blue'
+    ))
+    ConnectionTime_fig.add_trace(go.Bar(
+        x=ConnectionTime_pivot_df['StartDatetime'],
+        y=ConnectionTime_pivot_df['ConnectionDuration'],
+        name='Connection Duration',
+        # marker_color='red'
+    ))
+    ConnectionTime_fig.add_trace(go.Bar(
+        x=ConnectionTime_pivot_df['StartDatetime'],
+        y=ConnectionTime_pivot_df['PostConnectionDuration'],
+        name='PostConnection Duration',
+        # marker_color='blue'
+    ))
+
+    ConnectionTime_fig.update_layout(
+        height=height,
+        width=width,
+        barmode='stack',  # This will group the bars side by side at each x-value (datetime)
+        xaxis_title='Datetime',
+        yaxis_title='Duration',
+        xaxis=dict(type='date')  # Ensuring x-axis is treated as date
+    )
+
+
+    return ConnectionTime_fig
+
+def getBHA_TripBreakdownChart(ActSum_df, height=400, width=800):
+    BHA_Trip_df = ActSum_df.copy()
+   
+    BHA_Trip_df = BHA_Trip_df[BHA_Trip_df['LABEL_SubActivity'].str.contains(r'BHA|N/D|N/U BOP', case=False, na=False)]
+    BHA_Trip_df['StartDateTime'] = pd.to_datetime(BHA_Trip_df['StartDateTime'])
+    BHA_Trip_df['EndDateTime'] = pd.to_datetime(BHA_Trip_df['EndDateTime'])
+    BHA_Trip_df['Duration'] = BHA_Trip_df['Duration'].astype(float)
+
+
+    BHA_TripBreakdown_fig = go.Figure()
+    for BHAActivity in BHA_Trip_df['LABEL_SubActivity'].unique():
+        BHA_Trip_df_filter = BHA_Trip_df[BHA_Trip_df['LABEL_SubActivity'] == BHAActivity]
+        
+        BHA_TripBreakdown_fig.add_trace(go.Bar(
+            x=BHA_Trip_df_filter['StartDateTime'],
+            y=BHA_Trip_df_filter['Duration'],
+            name=BHAActivity,
+            # marker_color='blue'
+        ))
+    #     BHA_Trip_df_filter = BHA_Trip_df[BHA_Trip_df['LABEL_Activity'] == BHAActivity]
+        
+    #     BHA_TripBreakdown_fig.add_trace(go.Bar(
+    #         x=BHA_Trip_df_filter['StartDateTime'],
+    #         y=BHA_Trip_df_filter['Duration'],
+    #         name=BHAActivity,
+    #         # marker_color='blue'
+    #     ))
+    BHA_TripBreakdown_fig.update_layout(
+        height=height,
+        width=width,
+        # barmode='stack',  # This will group the bars side by side at each x-value (datetime)
+        xaxis_title='Datetime',
+        yaxis_title='Duration',
+        xaxis=dict(type='date')  # Ensuring x-axis is treated as date
+    )
+    return BHA_TripBreakdown_fig
 
 def getROPchart(ActSum_df, height=400, width=800):
     ROP_df = ActSum_df.copy()
@@ -236,6 +336,7 @@ def getROPchart(ActSum_df, height=400, width=800):
 def getStandTimeChart(ActSum_df, height=400, width=800):
     StandTime_df = ActSum_df.copy()
     StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']] = StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']].astype(float)
+    StandTime_df = StandTime_df[ StandTime_df['Stand Group_Pred'].str.contains(r'Drilling', case=False, na=False)]
     StandTime_df = StandTime_df.groupby('Stand Group_Pred').agg({
         'RotateDrillingDuration': 'sum',
         'SlideDrillingDuration': 'sum',
@@ -267,3 +368,4 @@ def getStandTimeChart(ActSum_df, height=400, width=800):
         xaxis=dict(type='date')  # Ensuring x-axis is treated as date
     )
     return fig
+

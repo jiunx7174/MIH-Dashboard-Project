@@ -302,6 +302,82 @@ def get_activity_stand_time(wid: int = Query(None, title="wid"),
     })
     return StandTime_df.to_dict(orient='records')
 
+@app.get("/get-activity-bha-trip-breakdown/")
+def get_BHA_trip_breakdown(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    BHA_Trip_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    BHA_Trip_df = BHA_Trip_df[BHA_Trip_df['LABEL_SubActivity'].str.contains(r'BHA|N/D|N/U BOP', case=False, na=False)]
+    BHA_Trip_df['StartDateTime'] = pd.to_datetime(BHA_Trip_df['StartDateTime'])
+    BHA_Trip_df['EndDateTime'] = pd.to_datetime(BHA_Trip_df['EndDateTime'])
+    BHA_Trip_df['Duration'] = BHA_Trip_df['Duration'].astype(float)
+    return BHA_Trip_df.to_dict(orient='records')
+
+@app.get("/get_connection_time/")
+def get_connection_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    ConnectionTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+
+    ConnectionTime_df[['ConnectionCategory', 'ConnectionID']] = ConnectionTime_df['LABEL_ConnectionActivity'].str.split('-', expand=True)
+    ConnectionTime_df['StartDateTime'] = pd.to_datetime(ConnectionTime_df['StartDateTime'])
+    ConnectionTime_df['EndDateTime'] = pd.to_datetime(ConnectionTime_df['EndDateTime'])
+    ConnectionTime_df['Duration'] =ConnectionTime_df['Duration'].astype(float)
+
+    ConnectionTime_agg_df = ConnectionTime_df.groupby(['ConnectionID', 'ConnectionCategory']).agg(
+        Total_Duration=('Duration', 'sum'),
+        First_StartDatetime=('StartDateTime', 'min'),
+        Latest_EndDatetime=('EndDateTime', 'max')
+    ).reset_index()
+    # Pivot the data to match the requested output format
+    ConnectionTime_pivot_df = ConnectionTime_agg_df.pivot(index='ConnectionID', columns='ConnectionCategory', values='Total_Duration').reset_index()
+    
+    # Renaming columns to match the desired output
+    ConnectionTime_pivot_df = ConnectionTime_pivot_df.rename(columns={
+        'Connection': 'ConnectionDuration', 
+        'Post Connection': 'PostConnectionDuration', 
+        'Pre Connection': 'PreConnectionDuration'
+    })
+    ConnectionTime_pivot_df = ConnectionTime_pivot_df.fillna(0)
+    # Merge with the original DataFrame to get the StartDatetime and EndDatetime
+    start_end_times = ConnectionTime_df.groupby('ConnectionID').agg(
+        StartDatetime=('StartDateTime', 'min'),
+        EndDatetime=('EndDateTime', 'max')
+    ).reset_index()
+
+    # Merging the pivoted DataFrame with the start and end times
+    print(ConnectionTime_pivot_df)
+    for col in ['ConnectionDuration', 'PostConnectionDuration', 'PreConnectionDuration']:
+        ConnectionTime_pivot_df[col] = ConnectionTime_pivot_df[col].astype(float)
+    ConnectionTime_pivot_df = pd.merge(ConnectionTime_pivot_df, start_end_times, on='ConnectionID')
+    # for col in ['StartDateTime', 'EndDateTime']:
+    #     ConnectionTime_pivot_df[col] = pd.to_datetime(ConnectionTime_pivot_df[col])
+    ConnectionTime_pivot_df['ConnectionID'] = ConnectionTime_pivot_df['ConnectionID'].astype(int)
+
+
+    return ConnectionTime_pivot_df.to_dict(orient='records')
 
 ### Automatic API Update API
 @app.get("/update-data/",response_class=HTMLResponse)
