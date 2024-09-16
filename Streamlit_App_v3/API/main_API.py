@@ -292,6 +292,7 @@ def get_activity_stand_time(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     StandTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']] = StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']].astype(float)
+    StandTime_df = StandTime_df[ StandTime_df['Stand Group_Pred'].str.contains(r'Drilling', case=False, na=False)]
     StandTime_df = StandTime_df.groupby('Stand Group_Pred').agg({
         'RotateDrillingDuration': 'sum',
         'SlideDrillingDuration': 'sum',
