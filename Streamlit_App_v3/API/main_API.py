@@ -368,7 +368,7 @@ def get_connection_time(wid: int = Query(None, title="wid"),
     ).reset_index()
 
     # Merging the pivoted DataFrame with the start and end times
-    print(ConnectionTime_pivot_df)
+    # print(ConnectionTime_pivot_df)
     for col in ['ConnectionDuration', 'PostConnectionDuration', 'PreConnectionDuration']:
         ConnectionTime_pivot_df[col] = ConnectionTime_pivot_df[col].astype(float)
     ConnectionTime_pivot_df = pd.merge(ConnectionTime_pivot_df, start_end_times, on='ConnectionID')

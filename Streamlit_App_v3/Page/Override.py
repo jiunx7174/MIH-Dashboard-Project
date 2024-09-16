@@ -252,6 +252,7 @@ def SimplifyTimeRange(list_startdatetime, list_enddatetime):
         try:
             time_intervals.append((datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), datetime.strptime(end, '%Y-%m-%d %H:%M:%S')))
         except:
+            print("Error: Unable to parse datetime strings. please check the following datetime:")
             print(start)
             print(end)
             time_intervals.append((datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), datetime.strptime(end, '%Y-%m-%d %H:%M:%S')))
@@ -282,6 +283,7 @@ def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime):
     # print(list_enddatetime)
     list_startdatetime, list_enddatetime = SimplifyTimeRange(list_startdatetime, list_enddatetime)
     print("===================")
+    print("Simplify Time Range:")
     print(list_startdatetime)
     print(list_enddatetime)
     print("===================")
@@ -304,8 +306,8 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     # InsertDict[datetime_key] =  datetime.strptime(InsertDict[datetime_key],datetime_format)
     # InsertDict[datetime_key] =  datetime.strftime(InsertDict[datetime_key],"%Y-%m-%d %H:%M:%S")
     # datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S.%f")
-    print(startdatetime)
-    print(enddatetime)
+    # print(startdatetime)
+    # print(enddatetime)
     try:
         EndDateTime_obj = datetime.strptime(enddatetime, datetime_format)
     except:

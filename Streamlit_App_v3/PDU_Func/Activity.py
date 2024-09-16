@@ -130,9 +130,9 @@ def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
                         PostCon_Start_idx = idx_start
                         PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
                         ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(before_stand_num)
-                        print(PostCon_Start_idx)
-                        print('PostCon')
-                        print(PostCon_End_idx)
+                        # print(PostCon_Start_idx)
+                        # print('PostCon')
+                        # print(PostCon_End_idx)
                         # if ii < len_connection:
                         ActSum_df.loc[idx,'LABEL_ConnectionActivity'] = 'Connection-'+str(stand_num)
                         before_stand_num = stand_num
@@ -643,7 +643,8 @@ def Override(RTSensor_df, Override_df, ):
     ii = 0
  
     Override_df = Override_df.reset_index()
-    print(Override_df)
+    # print("Override Table")
+    # print(Override_df)
 
 
     for i,row in Override_df.iterrows():
