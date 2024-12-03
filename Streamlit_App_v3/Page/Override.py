@@ -246,11 +246,31 @@ def SectionParamsTableWidget(WellInfoDict, container,
     # st.write(st.session_state[f"{PrefixKey}_df"])
     # st.write(st.session_state[f"{PrefixKey}_df"]['DateTime'].astype(str))
 
+def datetime_strptime_multiple_formats(date_string):
+    formats = [
+        '%Y-%m-%dT%H:%M:%S.%f',  # With milliseconds and 'T'
+        '%Y-%m-%dT%H:%M:%S',     # Without milliseconds, with 'T'
+        '%Y-%m-%d %H:%M:%S',     # Without 'T', no milliseconds
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_string, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Time data '{date_string}' does not match any provided formats.")
+
+
 def SimplifyTimeRange(list_startdatetime, list_enddatetime):
     time_intervals = []
     for start, end in zip(list_startdatetime, list_enddatetime):
+
+
+
         try:
-            time_intervals.append((datetime.strptime(start, '%Y-%m-%d %H:%M:%S'), datetime.strptime(end, '%Y-%m-%d %H:%M:%S')))
+            time_intervals.append((
+                datetime_strptime_multiple_formats(start), 
+                datetime_strptime_multiple_formats(end)
+                ))
         except:
             print("Error: Unable to parse datetime strings. please check the following datetime:")
             print(start)
