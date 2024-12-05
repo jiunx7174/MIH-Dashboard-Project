@@ -253,7 +253,6 @@ def get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
     ROP_df['StartDateTime'] = pd.to_datetime(ROP_df['StartDateTime'])
     ROP_df['EndDateTime'] = pd.to_datetime(ROP_df['EndDateTime'])
     ROP_df[['DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration']] = ROP_df[['DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration']].astype(float)
-
     # Calculate MidDateTime as the average of StartDateTime and EndDateTime
     ROP_df['MidDateTime'] = ROP_df['StartDateTime'] + (ROP_df['EndDateTime'] - ROP_df['StartDateTime']) / 2
 
@@ -262,8 +261,11 @@ def get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
 
     ROP_df = ROP_df[idx_logic]
 
-    ROP_df['ROP_OnBottom'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['OnBottomDurationPerStand']/60) 
+    ROP_df['ROP_OnBottom'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['OnBottomDurationPerStand']/60)
     ROP_df['ROP_Stand'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['StandDuration']/60)
+
+    ROP_df['ROP_OnBottom'].fillna(0, inplace=True)
+    ROP_df['ROP_Stand'].fillna(0, inplace=True)
     # display(ROP_df[['MidDateTime', 'LABEL_SubActivity', 'LABEL_Activity', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand']])
     # ROP stand m/hr 
 
@@ -272,6 +274,9 @@ def get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
     # Assuming your DataFrame is named df and contains columns 'ROP_OnBottom', 'ROP_Stand', and 'DateTime'
     # First, convert your 'DateTime' column to a datetime type if it's not already
     df = pd.DataFrame(ROP_df)
+    # df.fillna("NaN", inplace=True)
+    # df.to_csv('ROP_df.csv')
+    # print(df.to_dict(orient='records'))
     return df.to_dict(orient='records')
 
 

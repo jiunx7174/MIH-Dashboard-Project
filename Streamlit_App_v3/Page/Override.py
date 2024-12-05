@@ -264,8 +264,6 @@ def SimplifyTimeRange(list_startdatetime, list_enddatetime):
     time_intervals = []
     for start, end in zip(list_startdatetime, list_enddatetime):
 
-
-
         try:
             time_intervals.append((
                 datetime_strptime_multiple_formats(start), 
