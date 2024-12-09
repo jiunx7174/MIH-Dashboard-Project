@@ -238,7 +238,7 @@ def App():
         st.session_state['IsFormSubmit'] = False
     with DatetimeRangeCol.form(key='DateForm', border=False):
 
-        TitleCol,NothingCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1, 0.2, 1.4,1,0.2,1.4,1,0.5])
+        TitleCol,NothingCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1, 0.1, 1.4,1,0.1,1.4,1,0.7])
         TitleCol.markdown('## WELL ACTIVITY')
         # TitleCol.markdown('<h3 style="text-align: left; font-size: 40px; margin-top: -10px;">WELL ACTIVITY</h3>', unsafe_allow_html=True)
         RealtimeLoadingContainer = st.empty()

@@ -274,9 +274,6 @@ def get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
     # Assuming your DataFrame is named df and contains columns 'ROP_OnBottom', 'ROP_Stand', and 'DateTime'
     # First, convert your 'DateTime' column to a datetime type if it's not already
     df = pd.DataFrame(ROP_df)
-    # df.fillna("NaN", inplace=True)
-    # df.to_csv('ROP_df.csv')
-    # print(df.to_dict(orient='records'))
     return df.to_dict(orient='records')
 
 
@@ -306,6 +303,105 @@ def get_activity_stand_time(wid: int = Query(None, title="wid"),
         'EndDateTime': 'max'
     })
     return StandTime_df.to_dict(orient='records')
+@app.get("/get-casing-trip-time/")
+def get_casing_trip_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    CasingTrip_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    CasingTrip_df = CasingTrip_df[CasingTrip_df['LABEL_Activity'].isin(['TRIP IN', 'TRIP OUT'])]
+    CasingTrip_df = CasingTrip_df.reset_index(drop=True)
+    CasingTrip_df['Stand Group_Pred_TRIP'] = None
+    # Step 2: Find indices where the activity is 'Connection'
+    connection_indices = CasingTrip_df[CasingTrip_df['LABEL_SubActivity'] == 'Connection'].index.tolist()
+    CasingTrip_df['StartDateTime'] = pd.to_datetime((CasingTrip_df['StartDateTime']))
+    CasingTrip_df['EndDateTime'] = pd.to_datetime((CasingTrip_df['EndDateTime']))
+    segments_start_list = []
+    segments_end_list = []
+
+    for i,indices in enumerate(connection_indices):
+        if i == 0:
+            segments_start_list.append(0)
+            segments_end_list.append(indices)
+        else:
+            segments_start_list.append(connection_indices[i-1]+1)
+            segments_end_list.append(indices)
+
+    for segments_start,segments_end, connection_idx in zip(segments_start_list, segments_end_list, connection_indices):
+        ReferenceTime = CasingTrip_df.loc[connection_idx, 'StartDateTime']
+        CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = int(CasingTrip_df.loc[connection_idx,'StartDateTime'].timestamp())
+        CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = "Joint-" + CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'].astype(str)
+
+    CasingTrip_df = CasingTrip_df.dropna(subset = ['Stand Group_Pred_TRIP'])
+    FinalCasingTrip_df = CasingTrip_df[["Stand Group_Pred_TRIP", "LABEL_SubActivity", "Duration", "StartDateTime"]]
+    FinalCasingTrip_df = FinalCasingTrip_df.groupby("Stand Group_Pred_TRIP", as_index=False).agg(
+            Duration=("Duration", "sum"),
+            StartDateTime=("StartDateTime", "first")
+        )
+
+    FinalCasingTrip_df.drop_duplicates(subset=['StartDateTime'], keep='first', inplace=True)
+    FinalCasingTrip_df['StartDateTime'] = pd.to_datetime(FinalCasingTrip_df['StartDateTime'])
+    FinalCasingTrip_df['Duration_Hours'] = FinalCasingTrip_df['Duration'] / 3600
+    FinalCasingTrip_df['Joint Per Hour'] = 1/FinalCasingTrip_df['Duration_Hours']
+    return FinalCasingTrip_df.to_dict(orient='records')
+
+@app.get("/get-casing-trip-breakdown-time/")
+def get_casing_trip_breakdown_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    CasingTrip_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    CasingTrip_df = CasingTrip_df[CasingTrip_df['LABEL_Activity'].isin(['TRIP IN', 'TRIP OUT'])]
+    CasingTrip_df = CasingTrip_df.reset_index(drop=True)
+    CasingTrip_df['Stand Group_Pred_TRIP'] = None
+    # Step 2: Find indices where the activity is 'Connection'
+    connection_indices = CasingTrip_df[CasingTrip_df['LABEL_SubActivity'] == 'Connection'].index.tolist()
+    CasingTrip_df['StartDateTime'] = pd.to_datetime((CasingTrip_df['StartDateTime']))
+    CasingTrip_df['EndDateTime'] = pd.to_datetime((CasingTrip_df['EndDateTime']))
+    segments_start_list = []
+    segments_end_list = []
+
+    for i,indices in enumerate(connection_indices):
+        if i == 0:
+            segments_start_list.append(0)
+            segments_end_list.append(indices)
+        else:
+            segments_start_list.append(connection_indices[i-1]+1)
+            segments_end_list.append(indices)
+
+    for segments_start,segments_end, connection_idx in zip(segments_start_list, segments_end_list, connection_indices):
+        ReferenceTime = CasingTrip_df.loc[connection_idx, 'StartDateTime']
+        CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = int(CasingTrip_df.loc[connection_idx,'StartDateTime'].timestamp())
+        CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = "Joint-" + CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'].astype(str)
+
+    CasingTrip_df = CasingTrip_df.dropna(subset = ['Stand Group_Pred_TRIP'])
+    FinalCasingTripBreakdown_df = CasingTrip_df[["Stand Group_Pred_TRIP", "LABEL_SubActivity", "Duration", "StartDateTime"]]
+    FinalCasingTripBreakdown_df = FinalCasingTripBreakdown_df.groupby(["Stand Group_Pred_TRIP", "LABEL_SubActivity"], as_index=False).agg(
+            Duration=("Duration", "sum"),
+            StartDateTime=("StartDateTime", "first")
+        )
+    # FinalCasingTripBreakdown_df
+    return FinalCasingTripBreakdown_df.to_dict(orient='records')
 
 @app.get("/get-activity-bha-trip-breakdown/")
 def get_BHA_trip_breakdown(wid: int = Query(None, title="wid"), 
