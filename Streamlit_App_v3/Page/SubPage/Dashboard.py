@@ -17,18 +17,19 @@ def SingleWellChart(ActSum_df, MainContainer=None):
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
 
     if MainContainer is None:
-        MainContainer = st.container(border=False)
-    FirstRowContainer = MainContainer.columns([1, 1, 1], vertical_alignment="bottom")
+        MainContainer = st.container(border=True)
+    FirstRowContainer = MainContainer.columns([1, 2], vertical_alignment="bottom")
     SecondRowContainer = MainContainer.columns([1, 1, 1], vertical_alignment="bottom")
     ThirdRowContainer = MainContainer.columns([1, 1, 1], vertical_alignment="bottom")
     for i, Container_temp in enumerate(FirstRowContainer):
-        FirstRowContainer[i] = Container_temp.container(border=True, height=550)
+        FirstRowContainer[i] = Container_temp.container(border=False, height=400)
     for i, Container_temp in enumerate(SecondRowContainer):
         SecondRowContainer[i] = Container_temp.container(border=True, height=550)
     for i, Container_temp in enumerate(ThirdRowContainer):
         ThirdRowContainer[i] = Container_temp.container(border=True, height=550)
 
-    PieChartCol, DrillingMeterageCol, TimeVsDepthCol = FirstRowContainer
+    PieChartCol, DrillingTimeDepthCol = FirstRowContainer
+    # PieChartCol, DrillingMeterageCol, TimeVsDepthCol = FirstRowContainer
     ROP_PerStandCol, ConnectionTimeCol, StandTimeCol = SecondRowContainer
     BHA_TripBreakdownCol, CasingTripSpeedCol,CasingTripBreakdownCol = ThirdRowContainer
 
@@ -37,27 +38,28 @@ def SingleWellChart(ActSum_df, MainContainer=None):
 
 
     # PieChart Duration Chart
-    PieChartCol.markdown(f"Pie Chart <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     PieChartActivityCol, PieChartSubActivityCol = PieChartCol.tabs(['Activity', 'SubActivity'])
+    PieChartSubActivityCol.markdown(f"Pie Chart <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     PieChartSubActivityCol.plotly_chart(
         Viz_Data.getDurationPieChart(
                             ActSum_df, 
                             'LABEL_Activity', 
                             Title='', 
                             DurationCol='Duration', 
-                            height=400,
-                            width=400,
+                            height=250,
+                            width=250,
                             hole=0.5),
                             use_container_width=True
     ) 
+    PieChartActivityCol.markdown(f"Pie Chart <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     PieChartActivityCol.plotly_chart(
         Viz_Data.getDurationPieChart(
                             ActSum_df, 
                             'LABEL_SubActivity', 
                             Title='', 
                             DurationCol='Duration', 
-                            height=400,
-                            width=400,
+                            height=250,
+                            width=250,
                             hole=0.5),
                             use_container_width=True
     ) 
@@ -65,11 +67,12 @@ def SingleWellChart(ActSum_df, MainContainer=None):
 
 
 
+    DrillingMeterageCol, TimeVsDepthCol = DrillingTimeDepthCol.tabs(['Drilling Meterage', 'Time vs Depth'])
 
     # Drilling Meterage Chart
     DrillingMeterageCol.markdown(f"Drilling Meterage <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     DrillingMeterageCol.plotly_chart(
-        Viz_Data.getDrillingMeterageBarChart(ActSum_df),
+        Viz_Data.getDrillingMeterageBarChart(ActSum_df, height=250, width=500),
         use_container_width=True
     )
 
@@ -79,8 +82,9 @@ def SingleWellChart(ActSum_df, MainContainer=None):
 
     TimeVsDepthCol.markdown(f"Time vs Depth <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     TimeVsDepthCol.plotly_chart(
-        Viz_Data.getTimeVsDepthChart(ActSum_df, height=400, width=800),
-        use_container_width=True
+        Viz_Data.getTimeVsDepthChart(ActSum_df, height=250, width=500),
+        use_container_width=True,
+        Theme=None
     )
 
     ROP_PerStandCol.markdown(f"ROP On Bottom and Stand <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
@@ -90,10 +94,13 @@ def SingleWellChart(ActSum_df, MainContainer=None):
     )
     ConnectionTimeCol.markdown(f"Connection time <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     # ConnectionTimeCol.plotly_chart(Viz_Data.getConnectionTimeChart(ActSum_df))
-    ConnectionTimeCol.plotly_chart(
-        Viz_Data.getConnectionTimeChart(ActSum_df, height=400, width=800),
-        use_container_width=True
-    )
+    try:
+        ConnectionTimeCol.plotly_chart(
+            Viz_Data.getConnectionTimeChart(ActSum_df, height=400, width=800),
+            use_container_width=True
+        )
+    except:
+        ConnectionTimeCol.warning("No Connection Time Data")
     StandTimeCol.markdown(f"Time Stand Break Down <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     StandTimeCol.plotly_chart(
         Viz_Data.getStandTimeChart(ActSum_df, height=400, width=800),
@@ -108,6 +115,6 @@ def SingleWellChart(ActSum_df, MainContainer=None):
     )
     CasingTripSpeedCol.markdown(f"Casing Trip Speed <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
     CasingTripBreakdownCol.markdown(f"Casing Trip Breakdown <b>{SelectWell}</b> in <b>{SectionSize}</b> hole section Section", unsafe_allow_html=True)
-    st.write(ActSum_df)
+    # st.write(ActSum_df)
 
 

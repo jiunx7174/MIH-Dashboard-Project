@@ -54,7 +54,7 @@ def App():
         EndDate = datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d').strftime('%d-%m-%Y')
     with DatetimeRangeCol.form(key='DateForm', border=False):
 
-        TitleCol,NothingCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1, 0.2, 1.4,1,0.2,1.4,1,0.5])
+        TitleCol,NothingCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1, 0.1, 1.4,1,0.1,1.4,1,0.7])
         TitleCol.markdown('## WELL ACTIVITY')
         # TitleCol.markdown('<h3 style="text-align: left; font-size: 40px; margin-top: -10px;">WELL ACTIVITY</h3>', unsafe_allow_html=True)
         RealtimeLoadingContainer = st.empty()
@@ -111,7 +111,24 @@ def App():
     else:
         validate_start_end_dates(UserDateRange)
         ActivitySummary_DF = cacheGetActivitySummaryData(WellInfoDict, UserDateRange)
-        Dashboard.SingleWellChart(ActivitySummary_DF)
+        if ActivitySummary_DF.empty:
+            st.warning("No data available for the selected date range.")
+            st.stop()
+
+
+        # DashboardButtonCol, TableButtonCol = st.columns(2)
+        DashboardTab, TableTab = st.tabs(["Dashboard", "Table"])
+        # with DashboardButtonCol:
+        #     st.button("Dashboard", on_click=st.experimental_rerun, use_container_width=True)
+        # with TableButtonCol:
+        #     st.button("Table", on_click=st.experimental_rerun, use_container_width=True)
+
+        # Dashboard.SingleWellChart(ActivitySummary_DF)
+        with TableTab:
+            st.write(ActivitySummary_DF)
+        with DashboardTab:
+            Dashboard.SingleWellChart(ActivitySummary_DF)
+
         # st.write(ActivitySummary_DF)
         # st.plotly_chart(
         #     Viz_Data.getDurationPieChart(

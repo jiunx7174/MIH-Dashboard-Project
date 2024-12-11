@@ -109,7 +109,7 @@ def DomeUpdateSectionParamsDF(WellInfoDict, SectionParams_DF, updateDict):
     # st.stop()
 
 def SectionParamsDataEditor(WellInfoDict, SectionParams_DF):
-    SectionSizeList=['26"','17-1/2"','12-1/4"','9-7/8"', '7-7/8"', '8.5"','6-3/4"', '6-1/8"','6"', ]
+    SectionSizeList=['36"', '26"','17-1/2"','12-1/4"','9-7/8"', '7-7/8"', '8.5"','6-3/4"', '6-1/8"','6"', ]
     column_config={
         "DateTime": st.column_config.DatetimeColumn(
             "Datetime",

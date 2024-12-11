@@ -198,7 +198,7 @@ def SectionParamsTableWidget(WellInfoDict, container,
                           PrefixKey = 'SectionParamsTable' , 
                           SectionSizeList='default',):
     if isinstance(SectionSizeList, str):
-        SectionSizeList=['26"','17-1/2"','12-1/4"','9-7/8"', '7-7/8"', '8.5"','6-3/4"', '6-1/8"','6"', ]
+        SectionSizeList=['36"', '26"','17-1/2"','12-1/4"','9-7/8"', '7-7/8"', '8.5"','6-3/4"', '6-1/8"','6"', ]
 
 
     if f"{PrefixKey}_df" not in st.session_state:

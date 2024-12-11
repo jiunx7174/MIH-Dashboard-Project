@@ -34,12 +34,12 @@ def getDurationPieChart(ActSum_df, ColumnName, Title=None, DurationCol='Duration
     fig.update_layout(
             height=height,
             width=width,
-            margin=dict(l=0, r=0, t=50, b=80),
+            margin=dict(l=0, r=0, t=20, b=100),
             title={'text': Title, 'x': 0.5, 'xanchor': 'center'},
     )
     return fig
 
-def getDrillingMeterageBarChart(ActSum_df):
+def getDrillingMeterageBarChart(ActSum_df, height=600,width=1200):
     
     ActSum_df['DrillingMeterage'] = ActSum_df['DrillingMeterage'].astype(float)
     # Group by the new 'Date' column and sum the 'DrillingMeterage'
@@ -53,12 +53,29 @@ def getDrillingMeterageBarChart(ActSum_df):
                 )
     fig.update_xaxes(
         dtick="D",)
+    fig.update_layout(
+        height=height,
+        width=width,
+        # margin=dict(l=50, r=0, t=50, b=50),
+    )
     # Show the plot
     return fig
 
-def getTimeVsDepthChart(ActSum_df, height=600,width=1200,):
+
+
+from matplotlib.colors import to_hex
+import matplotlib.pyplot as plt
+def getColorList():
+    # from matplotlib.colors import to_hex
+    tab10_colors = [to_hex(plt.cm.tab10(i)) for i in range(plt.cm.tab10.N)]
+    set3_colors = [to_hex(plt.cm.Set3(i)) for i in range(plt.cm.Set3.N)]
+    set2_colors = [to_hex(plt.cm.Set2(i)) for i in range(plt.cm.Set2.N)]
+    set1_colors = [to_hex(plt.cm.Set1(i)) for i in range(plt.cm.Set1.N)]
+    FinalColors = tab10_colors + set3_colors + set2_colors + set1_colors
+    return FinalColors
+def getTimeVsDepthChart(ActSum_df, height=600,width=1200, ActivityType="LABEL_Activity"):
     df = ActSum_df.copy()
-    df['Activity'] = df['LABEL_Activity']
+    df['Activity'] = df[ActivityType]
     df['BitDepth'] = df['Bit_Depth_avg']
 
     # Convert the 'StartDateTime' and 'EndDateTime' columns to datetime type
@@ -72,27 +89,33 @@ def getTimeVsDepthChart(ActSum_df, height=600,width=1200,):
     fig = go.Figure()
 
     # Define custom colors for each activity type
-    activity_colors = {'TRIP IN': 'red',
-    'TRIP OUT': 'orange',
-    'WIPER TRIP': '#00CC96',
-    'DRILLING FORMATION': '#AB63FA',
-    'CIRCULATE HOLE CLEANING': '#FFA15A',
-    'CONNECTION': '#19D3F3',
-    'DRILL OUT CEMENT': '#FF6692',
-    'CEMENTING JOB': '#B6E880',
-    'LAY DOWN BHA': '#FF97FF',
-    'MAKE UP BHA': '#FECB52',
-    'NPT': '#4D8BFA',
-    'N/D BOP': '#F5663B',
-    'N/U BOP': '#00D596',
-    'RUNNING CASING IN': '#9B63FA',
-    'STATIONARY': '#FFB85A',
-    'STUCK PIPE': '#39D4F3',
-    'WAIT ON CEMENT': '#FF3388',
-    'RIG REPAIR': '#C6F980',
-    'N/A': '#FFC0FF',
-    'nan':'#FFC0FF',
-    'OTHER': '#FED752'}
+    activity_colors = {}
+    ColorList = getColorList()
+    for i in range(len(df[ActivityType].unique())):
+        activity_colors[df[ActivityType].unique()[i]] = ColorList[i]
+
+
+    # activity_colors = {'TRIP IN': 'red',
+    # 'TRIP OUT': 'orange',
+    # 'WIPER TRIP': '#00CC96',
+    # 'DRILLING FORMATION': '#AB63FA',
+    # 'CIRCULATE HOLE CLEANING': '#FFA15A',
+    # 'CONNECTION': '#19D3F3',
+    # 'DRILL OUT CEMENT': '#FF6692',
+    # 'CEMENTING JOB': '#B6E880',
+    # 'LAY DOWN BHA': '#FF97FF',
+    # 'MAKE UP BHA': '#FECB52',
+    # 'NPT': '#4D8BFA',
+    # 'N/D BOP': '#F5663B',
+    # 'N/U BOP': '#00D596',
+    # 'RUNNING CASING IN': '#9B63FA',
+    # 'STATIONARY': '#FFB85A',
+    # 'STUCK PIPE': '#39D4F3',
+    # 'WAIT ON CEMENT': '#FF3388',
+    # 'RIG REPAIR': '#C6F980',
+    # 'N/A': '#FFC0FF',
+    # 'nan':'#FFC0FF',
+    # 'OTHER': '#FED752'}
 
     # Temporary list to track activities for legend display
     temp_activity_list = []
@@ -146,13 +169,13 @@ def getTimeVsDepthChart(ActSum_df, height=600,width=1200,):
 
     # Update layout for the legend
     legend_layout = {
-        'orientation': 'h',
-        'xref': "paper",
-        'yref': "container",
-        'y': -0.3,
-        'x': 0.5,
-        'xanchor': 'center',
-        'yanchor': 'bottom'
+        'orientation': 'v',
+        # 'xref': "paper",
+        # 'yref': "container",
+        # 'y': -0.3,
+        # 'x': 0.5,
+        # 'xanchor': 'center',
+        # 'yanchor': 'bottom'
     }
     fig.update_layout(legend=legend_layout)
 
@@ -160,7 +183,7 @@ def getTimeVsDepthChart(ActSum_df, height=600,width=1200,):
     fig.update_layout(
         height=height,
         width=width,
-        margin=dict(l=0, r=50, t=50, b=50),
+        margin=dict(l=0, r=20, t=0, b=50),
         xaxis_title='Datetime',
         yaxis_title='Avg. Bit Depth (m)',
         yaxis_autorange='reversed',  # Reverse the y-axis to show deeper depths at the top
@@ -171,6 +194,7 @@ def getTimeVsDepthChart(ActSum_df, height=600,width=1200,):
 def getConnectionTimeChart(ActSum_df, height=400, width=800):
     ConnectionTime_df = ActSum_df.copy()
     ConnectionTime_df[['ConnectionCategory', 'ConnectionID']] = ConnectionTime_df['LABEL_ConnectionActivity'].str.split('-', expand=True)
+
     ConnectionTime_df['StartDateTime'] = pd.to_datetime(ConnectionTime_df['StartDateTime'])
     ConnectionTime_df['EndDateTime'] = pd.to_datetime(ConnectionTime_df['EndDateTime'])
     # Calculate MidDateTime as the average of StartDateTime and EndDateTime
