@@ -274,7 +274,13 @@ def get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
     # Assuming your DataFrame is named df and contains columns 'ROP_OnBottom', 'ROP_Stand', and 'DateTime'
     # First, convert your 'DateTime' column to a datetime type if it's not already
     df = pd.DataFrame(ROP_df)
-    return df.to_dict(orient='records')
+    if df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No Drilling available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+    else:
+        return df.to_dict(orient='records')
 
 
 @app.get("/get-activity-stand-time/")
@@ -354,6 +360,26 @@ def get_casing_trip_time(wid: int = Query(None, title="wid"),
     FinalCasingTrip_df['Duration_Hours'] = FinalCasingTrip_df['Duration'] / 3600
     FinalCasingTrip_df['Joint Per Hour'] = 1/FinalCasingTrip_df['Duration_Hours']
     return FinalCasingTrip_df.to_dict(orient='records')
+
+
+@app.get("/get-bitdepth-vs-time")
+def get_bitdepth_vs_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    BitDepthTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    BitDepthTime_df = BitDepthTime_df[['StartDateTime', 'EndDateTime', 'Bit_Depth_avg', 'LABEL_Activity', 'LABEL_SubActivity', ]]
+    return BitDepthTime_df.to_dict(orient='records')
 
 @app.get("/get-casing-trip-breakdown-time/")
 def get_casing_trip_breakdown_time(wid: int = Query(None, title="wid"), 
@@ -441,6 +467,23 @@ def get_connection_time(wid: int = Query(None, title="wid"),
     UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     ConnectionTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    # print(ConnectionTime_df['LABEL_ConnectionActivity'].to_csv("Connection.csv"))
+    if ConnectionTime_df['LABEL_ConnectionActivity'].isnull().any():
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No data available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+    if ConnectionTime_df['LABEL_ConnectionActivity'] is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No data available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+
+    if (ConnectionTime_df['LABEL_ConnectionActivity'] == '').all():
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No data available", "item_id": {'wid':wid, 'cid':cid}}
+        )
 
     ConnectionTime_df[['ConnectionCategory', 'ConnectionID']] = ConnectionTime_df['LABEL_ConnectionActivity'].str.split('-', expand=True)
     ConnectionTime_df['StartDateTime'] = pd.to_datetime(ConnectionTime_df['StartDateTime'])
