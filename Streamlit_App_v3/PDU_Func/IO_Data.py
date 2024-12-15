@@ -371,7 +371,16 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
         # ttl=60*60*1.5,
         persist=True,
         show_spinner="Downloading Realtime Data...")
-def DomeGetRealtimeSensorDataChunk_Cache(Data_params):
+def DomeGetRealtimeSensorDataChunk_DiskCache(Data_params):
+    print("====================================")
+    print("======== Use Streamlit Cache =======")
+    print("====================================")
+    return DomeGetRealtimeSensorDataChunk(Data_params)
+@st.cache_data(
+        ttl=60*60*1.5,
+        # persist=True,
+        show_spinner="Downloading Realtime Data...")
+def DomeGetRealtimeSensorDataChunk_SessionCache(Data_params):
     print("====================================")
     print("======== Use Streamlit Cache =======")
     print("====================================")
@@ -454,8 +463,14 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
             IsStillUpdate = True
         else:
             IsStillUpdate = False
+
+
         if runOnStreamlit and IsStillUpdate:
-            Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_Cache(Data_params)
+            if IsStillUpdate:
+                Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_SessionCache(Data_params)
+            else:
+                Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_DiskCache(Data_params)
+
         else:
             Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
         # Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
