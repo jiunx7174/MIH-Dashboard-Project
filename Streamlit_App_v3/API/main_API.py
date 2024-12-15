@@ -6,6 +6,7 @@ from importlib import reload
 import sys
 import os
 import time
+import numpy as np
 # Get the directory of the current file
 current_dir = os.path.dirname(__file__)
 # If you specifically want to use os.path.join() for clarity
@@ -263,10 +264,11 @@ def get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
 
     ROP_df['ROP_OnBottom'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['OnBottomDurationPerStand']/60)
     ROP_df['ROP_Stand'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['StandDuration']/60)
-
+    ROP_df.replace([np.inf, -np.inf], np.nan, inplace=True)
     ROP_df['ROP_OnBottom'].fillna(0, inplace=True)
     ROP_df['ROP_Stand'].fillna(0, inplace=True)
-    ROP_df.fillna('', inplace=True)
+    # ROP_df.fillna('', inplace=True)
+
     # display(ROP_df[['MidDateTime', 'LABEL_SubActivity', 'LABEL_Activity', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand']])
     # ROP stand m/hr 
 
@@ -274,6 +276,7 @@ def get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
 
     # Assuming your DataFrame is named df and contains columns 'ROP_OnBottom', 'ROP_Stand', and 'DateTime'
     # First, convert your 'DateTime' column to a datetime type if it's not already
+    # df = pd.DataFrame(ROP_df[['MidDateTime', 'LABEL_SubActivity', 'LABEL_Activity', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand']])
     df = pd.DataFrame(ROP_df)
     if df.empty:
         raise HTTPException(
