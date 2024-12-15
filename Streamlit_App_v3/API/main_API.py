@@ -266,6 +266,7 @@ def get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
 
     ROP_df['ROP_OnBottom'].fillna(0, inplace=True)
     ROP_df['ROP_Stand'].fillna(0, inplace=True)
+    ROP_df.fillna('', inplace=True)
     # display(ROP_df[['MidDateTime', 'LABEL_SubActivity', 'LABEL_Activity', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand']])
     # ROP stand m/hr 
 
