@@ -299,12 +299,13 @@ def SimplifyTimeRange(list_startdatetime, list_enddatetime):
 def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime):
     # print(list_startdatetime)
     # print(list_enddatetime)
-    list_startdatetime, list_enddatetime = SimplifyTimeRange(list_startdatetime, list_enddatetime)
     print("===================")
     print("Simplify Time Range:")
     print(list_startdatetime)
     print(list_enddatetime)
     print("===================")
+    if (list_enddatetime != []) and (list_startdatetime != []):
+        list_startdatetime, list_enddatetime = SimplifyTimeRange(list_startdatetime, list_enddatetime)
     # TODO uncomment the code below
     for startdatetime, enddatetime in zip(list_startdatetime, list_enddatetime):
         DomeUpdateRealtimeData(WellInfoDict, startdatetime, enddatetime)
@@ -425,7 +426,7 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
                                                         UserDateRange_Sync, 
                                                         hours=0.5, 
                                                         show_progress=False, 
-                                                        runOnStreamlit=False,
+                                                        runOnStreamlit=True,
                                                         )
     RigActivity_DF = (IO_Data.getRigActivity(WellInfoDict, 
                     start_date="2000-01-01 00:00:01", 
@@ -506,6 +507,7 @@ def Override(RTSensor_df, Override_df, UserDateRange="All"):
 # =================================================================================================
 def RedefinedUserDateRange(WellInfoDict, UserDateRange):
     # print(UserDateRange)
+    UserDateRange= UserDateRange.copy()
     defined_startdate = UserDateRange['StartDate']
     defined_starttime = UserDateRange['StartTime']
     defined_enddate = UserDateRange['EndDate']
@@ -513,9 +515,14 @@ def RedefinedUserDateRange(WellInfoDict, UserDateRange):
     # date_temp = datetime_module.date(2023, 1, 1)  # Example date
     # time_temp = datetime.time(12, 0)      # Example time
 
+    start_datetime =  datetime.combine(defined_startdate, defined_starttime)
+    new_start_datetime = start_datetime - timedelta(hours=12)
+    
     UserDateRange = {
-      "StartDate":  datetime_module.date(2003, 4, 10),
-      "StartTime":  datetime_module.time(10, 51),
+      "StartDate":  new_start_datetime.date(),
+      "StartTime":  new_start_datetime.time(),
+    #   "StartDate":  datetime_module.date(2003, 4, 10),
+    #   "StartTime":  datetime_module.time(10, 51),
       "EndDate": defined_startdate,
       "EndTime": defined_starttime
     }
@@ -529,12 +536,16 @@ def RedefinedUserDateRange(WellInfoDict, UserDateRange):
         except:
             # Convert to pandas datetime object
             StartDateTime_obj = pd.to_datetime(LastActSum['StartDateTime'].values[0])
-
+        # # Calculate the new StartDate and StartTime by subtracting 3 hours
+    end_datetime =  datetime.combine(defined_enddate, defined_endtime)
+    new_end_datetime = end_datetime + timedelta(hours=12)
     UserDateRange = {
       "StartDate": defined_enddate,
       "StartTime": defined_endtime,
-      "EndDate":  datetime_module.date(2300, 4, 10),
-      "EndTime":  datetime_module.time(11, 9)
+      "EndDate":  new_end_datetime.date(),
+      "EndTime":  new_end_datetime.time(),
+    #   "EndDate":  datetime_module.date(2300, 4, 10),
+    #   "EndTime":  datetime_module.time(11, 9)
     }
     NextActSum = (getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'))
     try:
@@ -553,6 +564,9 @@ def RedefinedUserDateRange(WellInfoDict, UserDateRange):
         "EndDate": EndDateTime_obj.date(),
         "EndTime": EndDateTime_obj.time(),
         }
+    print("New Redefined User Date Range")
+    print(NewUserDateRange)
+
     return NewUserDateRange   
 def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     """
@@ -568,7 +582,9 @@ def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     Returns:
     DataFrame or None: Returns the last activity summary as a DataFrame if found, else returns None.
     """
-    
+    UserDateRange= UserDateRange.copy()
+    print("Initial UserDateRange")
+    print(UserDateRange)
     # Set default DrillActivityList if not provided
     if DrillActivityList =='default':
         DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT']
@@ -576,15 +592,19 @@ def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     # Initialize variables
     ActSum_df = None
     total_hours_adjusted = 1
-    max_hours_to_adjust = 24
+    max_hours_to_adjust = 336
 
+    
     # Loop until we get a non-empty activity summary or have adjusted the start time by 24 hours
     while (ActSum_df is None or ActSum_df.empty) and (total_hours_adjusted <= max_hours_to_adjust):
         # Get Activity Summary Data
+        print('getBeforeActSum')
         ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
 
         # If ActSum_df is not empty, break the loop
         if not ActSum_df.empty:
+            # UserDateRange['StartDate']  = ActSum_df['EndDateTime'].values[0]
+            # UserDateRange['StartTime']  = ActSum_df['EndDateTime'].values[0]
             break
         
         # Calculate the new StartDate and StartTime by subtracting 3 hours
@@ -596,14 +616,17 @@ def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
         UserDateRange["StartTime"] = new_start_datetime.time()
         
         # Update the total hours adjusted
-        total_hours_adjusted += 1
+        total_hours_adjusted += 24
         
-        # If we've adjusted more than 24 hours, stop adjusting
+        # If we've adjusted more than 2 weeks, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
+            UserDateRange["StartDate"] = datetime.date(2003, 4, 10)
+            UserDateRange["StartTime"] = datetime.time(10, 51)
             break
     
         # return None
-
+    print("After UserDateRange")
+    print(UserDateRange)
     # Get the last row of the activity summary
     LastActSum_df = ActSum_df.tail(1)
     
@@ -636,7 +659,7 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     Returns:
     DataFrame or None: Returns the last activity summary as a DataFrame if found, else returns None.
     """
-    
+    UserDateRange= UserDateRange.copy()
     # Set default DrillActivityList if not provided
     if DrillActivityList =='default':
         DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT']
@@ -644,7 +667,7 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     # Initialize variables
     ActSum_df = None
     total_hours_adjusted = 1
-    max_hours_to_adjust = 24
+    max_hours_to_adjust = 336
 
     # Loop until we get a non-empty activity summary or have adjusted the start time by 24 hours
     while (ActSum_df is None or ActSum_df.empty) and total_hours_adjusted <= max_hours_to_adjust:
@@ -689,10 +712,11 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     else:
         return NextActSum_df
 def getBeforeConnectionDateTime(WellInfoDict, UserDateRange):
+    UserDateRange= UserDateRange.copy()
     # Initialize variables
     ActSum_df = None
     total_hours_adjusted = 1
-    max_hours_to_adjust = 24
+    max_hours_to_adjust = 336
     isRun = True
 
     while isRun:
@@ -720,7 +744,7 @@ def getBeforeConnectionDateTime(WellInfoDict, UserDateRange):
         UserDateRange["StartTime"] = new_start_datetime.time()
         
         # Update the total hours adjusted
-        total_hours_adjusted += 1
+        total_hours_adjusted += 24
         
         # # If we've adjusted more than 24 hours, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
@@ -738,18 +762,23 @@ def getBeforeConnectionDateTime(WellInfoDict, UserDateRange):
         LastConnectionID = ActSum_df[ActSum_df['LABEL_Connection']=='Connection'].tail(1)
         LastConnectionID = LastConnectionID['LABEL_ConnectionID'].values[0]
         LastConnectionGroup = ActSum_df[ActSum_df['LABEL_ConnectionID']==LastConnectionID]
+
         
 
         
         LastActSumDateTime = LastConnectionGroup.head(1)
+
+
     else:
         LABEL_Act_temp = list(ActSum_df.tail(1)['LABEL_Activity'].values)[0]
         # display(LABEL_Act_temp)
         LastActSumDateTime = ActSum_df[ActSum_df['LABEL_Activity']==LABEL_Act_temp]
         LastActSumDateTime = LastActSumDateTime.head(1)
+
     return LastActSumDateTime
 def getNextConnectionDateTime(WellInfoDict, UserDateRange):
     # Initialize variables
+    UserDateRange= UserDateRange.copy()
     ActSum_df = None
     total_hours_adjusted = 1
     max_hours_to_adjust = 24
@@ -795,9 +824,6 @@ def getNextConnectionDateTime(WellInfoDict, UserDateRange):
         LastConnectionID = ActSum_df[ActSum_df['LABEL_Connection']=='Connection'].head(1)
         LastConnectionID = LastConnectionID['LABEL_ConnectionID'].values[0]
         LastConnectionGroup = ActSum_df[ActSum_df['LABEL_ConnectionID']==LastConnectionID]
-        
-
-        
         LastActSumDateTime = LastConnectionGroup.tail(1)
     else:
         LABEL_Act_temp = list(ActSum_df.head(1)['LABEL_Activity'].values)[0]

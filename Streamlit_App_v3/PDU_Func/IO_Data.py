@@ -367,8 +367,14 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
         return pd.DataFrame(columns=column_list)
     else:
         return pd.json_normalize(WellData, record_path='result')
-@st.cache_data(ttl=60*60*1.5, show_spinner="Downloading Realtime Data...")
+@st.cache_data(
+        # ttl=60*60*1.5,
+        persist=True,
+        show_spinner="Downloading Realtime Data...")
 def DomeGetRealtimeSensorDataChunk_Cache(Data_params):
+    print("====================================")
+    print("======== Use Streamlit Cache =======")
+    print("====================================")
     return DomeGetRealtimeSensorDataChunk(Data_params)
 
     # Realtime_DF['dt'] = Realtime_DF['dt'].astype('datetime64[ns]')
@@ -439,8 +445,16 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
             "start" : str(StartDateTime),
             "end" : str(EndDateTime),
         }
-        
-        if runOnStreamlit:
+        current_time = datetime.now()
+        # Define the 3-hour range before the current time
+        hours_before = current_time - timedelta(hours=1)
+
+        # Check if the range matches 3 hours before the current time
+        if EndDateTime <= hours_before:
+            IsStillUpdate = True
+        else:
+            IsStillUpdate = False
+        if runOnStreamlit and IsStillUpdate:
             Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_Cache(Data_params)
         else:
             Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
