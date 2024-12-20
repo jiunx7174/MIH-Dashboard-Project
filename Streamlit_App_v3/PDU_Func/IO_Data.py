@@ -962,6 +962,7 @@ def getBeforeConnectionDateTime(WellInfoDict, UserDateRange):
         
         # # If we've adjusted more than 24 hours, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
+            isRun = False
             break
     
     # # If ActSum_df is still empty after the loop, return None or handle as needed
@@ -1019,6 +1020,7 @@ def getNextConnectionDateTime(WellInfoDict, UserDateRange):
         
         # # If we've adjusted more than 24 hours, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
+            isRun = False
             break
     
     # # If ActSum_df is still empty after the loop, return None or handle as needed
