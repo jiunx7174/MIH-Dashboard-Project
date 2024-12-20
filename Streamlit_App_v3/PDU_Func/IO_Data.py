@@ -958,7 +958,7 @@ def getBeforeConnectionDateTime(WellInfoDict, UserDateRange):
         UserDateRange["StartTime"] = new_start_datetime.time()
         
         # Update the total hours adjusted
-        total_hours_adjusted += 1
+        total_hours_adjusted = total_hours_adjusted + 1
         
         # # If we've adjusted more than 24 hours, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
@@ -1012,7 +1012,9 @@ def getNextConnectionDateTime(WellInfoDict, UserDateRange):
         
         # Calculate the new StartDate and StartTime by subtracting 3 hours
         end_datetime = datetime.datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
-        new_end_datetime = end_datetime + datetime.timedelta(hours=3)
+        new_end_datetime = end_datetime + datetime.timedelta(hours=total_hours_adjusted)
+
+        total_hours_adjusted = total_hours_adjusted + 1
         
         # Update the UserDateRange
         UserDateRange["EndDate"] = new_end_datetime.date()
