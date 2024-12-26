@@ -20,7 +20,7 @@ def IsSubmitFormTrue(UserDateRange):
 
 
 @st.experimental_fragment
-def ActSumColumnSelectionWidget(ActivitySummary_DF):
+def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
     
     TableContainer, ColumnSelectionContainer = st.columns([6, 1])
     ColumnRename_dict = {'Date':'Date',
@@ -93,7 +93,7 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF):
                         'Remarks'],
         "Display":[True, True, True, True, True]
     })
-    ColumnConfig = {
+    ColumnConfigColSel = {
         'ColumnName': st.column_config.TextColumn(
             label="Column Name",
             disabled=True,
@@ -103,23 +103,171 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF):
             disabled=False,
         ),
     }
+    ActSumColumnConfig = {
+    "Date": st.column_config.TextColumn(
+        "Date",
+        disabled=True
+    ),
+    "StartDateTime": st.column_config.TextColumn(
+        "Start Datetime",
+        disabled=True
+    ),
+    "EndDateTime": st.column_config.TextColumn(
+        "End Datetime",
+        disabled=True
+    ),
+    "Duration": st.column_config.TextColumn(
+        "Duration(s)",
+        disabled=True
+    ),
+    "Hole_Depth_max": st.column_config.TextColumn(
+        "Hole Depth (Max)",
+        disabled=True
+    ),
+    "Bit_Depth_avg": st.column_config.TextColumn(
+        "Bit Depth (Avg)",
+        disabled=True
+    ),
+    "DrillingMeterage": st.column_config.TextColumn(
+        "Drilling Meterage (m)",
+        disabled=True
+    ),
+    "RotateDrillingDuration": st.column_config.TextColumn(
+        "Rotate Drilling Duration (s)",
+        disabled=True
+    ),
+    "SlideDrillingDuration": st.column_config.TextColumn(
+        "Slide Drilling Duration (s)",
+        disabled=True
+    ),
+    "ReamingDuration": st.column_config.TextColumn(
+        "Reaming Duration(s)",
+        disabled=True
+    ),
+    "DrillingMeteragePerStand": st.column_config.TextColumn(
+        "Total Drilling Meterage per. Stand",
+        disabled=True
+    ),
+    "OnBottomDurationPerStand": st.column_config.TextColumn(
+        "Total On-Bottom Duration per. Stand",
+        disabled=True
+    ),
+    "StandDuration": st.column_config.TextColumn(
+        "Total Duration per. Stand",
+        disabled=True
+    ),
+    "Stand Group_Pred": st.column_config.TextColumn(
+        "Stand Group ID",
+        disabled=True
+    ),
+    "LABEL_ConnectionActivity": st.column_config.TextColumn(
+        "Connection Group ID",
+        disabled=True
+    ),
+    "ConnectionDuration": st.column_config.TextColumn(
+        "Connection Duration (s)",
+        disabled=True
+    ),
+    "LABEL_SubActivity": st.column_config.TextColumn(
+        "Sub-Activity Group",
+        disabled=True
+    ),
+    "LABEL_Activity": st.column_config.TextColumn(
+        "Activity Group",
+        disabled=True
+    ),
+    "InSlip_Treshold": st.column_config.TextColumn(
+        "In-Slip Threshold",
+        disabled=True
+    ),
+    "stand_on_bottom": st.column_config.TextColumn(
+        "?",
+        disabled=True
+    ),
+    "PIC": st.column_config.TextColumn(
+        "PIC",
+        disabled=True
+    ),
+    "Section": st.column_config.TextColumn(
+        "Section Size",
+        disabled=True
+    ),
+    "Remarks": st.column_config.TextColumn(
+        "Remarks",
+        disabled=False
+    )
+}
 
     with ColumnSelectionContainer.popover("Datetime Columns", use_container_width=True):
-        FinalDatetimeColSelect_df = st.data_editor(DatetimeColSelect_df, key='DatetimeColSelect', hide_index=True, column_config=ColumnConfig)
+        FinalDatetimeColSelect_df = st.data_editor(DatetimeColSelect_df, key='DatetimeColSelect', hide_index=True, column_config=ColumnConfigColSel)
     with ColumnSelectionContainer.popover("Bit Position Columns", use_container_width=True):
-        FinalBitPosColSelect_df = st.data_editor(BitPosColSelect_df, key='BitPosColSelect',hide_index=True, column_config=ColumnConfig)
+        FinalBitPosColSelect_df = st.data_editor(BitPosColSelect_df, key='BitPosColSelect',hide_index=True, column_config=ColumnConfigColSel)
     with ColumnSelectionContainer.popover("Drilling Operations Columns", use_container_width=True):
-        FinalDrillingOpsColSelect_df = st.data_editor(DrillingOpsColSelect_df, key='DrillingOpsColSelect', hide_index=True,column_config=ColumnConfig)
+        FinalDrillingOpsColSelect_df = st.data_editor(DrillingOpsColSelect_df, key='DrillingOpsColSelect', hide_index=True,column_config=ColumnConfigColSel)
     with ColumnSelectionContainer.popover("Activity Columns", use_container_width=True):
-        FinalActivityColSelect_df = st.data_editor(ActivityColSelect_df, key='ActivityColSelect', hide_index=True,column_config=ColumnConfig)
+        FinalActivityColSelect_df = st.data_editor(ActivityColSelect_df, key='ActivityColSelect', hide_index=True,column_config=ColumnConfigColSel)
     with ColumnSelectionContainer.popover("Additional Columns", use_container_width=True):
-        FinalAdditionalColSelect_df = st.data_editor(AdditionalColSelect_df, key='AdditionalColSelect',hide_index=True, column_config=ColumnConfig)
+        FinalAdditionalColSelect_df = st.data_editor(AdditionalColSelect_df, key='AdditionalColSelect',hide_index=True, column_config=ColumnConfigColSel)
     
     ColumnDisplaySelection_df= pd.concat([FinalDatetimeColSelect_df, FinalBitPosColSelect_df, FinalDrillingOpsColSelect_df, FinalActivityColSelect_df, FinalAdditionalColSelect_df])
     ColumnDisplaySelection_df = ColumnDisplaySelection_df[ColumnDisplaySelection_df['Display'] == True]
     ColumnDisplaySelection_list = ColumnDisplaySelection_df['ColumnName'].tolist()
-    TableContainer.dataframe(ActivitySummary_DF[ColumnDisplaySelection_list], use_container_width=True)
+    FinalActSumColumnConfig = {}
+    for ColumnName in ColumnDisplaySelection_list:
+        FinalActSumColumnConfig[ColumnName] = ActSumColumnConfig[ColumnName]
+    # if "Remarks" in ColumnDisplaySelection_list:
+    #     # TableContainer.dataframe(ActivitySummary_DF[ColumnDisplaySelection_list], use_container_width=True)
+    #     TableContainer.write(st.write(st.session_state['RemarksActSumTable']))
+    # else:
+    #     TableContainer.dataframe(ActivitySummary_DF[ColumnDisplaySelection_list], use_container_width=True)
+    OverrideRemark_df = TableContainer.data_editor(ActivitySummary_DF[ColumnDisplaySelection_list], key='RemarksActSumTable_DataEditor', hide_index=True,  use_container_width=True, column_config=FinalActSumColumnConfig)
+    isRemarksActSumUpdateEmpty = True
+    for RemarksActSumKey in ['edited_rows', 'added_rows', 'deleted_rows']:
+        if is_empty_dict(st.session_state['RemarksActSumTable_DataEditor']):
+        # if st.session_state['RemarksActSumTable'][RemarksActSumKey] != []:
+            isRemarksActSumUpdateEmpty = True
+        else:
+            isRemarksActSumUpdateEmpty = False
+    if not isRemarksActSumUpdateEmpty:
 
+        FinalOverrideRemark_df = pd.DataFrame(st.session_state['RemarksActSumTable_DataEditor']['edited_rows']).T.reset_index(names="Idx")
+
+        FinalOverrideRemark_df['StartDateTime'] = OverrideRemark_df.loc[FinalOverrideRemark_df['Idx'].tolist(), 'StartDateTime'].tolist()
+        FinalOverrideRemark_df['EndDateTime'] = OverrideRemark_df.loc[FinalOverrideRemark_df['Idx'].tolist(), 'EndDateTime'].tolist()
+
+        # Split the 'datetime' column into 'Date' and 'Time'
+
+        FinalOverrideRemark_df[['StartDate', 'StartTime']] = FinalOverrideRemark_df['StartDateTime'].astype(str).str.split(' ', expand=True)
+        FinalOverrideRemark_df[['EndDate', 'EndTime']] = FinalOverrideRemark_df['EndDateTime'].astype(str).str.split(' ', expand=True)
+
+        # Drop the 'datetime' column
+        FinalOverrideRemark_df = FinalOverrideRemark_df.drop(columns=['StartDateTime'])
+        FinalOverrideRemark_df = FinalOverrideRemark_df.drop(columns=['EndDateTime'])
+
+
+        # st.write(FinalOverrideRemark_df)
+        # st.write(FinalOverrideRemark_df)
+        if st.button("Update Remarks", type="primary", use_container_width=True):
+
+            Override.UpdateRemarksActSumTable(FinalOverrideRemark_df, WellInfoDict, 'RemarksActSumTable',)
+            st.success("Remarks Updated!")
+
+
+    
+    # st.write(st.session_state['RemarksActSumTable_DataEditor'])
+def is_empty_dict(d):
+    """
+    Checks if a dictionary contains only empty dictionaries or lists.
+    """
+    if isinstance(d, dict):
+        return all(is_empty_dict(v) for v in d.values())
+    elif isinstance(d, list):
+        return len(d) == 0  # Empty list
+    else:
+        return False  # Non-empty value
+
+    # Recursively check all values in the dictionary
+    return all(is_nested_dict_empty(v) for v in d.values())
 def RecalculateActivitySummary():
     UserAuthDict = st.session_state['UserAuthDict']
     SelectComp = st.session_state['SelComp']
@@ -253,7 +401,7 @@ def App():
 
         # Dashboard.SingleWellChart(ActivitySummary_DF)
         with TableTab:
-            ActSumColumnSelectionWidget(ActivitySummary_DF)
+            ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict)
 
 
             with st.expander("Recalculate Activity Summary Form").form(key='RecalculateForm', border=False):

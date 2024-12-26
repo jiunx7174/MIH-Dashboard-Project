@@ -60,7 +60,7 @@ def validate_start_end_dates(UserDateRange):
 
 def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit', PrefixKey = 'OverrideActivityTable'):
         # st.session_state["SectionParams_DF"] = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
-        cache_getWellParams.clear()
+        # cache_getWellParams.clear()
         # cache_DomeGetRealtimeSensorData.clear()
         # cache_getRigActivity.clear()
         try:
@@ -171,9 +171,9 @@ def App():
     #     st.session_state["SectionParams_DF"] = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
     # SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
     # SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
-    if "SectionParamsTable_df" not in st.session_state:
-        st.session_state["SectionParamsTable_df"] =  IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
-    SectionParams_DF = st.session_state["SectionParamsTable_df"]
+    # if "SectionParamsTable_df" not in st.session_state:
+    #     st.session_state["SectionParamsTable_df"] =  IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+    SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
     if st.sidebar.button("🔄 Refresh Data", key="RefreshSectionParamsTable", on_click=resetDataEditorKey, args=(WellInfoDict,)):
         st.rerun()
     
@@ -309,6 +309,7 @@ def App():
                             RTSensor_DF, 
                             Activity.translateRigActivity2Activity(RigActivity_DF)
                             )
+        st.write(SectionParams_DF)
         RTSensor_DF = Activity.addSectionParams (
                             RTSensor_DF, 
                             SectionParams_DF

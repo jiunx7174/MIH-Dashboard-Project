@@ -21,6 +21,51 @@ def init_session():
     if 'AppName' not in st.session_state:
         st.session_state['AppName'] = 'Home'
 
+def changeCompWell():
+    list_query_params = [
+        'StrtDateRT',
+        'StrtTimeRT',
+        'EndDateRT',
+        'EndTimeRT',
+    ]
+    for i in list_query_params:
+        if i in st.query_params:
+            del st.query_params[i]
+
+    list_del = [
+        'SectionParamsTable_DataEditor',
+        'SectionParamsTable_df',
+        'StrtDateRT',
+        'StrtTimeRT',
+        'EndDateRT',
+        'EndTimeRT',
+        ]
+    for i in list_del:
+        if i in st.session_state:
+            del st.session_state[i]
+    if 'SelComp' in st.session_state:
+        st.query_params['SelComp'] = st.session_state['SelComp']
+    if 'SelWell' in st.session_state:
+        st.query_params['SelWell'] = st.session_state['SelWell']
+    #     if st.session_state['SelComp'] == None:
+    #         try:
+    #             del st.session_state['SelComp']
+    #             del st.query_params['SelComp']
+    #         except:
+
+            
+    # if 'SelWell' in st.session_state:
+    #     if st.session_state['SelWell'] == None:
+    #         try:
+    #             del st.session_state['SelWell']
+    #             del st.query_params['SelWell']
+    #         except:
+    #             st.query_params['SelWell'] = st.session_state['SelWell']
+    #     # st.query_params['SelWell'] = st.session_state['SelWell']
+
+    # st.rerun()
+    
+
 def setPage(AppName):
     st.session_state['AppName'] = AppName
 init_session()
@@ -48,10 +93,28 @@ AvailComp_DF = IO_Data.getAvailableCompanyDF(UserAuthDict)
 SelectWell = None
 SelectComp = None
 with SelCompWellContainer:
-    SelectComp = ste.selectbox("Select Company",AvailComp_DF['company_name'].tolist(), index=None, key='SelComp')
+    # try:
+    #     indexComp = AvailComp_DF['company_name'].tolist().index(st.query_params['SelComp']) if 'SelComp' in st.query_params else None
+    # except:
+    #     indexComp = None
+    # if 'SelComp' in st.query_params:
+    #     st.session_state['SelComp'] = st.query_params['SelComp']
+    # indexComp = None
+    SelectComp = ste.selectbox("Select Company",AvailComp_DF['company_name'].tolist(), index=None, key='SelComp', on_change=changeCompWell)
     if SelectComp != None:
         AvailWell_DF = IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)
-        SelectWell = ste.selectbox("Select Well", AvailWell_DF['well_name'].tolist(), index=None,key='SelWell')
+        # if 'SelWell' in st.query_params:
+        #     st.session_state['SelWell'] = st.query_params['SelWell']
+
+        # try:
+        #     indexWell = AvailWell_DF['well_name'].tolist().index(st.query_params['SelWell']) if 'SelWell' in st.query_params else None
+        # except:
+        #     indexWell = None
+        # indexWell = None
+
+
+        SelectWell = ste.selectbox("Select Well", AvailWell_DF['well_name'].tolist(), index=None,key='SelWell', on_change=changeCompWell)
+
         if SelectWell == None:
             st.warning("Please select a well")
     else:
@@ -83,7 +146,9 @@ with MenuNavigationContainer:
               on_click=setPage, args=('Activity Mapping',), type='primary' if st.session_state['AppName'] == 'Activity Mapping' else 'secondary')
     st.button('Dashboard', use_container_width=True, key='Dashboard', disabled=(SelectWell==None or SelectWell=='-'),
               on_click=setPage, args=('Dashboard',), type='primary' if st.session_state['AppName'] == 'Dashboard' else 'secondary')
-    
+
+if (SelectWell == None) or (SelectWell == None):
+    st.stop()
 AppDict = {
     'Home': Welcome.App,
     'Activity Mapping': ActivityMapping.App,

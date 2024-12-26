@@ -737,14 +737,15 @@ def ActivitySummaryColumnRenameDict():
 
     }
     return out
-def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf ):
+def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, insert_pic=False):
     url_pdu_api = getURLAPI_pdu()
     # try:
     # TODO create API for Activity Summary upload
     # st.write(ActSumdf.dtypes)
     ConversionDict = ActivitySummaryColumnRenameDict()
     ActSumdf['wid'] = WellInfoDict['wid']
-    ActSumdf = ActSumdf.drop(['LABEL_All'], axis=1)
+    if "LABEL_All" in ActSumdf.columns:
+        ActSumdf = ActSumdf.drop(['LABEL_All'], axis=1)
     ActSumdf = ActSumdf.rename(
         columns={value: key for key, value in ConversionDict['ColumnName'].items()}
     )
@@ -760,9 +761,20 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf ):
                     'reaming_time', 'connection_time', 'on_bottom_hours', 'stand_duration', 'label_subactivity', 
                     'label_activity', 'stand_meterage_drilling', 'stand_durationx','connection_activity', 'stand_on_bottom',
                     'section', 'stand_group']
-    additional_key_list = ['pic', 'remark',] 
+    if insert_remark:
+        keys_list.append('remark')
+    else:
+        keys_list.append('remark')
+        ActSumdf['remark'] = ""
+    if insert_pic:
+        keys_list.append('pic')
+    else:
+        keys_list.append('pic')
+        ActSumdf['pic'] = ""
+    # additional_key_list = ['pic', 'remark',] 
     ActSumdf = ActSumdf[keys_list]
-    ActSumdf[additional_key_list] = ""
+    ActSumdf[["pic", "remark"]] = ActSumdf[["pic", "remark"]].fillna("")
+    # ActSumdf[additional_key_list] = ""
     for idx,row in ActSumdf.iterrows():
         i = i+1
         dict_row = row.to_dict()

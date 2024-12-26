@@ -85,6 +85,45 @@ def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
     if 'OverrideActivityTable_df' in st.session_state:
         del st.session_state['OverrideActivityTable_df']
     # pass
+def UpdateRemarksActSumTable(OverrideRemark_df, WellInfoDict, PrefixKey):
+
+    OverrideRemark_df = OverrideRemark_df.copy()
+    OverrideRemark_df['wid'] = int(WellInfoDict['wid'])
+
+    list_col_str = ['Remarks']
+    OverrideRemark_df[list_col_str] = OverrideRemark_df[list_col_str].astype(str)
+
+    
+
+    ######### If User Update the Table
+    # if st.session_state[f"{PrefixKey}_DataEditor"]['edited_rows'] != []:
+    ActSum_list = []
+
+    # for key,val in st.session_state[f"{PrefixKey}_DataEditor"]['edited_rows'].items():
+    for idx,row in OverrideRemark_df.iterrows():
+        
+        ActivitySummaryRow = IO_Data.DomeGetActivitySummaryData(
+                WellInfoDict,
+                OverrideRemark_df.loc[int(idx), ['StartDate','StartTime', 'EndDate', 'EndTime']].to_dict()
+            )
+        ActivitySummaryRow['Remarks'] = row['Remarks']
+        ActSum_list.append(ActivitySummaryRow)
+        FinalActSum = pd.concat(ActSum_list, ignore_index=True, axis=0)
+
+        # for colname,colval in val.items():
+        #     OverrideRemark_df.loc[key, colname] = colval
+        # IO_Data.DomeOverrideActivity_Insert(
+        #         OverrideRemark_df.loc[int(key), :].to_json()
+        #     )
+    IO_Data.DomeDeleteActivitySummaryData(FinalActSum['StartDateTime'].tolist(), WellInfoDict)
+    IO_Data.DomeInsertActivitySummaryData(WellInfoDict, FinalActSum,  insert_remark=True)
+
+
+    del st.session_state[f"{PrefixKey}_DataEditor"]
+    # del st.session_state[f"{PrefixKey}_df"]
+    # if 'OverrideActivityTable_df' in st.session_state:
+    #     del st.session_state['OverrideActivityTable_df']
+    # pass
 
 
 def OverrideActivityTableWidget(WellInfoDict, container, 
@@ -457,6 +496,8 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     
     # TODO insert the new ActivitySummary in startdatetime enddatetime range
     IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF )
+    print("Activity Summary Updated:")
+    print(ActivitySummary_DF)
 
 def Override(RTSensor_df, Override_df, UserDateRange="All"):
     if Override_df.empty:
