@@ -26,19 +26,19 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
     ColumnRename_dict = {'Date':'Date',
     'StartDateTime':'Start Datetime',
     'EndDateTime':'End Datetime',
-    'Duration':'Duration(s)',
+    'Duration':'Duration(min)',
     'Hole_Depth_max':'Hole Depth (Max)',
     'Bit_Depth_avg':'Bit Depth (Avg)',
     'DrillingMeterage':'Drilling Meterage (m)',
-    'RotateDrillingDuration':'Rotate Drilling Duration (s)',
-    'SlideDrillingDuration':'Slide Drilling Duration (s)',
-    'ReamingDuration':'Reaming Duration(s)',
+    'RotateDrillingDuration':'Rotate Drilling Duration (min)',
+    'SlideDrillingDuration':'Slide Drilling Duration (min)',
+    'ReamingDuration':'Reaming Duration(min)',
     'DrillingMeteragePerStand':'Total Drilling Meterage per. Stand',
     'OnBottomDurationPerStand':'Total On-Bottom Duration per. Stand',
     'StandDuration':'Total Duration per. Stand',
     'Stand Group_Pred':'Stand Group ID',
     'LABEL_ConnectionActivity':'Connection Group ID',
-    'ConnectionDuration':'Connection Duration (s)',
+    'ConnectionDuration':'Connection Duration (min)',
     'LABEL_SubActivity':'Sub-Activity Group',
     'LABEL_Activity':'Activity Group',
     'InSlip_Treshold':'In-Slip Threshold',
@@ -117,7 +117,7 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
         disabled=True
     ),
     "Duration": st.column_config.TextColumn(
-        "Duration(s)",
+        "Duration(min)",
         disabled=True
     ),
     "Hole_Depth_max": st.column_config.TextColumn(
@@ -133,15 +133,15 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
         disabled=True
     ),
     "RotateDrillingDuration": st.column_config.TextColumn(
-        "Rotate Drilling Duration (s)",
+        "Rotate Drilling Duration (min)",
         disabled=True
     ),
     "SlideDrillingDuration": st.column_config.TextColumn(
-        "Slide Drilling Duration (s)",
+        "Slide Drilling Duration (min)",
         disabled=True
     ),
     "ReamingDuration": st.column_config.TextColumn(
-        "Reaming Duration(s)",
+        "Reaming Duration(min)",
         disabled=True
     ),
     "DrillingMeteragePerStand": st.column_config.TextColumn(
@@ -165,7 +165,7 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
         disabled=True
     ),
     "ConnectionDuration": st.column_config.TextColumn(
-        "Connection Duration (s)",
+        "Connection Duration (min)",
         disabled=True
     ),
     "LABEL_SubActivity": st.column_config.TextColumn(
@@ -405,6 +405,7 @@ def App():
 
 
             with st.expander("Recalculate Activity Summary Form").form(key='RecalculateForm', border=False):
+                RecalculateUserDateRange = {}
                 RecalculateStartDateCol,RecalculateStartTimeCol, RecalculateMiddleCol, RecalculateEndDateCol, RecalculateEndTimeCol, RecalculateSubmitCol = st.columns([ 1.4,1,0.1,1.4,1, 1], vertical_alignment="bottom")
                 
                 RecalculateStartDateCol.markdown("**Start** Datetime")
@@ -414,7 +415,7 @@ def App():
                 RecalculateEndDateCol.markdown("**End** Datetime:")
                 RecalculateEndTimeCol.markdown('<h7 style="text-align: center; font-size: 15px; margin-top: 0px;opacity: 0;">-</h7>', unsafe_allow_html=True)
                 with RecalculateStartDateCol:
-                    UserDateRange['StartDate'] = st.date_input(
+                    RecalculateUserDateRange['StartDate'] = st.date_input(
                                                 "**Start** Datetime",
                                                 label_visibility='collapsed',
                                                 # "Start Date",
@@ -422,7 +423,7 @@ def App():
                                                 key="RecalculateStrtDateRT"
                                                 )
                 with RecalculateStartTimeCol:
-                    UserDateRange['StartTime'] = st.time_input(
+                    RecalculateUserDateRange['StartTime'] = st.time_input(
                                                 "",
                                                 # "Start Time",
                                                 label_visibility='collapsed',
@@ -430,14 +431,14 @@ def App():
                                                 key="RecalculateStrtTimeRT")
                     
                 with RecalculateEndDateCol:
-                    UserDateRange['EndDate'] = st.date_input(
+                    RecalculateUserDateRange['EndDate'] = st.date_input(
                                                 "**End** Datetime",
                                                 label_visibility='collapsed',
                                                 # "End Date",
                                                 value = datetime.strptime(EndDate, '%d-%m-%Y').date(),
                                                 key="RecalculateEndDateRT")
                 with RecalculateEndTimeCol:
-                    UserDateRange['EndTime'] = st.time_input(
+                    RecalculateUserDateRange['EndTime'] = st.time_input(
                                                 "",
                                                 label_visibility='collapsed',
                                                 # "End Time",
@@ -450,7 +451,7 @@ def App():
                                                 type="primary")
 
         with DashboardTab:
-            Dashboard.SingleWellChart(ActivitySummary_DF)
+            Dashboard.SingleWellChart(ActivitySummary_DF, UserDateRange)
 
         # st.write(ActivitySummary_DF)
         # st.plotly_chart(

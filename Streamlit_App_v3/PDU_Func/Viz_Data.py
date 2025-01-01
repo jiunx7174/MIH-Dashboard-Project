@@ -2,6 +2,8 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd 
+from PDU_Func import IO_Data, Activity
+
 
 
 
@@ -183,7 +185,17 @@ def getTimeVsDepthChart(ActSum_df, height=600,width=1200, ActivityType="LABEL_Ac
     fig.update_layout(
         height=height,
         width=width,
-        margin=dict(l=0, r=20, t=0, b=50),
+        # margin=dict(l=0, r=20, t=0, b=50),
+        legend=dict(
+                orientation="h",  # Set legend orientation to horizontal
+                x=0.5,  # Center the legend horizontally
+                xanchor="center",
+                font=dict(
+                        size=8  # Set font size for the legend
+                ),
+                y=1.5  # Adjust vertical position of the legend
+            ),
+        margin=dict(l=50, r=50, t=0, b=20),
         xaxis_title='Datetime',
         yaxis_title='Avg. Bit Depth (m)',
         yaxis_autorange='reversed',  # Reverse the y-axis to show deeper depths at the top
@@ -191,39 +203,101 @@ def getTimeVsDepthChart(ActSum_df, height=600,width=1200, ActivityType="LABEL_Ac
     )
     return fig
 
-def getConnectionTimeChart(ActSum_df, height=400, width=800):
-    ConnectionTime_df = ActSum_df.copy()
-    ConnectionTime_df[['ConnectionCategory', 'ConnectionID']] = ConnectionTime_df['LABEL_ConnectionActivity'].str.split('-', expand=True)
+def getBHA_TripBreakdownChart(BHA_Trip_df, height=400, width=800, RangeDateTime=None):
 
-    ConnectionTime_df['StartDateTime'] = pd.to_datetime(ConnectionTime_df['StartDateTime'])
-    ConnectionTime_df['EndDateTime'] = pd.to_datetime(ConnectionTime_df['EndDateTime'])
-    # Calculate MidDateTime as the average of StartDateTime and EndDateTime
-    # ConnectionTime_df['MidDateTime'] = ConnectionTime_df['StartDateTime'] + (ConnectionTime_df['EndDateTime'] - ConnectionTime_df['StartDateTime']) / 2
+    BHA_TripBreakdown_fig = go.Figure()
+    for BHAActivity in BHA_Trip_df['LABEL_SubActivity'].unique():
+        BHA_Trip_df_filter = BHA_Trip_df[BHA_Trip_df['LABEL_SubActivity'] == BHAActivity]
+        
+        BHA_TripBreakdown_fig.add_trace(go.Bar(
+            x=BHA_Trip_df_filter['StartDateTime'],
+            y=BHA_Trip_df_filter['Duration'],
+            name=BHAActivity,
+            # marker_color='blue'
+        ))
+    #     BHA_Trip_df_filter = BHA_Trip_df[BHA_Trip_df['LABEL_Activity'] == BHAActivity]
+        
+    #     BHA_TripBreakdown_fig.add_trace(go.Bar(
+    #         x=BHA_Trip_df_filter['StartDateTime'],
+    #         y=BHA_Trip_df_filter['Duration'],
+    #         name=BHAActivity,
+    #         # marker_color='blue'
+    #     ))
+    BHA_TripBreakdown_fig.update_layout(
+        height=height,
+        width=width,
+        # barmode='stack',  # This will group the bars side by side at each x-value (datetime)
+        xaxis_title='Datetime',
+        yaxis_title='Duration',
+        xaxis=dict(type='date'),  # Ensuring x-axis is treated as date
+        legend=dict(
+                orientation="h",  # Set legend orientation to horizontal
+                x=0.5,  # Center the legend horizontally
+                xanchor="center",
+                y=1.2  # Adjust vertical position of the legend
+            ),
+        margin=dict(l=50, r=50, t=70, b=50),
+    )
+    if RangeDateTime is not None:
+        BHA_TripBreakdown_fig.update_xaxes(range=[RangeDateTime[0], RangeDateTime[1]])
+    return BHA_TripBreakdown_fig
 
-    ConnectionTime_agg_df = ConnectionTime_df.groupby(['ConnectionID', 'ConnectionCategory']).agg(
-        Total_Duration=('Duration', 'sum'),
-        First_StartDatetime=('StartDateTime', 'min'),
-        Latest_EndDatetime=('EndDateTime', 'max')
-    ).reset_index()
-    # Pivot the data to match the requested output format
-    ConnectionTime_pivot_df = ConnectionTime_agg_df.pivot(index='ConnectionID', columns='ConnectionCategory', values='Total_Duration').reset_index()
+def getROPchart(ROP_df, height=400, width=800, RangeDateTime=None):
 
-    # Renaming columns to match the desired output
-    # ConnectionTime_pivot_df.columns = ['ConnectionID', 'ConnectionDuration', 'PostConnectionDuration', 'PreConnectionDuration']
-    ConnectionTime_pivot_df = ConnectionTime_pivot_df.rename(columns={
-        'Connection': 'ConnectionDuration', 
-        'Post Connection': 'PostConnectionDuration', 
-        'Pre Connection': 'PreConnectionDuration'
-    })
-    # Merge with the original DataFrame to get the StartDatetime and EndDatetime
-    start_end_times = ConnectionTime_df.groupby('ConnectionID').agg(
-        StartDatetime=('StartDateTime', 'min'),
-        EndDatetime=('EndDateTime', 'max')
-    ).reset_index()
+    # display(ROP_df[['MidDateTime', 'LABEL_SubActivity', 'LABEL_Activity', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand']])
+    # ROP stand m/hr 
 
-    # Merging the pivoted DataFrame with the start and end times
-    ConnectionTime_pivot_df = pd.merge(ConnectionTime_pivot_df, start_end_times, on='ConnectionID')
+    # Assuming your DataFrame is named df and contains columns 'ROP_OnBottom', 'ROP_Stand', and 'DateTime'
+    # First, convert your 'DateTime' column to a datetime type if it's not already
+    df = pd.DataFrame(ROP_df)
+    # df['DateTime'] = pd.to_datetime(df['DateTime'])
 
+    # Create a new Plotly figure
+    ROP_fig = go.Figure()
+
+    # Add ROP_OnBottom as one set of bars
+    ROP_fig.add_trace(go.Bar(
+        x=df['StartDateTime'],
+        y=df['ROP_OnBottom'],
+        name='ROP On Bottom',
+        marker_color='blue',  # You can choose a color
+        #  width=bar_width 
+    ))
+
+    # Add ROP_Stand as another set of bars
+    ROP_fig.add_trace(go.Bar(
+        x=df['StartDateTime'],
+        y=df['ROP_Stand'],
+        name='ROP Stand',
+        marker_color='red',  # You can choose a different color
+        #  width=bar_width 
+    ))
+
+    # Update the layout
+    ROP_fig.update_layout(
+        barmode='group',  # This will group the bars side by side at each x-value (datetime)
+            bargap=0, # gap between bars of adjacent location coordinates.
+        bargroupgap=0, # gap between bars of the same location coordinate.
+        # title='ROP On Bottom vs ROP Stand Over Time',
+        xaxis_title='Datetime',
+        yaxis_title='ROP(m/hr)', # Ensuring x-axis is treated as date
+        height=height,
+        width=width,
+        legend=dict(
+                orientation="h",  # Set legend orientation to horizontal
+                x=0.5,  # Center the legend horizontally
+                xanchor="center",
+                y=1.2  # Adjust vertical position of the legend
+            ),
+        margin=dict(l=50, r=50, t=70, b=50),
+    )
+    if RangeDateTime is not None:
+        ROP_fig.update_xaxes(range=[RangeDateTime[0], RangeDateTime[1]])
+        ROP_fig.update_xaxes(domain=[0.02, 0.98])
+    return ROP_fig
+
+
+def getConnectionTimeChart(ConnectionTime_pivot_df, height=400, width=800, RangeDateTime=None):
 
     ConnectionTime_fig = go.Figure()
     ConnectionTime_fig.add_trace(go.Bar(
@@ -251,130 +325,32 @@ def getConnectionTimeChart(ActSum_df, height=400, width=800):
         barmode='stack',  # This will group the bars side by side at each x-value (datetime)
         xaxis_title='Datetime',
         yaxis_title='Duration',
-        xaxis=dict(type='date')  # Ensuring x-axis is treated as date
-    )
+        legend=dict(
+                orientation="h",  # Set legend orientation to horizontal
+                x=0.5,  # Center the legend horizontally
+                xanchor="center",
+                y=1.2  # Adjust vertical position of the legend
+            ),
+        margin=dict(l=50, r=50, t=70, b=50),
+        xaxis=dict(type='date'),  # Ensuring x-axis is treated as date
+    ), 
+    if RangeDateTime is not None:
+        ConnectionTime_fig.update_xaxes(range=[RangeDateTime[0], RangeDateTime[1]])
+        ConnectionTime_fig.update_xaxes(domain=[0.02, 0.98])
 
 
     return ConnectionTime_fig
 
-def getBHA_TripBreakdownChart(ActSum_df, height=400, width=800):
-    BHA_Trip_df = ActSum_df.copy()
-   
-    BHA_Trip_df = BHA_Trip_df[BHA_Trip_df['LABEL_SubActivity'].str.contains(r'BHA|N/D|N/U BOP', case=False, na=False)]
-    BHA_Trip_df['StartDateTime'] = pd.to_datetime(BHA_Trip_df['StartDateTime'])
-    BHA_Trip_df['EndDateTime'] = pd.to_datetime(BHA_Trip_df['EndDateTime'])
-    BHA_Trip_df['Duration'] = BHA_Trip_df['Duration'].astype(float)
 
+def getStandTimeChart(StandTime_df, height=400, width=800,  RangeDateTime=None):
 
-    BHA_TripBreakdown_fig = go.Figure()
-    for BHAActivity in BHA_Trip_df['LABEL_SubActivity'].unique():
-        BHA_Trip_df_filter = BHA_Trip_df[BHA_Trip_df['LABEL_SubActivity'] == BHAActivity]
-        
-        BHA_TripBreakdown_fig.add_trace(go.Bar(
-            x=BHA_Trip_df_filter['StartDateTime'],
-            y=BHA_Trip_df_filter['Duration'],
-            name=BHAActivity,
-            # marker_color='blue'
-        ))
-    #     BHA_Trip_df_filter = BHA_Trip_df[BHA_Trip_df['LABEL_Activity'] == BHAActivity]
-        
-    #     BHA_TripBreakdown_fig.add_trace(go.Bar(
-    #         x=BHA_Trip_df_filter['StartDateTime'],
-    #         y=BHA_Trip_df_filter['Duration'],
-    #         name=BHAActivity,
-    #         # marker_color='blue'
-    #     ))
-    BHA_TripBreakdown_fig.update_layout(
-        height=height,
-        width=width,
-        # barmode='stack',  # This will group the bars side by side at each x-value (datetime)
-        xaxis_title='Datetime',
-        yaxis_title='Duration',
-        xaxis=dict(type='date')  # Ensuring x-axis is treated as date
-    )
-    return BHA_TripBreakdown_fig
-
-def getROPchart(ActSum_df, height=400, width=800):
-    ROP_df = ActSum_df.copy()
-    ROP_df['StartDateTime'] = pd.to_datetime(ROP_df['StartDateTime'])
-    ROP_df['EndDateTime'] = pd.to_datetime(ROP_df['EndDateTime'])
-    ROP_df[['DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration']] = ROP_df[['DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration']].astype(float)
-
-    # Calculate MidDateTime as the average of StartDateTime and EndDateTime
-    ROP_df['MidDateTime'] = ROP_df['StartDateTime'] + (ROP_df['EndDateTime'] - ROP_df['StartDateTime']) / 2
-
-    idx_logic = (ROP_df['LABEL_Activity'].isin(["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','DRILL OUT CEMENT',])) & (ROP_df['LABEL_SubActivity'] == 'Connection')
-
-
-    ROP_df = ROP_df[idx_logic]
-
-    ROP_df['ROP_OnBottom'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['OnBottomDurationPerStand']/60) 
-    ROP_df['ROP_Stand'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['StandDuration']/60)
-    # display(ROP_df[['MidDateTime', 'LABEL_SubActivity', 'LABEL_Activity', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand']])
-    # ROP stand m/hr 
-
-
-
-    # Assuming your DataFrame is named df and contains columns 'ROP_OnBottom', 'ROP_Stand', and 'DateTime'
-    # First, convert your 'DateTime' column to a datetime type if it's not already
-    df = pd.DataFrame(ROP_df)
-    # df['DateTime'] = pd.to_datetime(df['DateTime'])
-
-    # Create a new Plotly figure
-    fig = go.Figure()
-    bar_width = 60*60*60*10
-    # Add ROP_OnBottom as one set of bars
-    fig.add_trace(go.Bar(
-        x=df['MidDateTime'],
-        y=df['ROP_OnBottom'],
-        name='ROP On Bottom',
-        marker_color='blue',  # You can choose a color
-        #  width=bar_width 
-    ))
-
-    # Add ROP_Stand as another set of bars
-    fig.add_trace(go.Bar(
-        x=df['MidDateTime'],
-        y=df['ROP_Stand'],
-        name='ROP Stand',
-        marker_color='red',  # You can choose a different color
-        #  width=bar_width 
-    ))
-
-    # Update the layout
-    fig.update_layout(
-        barmode='group',  # This will group the bars side by side at each x-value (datetime)
-            bargap=0, # gap between bars of adjacent location coordinates.
-        bargroupgap=0, # gap between bars of the same location coordinate.
-        # title='ROP On Bottom vs ROP Stand Over Time',
-        xaxis_title='Datetime',
-        yaxis_title='ROP(m/hr)', # Ensuring x-axis is treated as date
-        height=height,
-        width=width,
-        margin=dict(l=0, r=50, t=50, b=50),
-    )
-    return fig
-
-
-
-def getStandTimeChart(ActSum_df, height=400, width=800):
-    StandTime_df = ActSum_df.copy()
-    StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']] = StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']].astype(float)
-    StandTime_df = StandTime_df[ StandTime_df['Stand Group_Pred'].str.contains(r'Drilling', case=False, na=False)]
-    StandTime_df = StandTime_df.groupby('Stand Group_Pred').agg({
-        'RotateDrillingDuration': 'sum',
-        'SlideDrillingDuration': 'sum',
-        'ReamingDuration': 'sum',
-        'ConnectionDuration': 'sum',
-        'EndDateTime': 'max'
-    })
     fig = go.Figure()
 
     for DurationCols in [ 'Rotate Drilling', 'Slide Drilling', 'Reaming', 'Connection']:
         # DurationCols = DurationCols.replace(' ', '').replace('Duration', '')
         
         fig.add_trace(go.Bar(
-            x=StandTime_df['EndDateTime'],
+            x=StandTime_df['StartDateTime'],
             y=StandTime_df[DurationCols.replace(' ', '') + "Duration"],
             name=DurationCols,
             # marker_color='blue',  # You can choose a color
@@ -389,7 +365,77 @@ def getStandTimeChart(ActSum_df, height=400, width=800):
         barmode='stack',  # This will group the bars side by side at each x-value (datetime)
         xaxis_title='Datetime',
         yaxis_title='Duration',
+        legend=dict(
+                orientation="h",  # Set legend orientation to horizontal
+                x=0.5,  # Center the legend horizontally
+                xanchor="center",
+                y=1.2  # Adjust vertical position of the legend
+            ),
+        margin=dict(l=50, r=50, t=70, b=50),
         xaxis=dict(type='date')  # Ensuring x-axis is treated as date
     )
+    if RangeDateTime is not None:
+        fig.update_xaxes(range=[RangeDateTime[0], RangeDateTime[1]])
+        fig.update_xaxes(domain=[0.02, 0.98])
     return fig
 
+
+def getCasingTripChart(CasingTrip_df, height=400, width=800,  RangeDateTime=None):
+    
+    if CasingTrip_df is not None:
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=CasingTrip_df['StartDateTime'],
+            y=CasingTrip_df['Duration_Hours'],
+            name='Casing Trip Duration',
+            marker_color='blue',  # You can choose a color
+            #  width=bar_width 
+        ))
+        fig.update_layout(
+            height=height,
+            width=width,
+            barmode='stack',  # This will group the bars side by side at each x-value (datetime)
+            xaxis_title='Datetime',
+            yaxis_title='Duration (Hours)',
+            xaxis=dict(type='date'),  # Ensuring x-axis is treated as date
+            margin=dict(l=50, r=50, t=70, b=50),
+        )
+        if RangeDateTime is not None:
+            fig.update_xaxes(range=[RangeDateTime[0], RangeDateTime[1]])
+        return fig
+    else:
+        return None
+def getCasingTripBreakdownChart(ActSum_df, height=400, width=800, RangeDateTime=None):
+    CasingTrip_df = Activity.getCasingTripBreakdown_df(ActSum_df)
+    if CasingTrip_df is not None:
+        fig = go.Figure()
+        for LABEL_SubActivity in CasingTrip_df['LABEL_SubActivity'].unique():
+            CasingTrip_df_filter = CasingTrip_df[CasingTrip_df['LABEL_SubActivity'] == LABEL_SubActivity]
+            fig.add_trace(go.Bar(
+                x=CasingTrip_df_filter['StartDateTime'],
+                y=CasingTrip_df_filter['Duration_Hours'],
+                name=LABEL_SubActivity,
+                # marker_color='blue',  # You can choose a color
+                #  width=bar_width 
+            ))
+        fig.update_layout(
+            height=height,
+            width=width,
+            barmode='stack',  # This will group the bars side by side at each x-value (datetime)
+            xaxis_title='Datetime',
+            yaxis_title='Duration (Hours)',
+            bargap=0,
+            xaxis=dict(type='date'),  # Ensuring x-axis is treated as date
+            legend=dict(
+                orientation="h",  # Set legend orientation to horizontal
+                x=0.5,  # Center the legend horizontally
+                xanchor="center",
+                y=1.2  # Adjust vertical position of the legend
+            ),
+            margin=dict(l=50, r=50, t=70, b=50),
+        )
+        if RangeDateTime is not None:
+            fig.update_xaxes(range=[RangeDateTime[0], RangeDateTime[1]])
+        return fig
+    else:
+        return None
