@@ -691,7 +691,7 @@ def getROP_df(ActSum_df):
     ROP_df['ROP_Stand'] = ROP_df['DrillingMeteragePerStand'] / (ROP_df['StandDuration']/60)
     ROP_df['ROP_Percentage'] = ROP_df['ROP_Stand']/ROP_df['ROP_OnBottom']  * 100
     ROP_df['Stand Group_Pred'] = ROP_df['LABEL_ConnectionActivity'].str.replace('Connection-', 'Drilling Stand-')
-    return ROP_df
+    return ROP_df[['StartDateTime','EndDateTime', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand', 'ROP_Percentage', 'Stand Group_Pred']]
 
 def getConnectionTime_df(ActSum_df):
     ConnectionTime_df = ActSum_df.copy()
@@ -727,6 +727,7 @@ def getConnectionTime_df(ActSum_df):
 
         # Merging the pivoted DataFrame with the start and end times
         ConnectionTime_pivot_df = pd.merge(ConnectionTime_pivot_df, start_end_times, on='ConnectionID')
+        ConnectionTime_pivot_df[['PreConnectionDuration', 'ConnectionDuration', 'PostConnectionDuration']] = ConnectionTime_pivot_df[['PreConnectionDuration', 'ConnectionDuration', 'PostConnectionDuration']].fillna(0)
         return ConnectionTime_pivot_df[[ 'StartDatetime', 'EndDatetime', 'PreConnectionDuration', 'ConnectionDuration', 'PostConnectionDuration', 'ConnectionID']]
     else:
         return pd.DataFrame(columns=['StartDatetime', 'EndDatetime', 'PreConnectionDuration', 'ConnectionDuration', 'PostConnectionDuration', 'ConnectionID'])
@@ -750,6 +751,8 @@ def getStandTime_df(ActSum_df):
             'EndDateTime': 'max',
             'StartDateTime': 'min',
         }).reset_index()
+        StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']].fillna(0, inplace=True)
+
         
         return StandTime_df
     else:
@@ -768,98 +771,97 @@ def getBHA_TripBreakdown_df(ActSum_df):
 
 def GroupCasingJoint(ActSum_df):
     CasingTrip_df = ActSum_df.copy()
+    CasingTrip_df['Stand Group_Pred_TRIP'] = ""
+    
     if ("TRIP IN" in CasingTrip_df['LABEL_Activity'].unique()) or ("TRIP OUT" in CasingTrip_df['LABEL_Activity'].unique()):
-            CasingTrip_df = CasingTrip_df[CasingTrip_df['LABEL_Activity'].isin(['TRIP IN', 'TRIP OUT'])]
-            CasingTrip_df = CasingTrip_df.reset_index(drop=True)
-            CasingTrip_df['Stand Group_Pred_TRIP'] = None
+            CasingTrip_df['GroupChange'] = (CasingTrip_df['LABEL_Activity'] != CasingTrip_df['LABEL_Activity'].shift()).cumsum()
+            CasingTripGroup = CasingTrip_df.groupby('GroupChange').apply(
+                lambda x: {
+                    "Group": x['LABEL_Activity'].iloc[0],
+                    "StartIndex": x.index[0],
+                    "EndIndex": x.index[-1],
+                }
+            )
+            CasingTripGroup = pd.DataFrame(CasingTripGroup.tolist())
+            CasingTripGroup = CasingTripGroup[CasingTripGroup['Group'].isin(['TRIP IN', 'TRIP OUT'])]
+            for idx, row in CasingTripGroup.iterrows():
+                CasingTrip_df_temp = CasingTrip_df.loc[row['StartIndex']:row['EndIndex']]
 
-            # Step 2: Find indices where the activity is 'Connection'
-            if 'Connection' in CasingTrip_df['LABEL_SubActivity'].unique():
-                connection_indices = CasingTrip_df[CasingTrip_df['LABEL_SubActivity'] == 'Connection'].index.tolist()
-                CasingTrip_df['StartDateTime'] = pd.to_datetime((CasingTrip_df['StartDateTime']))
-                CasingTrip_df['EndDateTime'] = pd.to_datetime((CasingTrip_df['EndDateTime']))
-                segments_start_list = []
-                segments_end_list = []
+            # CasingTrip_df_temp = CasingTrip_df[CasingTrip_df['LABEL_Activity'].isin(['TRIP IN', 'TRIP OUT'])]
+                CasingTrip_df_temp['StartDateTime'] = pd.to_datetime((CasingTrip_df_temp['StartDateTime']))
+                CasingTrip_df_temp['EndDateTime'] = pd.to_datetime((CasingTrip_df_temp['EndDateTime']))
+            # CasingTrip_df = CasingTrip_df.reset_index(drop=True)
 
-                for i,indices in enumerate(connection_indices):
-                    if i == 0:
-                        segments_start_list.append(0)
-                        segments_end_list.append(indices)
-                    else:
-                        segments_start_list.append(connection_indices[i-1]+1)
-                        segments_end_list.append(indices)
+                # Step 2: Find indices where the activity is 'Connection'
+                if 'Connection' in CasingTrip_df_temp['LABEL_SubActivity'].unique():
+                    connection_indices = CasingTrip_df_temp[CasingTrip_df_temp['LABEL_SubActivity'] == 'Connection'].index.tolist()
+                    segments_start_list = []
+                    segments_end_list = []
 
-                for segments_start,segments_end, connection_idx in zip(segments_start_list, segments_end_list, connection_indices):
-                    ReferenceTime = CasingTrip_df.loc[connection_idx, 'StartDateTime']
-                    CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = int(CasingTrip_df.loc[connection_idx,'StartDateTime'].timestamp())
-                    CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = "Casing Joint-" + CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'].astype(str)
+                    for i,indices in enumerate(connection_indices):
+                        if i == 0:
+                            segments_start_list.append(CasingTrip_df_temp.index[0])
+                            segments_end_list.append(indices)
+                        else:
+                            segments_start_list.append(connection_indices[i-1]+1)
+                            segments_end_list.append(indices)
+
+                    for segments_start,segments_end, connection_idx in zip(segments_start_list, segments_end_list, connection_indices):
+
+                        CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = int(CasingTrip_df_temp.loc[connection_idx,'StartDateTime'].timestamp())
+                        CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = "Casing Joint-" + CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'].astype(str)
     return CasingTrip_df
 
 def getCasingTrip_df(ActSum_df):
     CasingTrip_df = ActSum_df.copy()
-    if ("TRIP IN" in CasingTrip_df['LABEL_Activity'].unique()) or ("TRIP OUT" in CasingTrip_df['LABEL_Activity'].unique()):
-            CasingTrip_df = CasingTrip_df[CasingTrip_df['LABEL_Activity'].isin(['TRIP IN', 'TRIP OUT'])]
-            CasingTrip_df = CasingTrip_df.reset_index(drop=True)
-            CasingTrip_df['Stand Group_Pred_TRIP'] = None
 
-            # Step 2: Find indices where the activity is 'Connection'
-            if 'Connection' in CasingTrip_df['LABEL_SubActivity'].unique():
-                connection_indices = CasingTrip_df[CasingTrip_df['LABEL_SubActivity'] == 'Connection'].index.tolist()
-                CasingTrip_df['StartDateTime'] = pd.to_datetime((CasingTrip_df['StartDateTime']))
-                CasingTrip_df['EndDateTime'] = pd.to_datetime((CasingTrip_df['EndDateTime']))
-                segments_start_list = []
-                segments_end_list = []
 
-                for i,indices in enumerate(connection_indices):
-                    if i == 0:
-                        segments_start_list.append(0)
-                        segments_end_list.append(indices)
-                    else:
-                        segments_start_list.append(connection_indices[i-1]+1)
-                        segments_end_list.append(indices)
+    CasingTrip_df = CasingTrip_df[CasingTrip_df['Stand Group_Pred_TRIP'].str.contains(r'Casing Joint-', case=False, na=False)]
+    CasingTrip_df['Duration'] = CasingTrip_df['Duration'].astype(float)
 
-                for segments_start,segments_end, connection_idx in zip(segments_start_list, segments_end_list, connection_indices):
-                    ReferenceTime = CasingTrip_df.loc[connection_idx, 'StartDateTime']
-                    CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = int(CasingTrip_df.loc[connection_idx,'StartDateTime'].timestamp())
-                    CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'] = "Casing Joint-" + CasingTrip_df.loc[segments_start:segments_end, 'Stand Group_Pred_TRIP'].astype(str)
+    if CasingTrip_df.empty:
+        return pd.DataFrame(columns=['Stand Group_Pred_TRIP',  'Duration', 'StartDateTime', 'EndDateTime', 'Duration_Hours', 'Joint Per Hour'])
+    FinalCasingTrip_df = CasingTrip_df[["Stand Group_Pred_TRIP", "LABEL_SubActivity", "Duration", "StartDateTime", "EndDateTime"]]
+    FinalCasingTrip_df = FinalCasingTrip_df.groupby("Stand Group_Pred_TRIP", as_index=False).agg(
+            Duration=("Duration", "sum"),
+            StartDateTime=("StartDateTime", "min"),
+            EndDateTime=("EndDateTime", "max"),
+        )
 
-                CasingTrip_df = CasingTrip_df.dropna(subset = ['Stand Group_Pred_TRIP'])
-                FinalCasingTrip_df = CasingTrip_df[["Stand Group_Pred_TRIP", "LABEL_SubActivity", "Duration", "StartDateTime"]]
-                FinalCasingTrip_df = FinalCasingTrip_df.groupby("Stand Group_Pred_TRIP", as_index=False).agg(
-                        Duration=("Duration", "sum"),
-                        StartDateTime=("StartDateTime", "first")
-                    )
-
-                FinalCasingTrip_df.drop_duplicates(subset=['StartDateTime'], keep='first', inplace=True)
-                FinalCasingTrip_df['StartDateTime'] = pd.to_datetime(FinalCasingTrip_df['StartDateTime'])
-                FinalCasingTrip_df['Duration_Hours'] = FinalCasingTrip_df['Duration'] / 60
-                FinalCasingTrip_df['Joint Per Hour'] = 1/FinalCasingTrip_df['Duration_Hours']
-                return FinalCasingTrip_df
+    FinalCasingTrip_df.drop_duplicates(subset=['StartDateTime'], keep='first', inplace=True)
+    # FinalCasingTrip_df['StartDateTime'] = pd.to_datetime(FinalCasingTrip_df['StartDateTime'])
+    FinalCasingTrip_df['Duration_Hours'] = FinalCasingTrip_df['Duration'] / 60
+    FinalCasingTrip_df['Joint Per Hour'] = 1/FinalCasingTrip_df['Duration_Hours']
+    return FinalCasingTrip_df
 
 def getCasingTripBreakdown_df(ActSum_df):
-# return CasingTrip_df
-                CasingTrip_df = CasingTrip_df.dropna(subset = ['Stand Group_Pred_TRIP'])
-                FinalCasingTrip_df = CasingTrip_df[["Stand Group_Pred_TRIP", "LABEL_SubActivity", "Duration", "StartDateTime"]]
+    CasingTripBreakdown_df = ActSum_df.copy()
 
-                FinalCasingTripPerJoint_df = FinalCasingTrip_df.groupby("Stand Group_Pred_TRIP", as_index=False).agg(
-                                    # Duration=("Duration", "sum"),
-                                    StartDateTime=("StartDateTime", "first")
-                                ) 
+    CasingTripBreakdown_df = CasingTripBreakdown_df[CasingTripBreakdown_df['Stand Group_Pred_TRIP'].str.contains(r'Casing Joint-', case=False, na=False)]
+    if CasingTripBreakdown_df.empty:
+        return pd.DataFrame(columns=['Stand Group_Pred_TRIP', 'LABEL_SubActivity', 'Duration', 'StartDateTime', 'EndDateTime', 'Duration_Hours'])
+    FinalCasingTripBreakdown_df = CasingTripBreakdown_df[["Stand Group_Pred_TRIP", "LABEL_SubActivity", "Duration", "StartDateTime", "EndDateTime"]]
+    FinalCasingTripBreakdown_df['Duration'] = FinalCasingTripBreakdown_df['Duration'].astype(float)
+    FinalCasingTripPerJoint_df = FinalCasingTripBreakdown_df.groupby("Stand Group_Pred_TRIP", as_index=False).agg(
+                        # Duration=("Duration", "sum"),
+                        StartDateTime=("StartDateTime", "min"),
+                        EndDateTime=("EndDateTime", "max"),
+                    ) 
 
-                FinalCasingTrip_df = FinalCasingTrip_df.groupby(["Stand Group_Pred_TRIP", "LABEL_SubActivity"], as_index=False).agg(
-                                    Duration=("Duration", "sum"),
-                                    # StartDateTime=("StartDateTime", "first")
-                                )
+    FinalCasingTripBreakdown_df = FinalCasingTripBreakdown_df.groupby(["Stand Group_Pred_TRIP", "LABEL_SubActivity"], as_index=False).agg(
+                        Duration=("Duration", "sum"),
+                        # StartDateTime=("StartDateTime", "first")
+                    )
 
-                FinalCasingTrip_df = FinalCasingTrip_df.merge(
-                                FinalCasingTripPerJoint_df[['Stand Group_Pred_TRIP', 'StartDateTime']],
-                                on='Stand Group_Pred_TRIP',
-                                how='left'
-                            )
-                FinalCasingTrip_df['StartDateTime'] = pd.to_datetime(FinalCasingTrip_df['StartDateTime'])
-                FinalCasingTrip_df['Duration_Hours'] = FinalCasingTrip_df['Duration'] / 60
-                FinalCasingTrip_df['Joint Per Hour'] = 1/FinalCasingTrip_df['Duration_Hours']
-                return FinalCasingTrip_df
+    FinalCasingTripBreakdown_df = FinalCasingTripBreakdown_df.merge(
+                    FinalCasingTripPerJoint_df[['Stand Group_Pred_TRIP', 'StartDateTime','EndDateTime']],
+                    on='Stand Group_Pred_TRIP',
+                    how='left'
+                )
+    FinalCasingTripBreakdown_df['StartDateTime'] = pd.to_datetime(FinalCasingTripBreakdown_df['StartDateTime'])
+    FinalCasingTripBreakdown_df['Duration_Hours'] = FinalCasingTripBreakdown_df['Duration'] / 60
+    # FinalCasingTripBreakdown_df['Joint Per Hour'] = 1/FinalCasingTripBreakdown_df['Duration_Hours']
+    return FinalCasingTripBreakdown_df
 
                 # FinalCasingTrip_df.drop_duplicates(subset=['StartDateTime'], keep='first', inplace=True)
                 # FinalCasingTrip_df['StartDateTime'] = pd.to_datetime(FinalCasingTrip_df['StartDateTime'])
@@ -867,7 +869,11 @@ def getCasingTripBreakdown_df(ActSum_df):
                 # FinalCasingTrip_df['Joint Per Hour'] = 1/FinalCasingTrip_df['Duration_Hours']
                 # return FinalCasingTrip_df
 
-
+def getRemarks(ActSum_df):
+    Remarks_df = ActSum_df.copy()
+    Remarks_df = Remarks_df[Remarks_df['Remarks'].notna()]
+    Remarks_df = Remarks_df[Remarks_df['Remarks'] != '']
+    return Remarks_df[['StartDateTime', 'EndDateTime','LABEL_SubActivity', 'LABEL_Activity', 'PIC', 'Remarks']]
 
 def translateRigActivity2Activity(RigActivityDF):
     replacement_dict = {

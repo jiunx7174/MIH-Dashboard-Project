@@ -7,6 +7,7 @@ import sys
 import os
 import time
 import numpy as np
+
 # Get the directory of the current file
 current_dir = os.path.dirname(__file__)
 # If you specifically want to use os.path.join() for clarity
@@ -22,6 +23,8 @@ from PDU_Func import Activity, Authentification, IO_Data
 from Page import Override
 from importlib import reload
 import datetime
+reload(Activity)
+reload(IO_Data)
 # reload(IO_Data)
 # reload(Activity)
 app = FastAPI()
@@ -313,6 +316,9 @@ def get_activity_stand_time(wid: int = Query(None, title="wid"),
         'EndDateTime': 'max'
     })
     return StandTime_df.to_dict(orient='records')
+
+
+
 @app.get("/get-casing-trip-time/")
 def get_casing_trip_time(wid: int = Query(None, title="wid"), 
                cid: int = Query(None, title="cid"), 
@@ -774,3 +780,266 @@ def section_params_get(data: Get_SectionParamsDataModel):
         empty_data = {col: [] for col in ['wid', 'DateTime', 'SectionSize', 'InSlipThreshold',  'PIC']}
         return empty_data
     return SectionParams_df.to_dict(orient='records')
+
+
+#########################################################################################
+################################ Version 2 ##############################################
+#########################################################################################
+
+@app.get("/v2/get-remarks/")
+def v2_get_remarks(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    Remarks_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    Remarks_df = Activity.getRemarks(Remarks_df)
+    if Remarks_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No Remarks available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+    return Remarks_df.astype(str).to_dict(orient='records')
+
+
+@app.get("/v2/get-activity-duration/")
+def v2_get_activity_duration(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ActivityType: Literal["activity", "subactivity"] = Query(None, title="type"),
+               ):
+
+    if ActivityType == "activity":
+        ColumnName = 'LABEL_Activity'
+    elif ActivityType == "subactivity":
+        ColumnName = 'LABEL_SubActivity'
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+
+
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    DurationCol = 'Duration'
+
+    ActSum_df[DurationCol] = ActSum_df[DurationCol].astype(float)
+    SumDuration_DF = (ActSum_df.groupby([ColumnName])[DurationCol].sum().reset_index())
+    if SumDuration_DF.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No Activity available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+    return SumDuration_DF.astype(str).to_dict(orient='records')
+
+
+@app.get("/v2/get-activity-drilling-meterage/")
+def v2_get_activity_drilling_meterage(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    ActSum_df['DrillingMeterage'] = ActSum_df['DrillingMeterage'].astype(float)
+    # Group by the new 'Date' column and sum the 'DrillingMeterage'
+    ActSum_df['Date'] = pd.to_datetime(ActSum_df['Date']).dt.date
+    DrilingMeterage_df = ActSum_df.groupby('Date')['DrillingMeterage'].sum().reset_index()
+    return DrilingMeterage_df.astype(str).to_dict(orient='records')
+
+@app.get("/v2/get-bitdepth-vs-time")
+def v2_get_bitdepth_vs_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    BitDepthTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    BitDepthTime_df = BitDepthTime_df[['StartDateTime', 'EndDateTime', 'Bit_Depth_avg', 'LABEL_Activity', 'LABEL_SubActivity', ]]
+    return BitDepthTime_df.to_dict(orient='records')
+
+
+@app.get("/v2/get-activity-rop-per-stand/")
+def v2_get_activity_rop_per_stand(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    ROP_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    ROP_df = Activity.getROP_df(ROP_df)
+    ROP_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    ROP_df['ROP_OnBottom'].fillna(0, inplace=True)
+    ROP_df['ROP_Stand'].fillna(0, inplace=True)
+
+    df = pd.DataFrame(ROP_df)
+    if df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No Drilling available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+    else:
+        return df.astype(str).to_dict(orient='records')
+
+@app.get("/v2/get_connection_time/")
+def v2_get_connection_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    ConnectionTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    # print(ConnectionTime_df['LABEL_ConnectionActivity'].to_csv("Connection.csv"))
+    ConnectionTime_df = Activity.getConnectionTime_df(ConnectionTime_df)
+    if ConnectionTime_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No Connection Time available", "item_id": {'wid':wid, 'cid':cid}})
+
+    return ConnectionTime_df.astype(str).to_dict(orient='records')
+
+@app.get("/v2/get-activity-stand-time/")
+def v2_get_activity_stand_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    StandTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    StandTime_df = Activity.getStandTime_df(StandTime_df)
+    if StandTime_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No Stand Time available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+    return StandTime_df.astype(str).to_dict(orient='records')
+
+@app.get("/v2/get-activity-bha-trip-breakdown/")
+def v2_get_BHA_trip_breakdown(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    BHA_Trip_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    BHA_Trip_df = Activity.getBHA_TripBreakdown_df(BHA_Trip_df)
+    if BHA_Trip_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No BHA Trip available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+    return BHA_Trip_df.astype(str).to_dict(orient='records')
+
+@app.get("/v2/get-casing-trip-time/")
+def v2_get_casing_trip_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    CasingTrip_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    CasingTrip_df = Activity.GroupCasingJoint(CasingTrip_df)
+    CasingTrip_df = Activity.getCasingTrip_df(CasingTrip_df)
+    if CasingTrip_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No Casing Trip available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+    return CasingTrip_df.astype(str).to_dict(orient='records')
+
+@app.get("/v2/get-casing-trip-breakdown-time/")
+def v2_get_casing_trip_breakdown_time(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    CasingTripBreakdown_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    CasingTripBreakdown_df = Activity.GroupCasingJoint(CasingTripBreakdown_df)
+    CasingTripBreakdown_df = Activity.getCasingTripBreakdown_df(CasingTripBreakdown_df)
+    if CasingTripBreakdown_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "No Casing Trip Breakdown available", "item_id": {'wid':wid, 'cid':cid}}
+        )
+
+
+    return CasingTripBreakdown_df.astype(str).to_dict(orient='records')

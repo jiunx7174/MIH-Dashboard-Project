@@ -238,7 +238,7 @@ def App():
         st.session_state['IsFormSubmit'] = False
     with DatetimeRangeCol.form(key='DateForm', border=False):
 
-        TitleCol,NothingCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1, 0.1, 1.4,1,0.1,1.4,1,0.7])
+        TitleCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1.2,  1.4,1,0.1,1.4,1,0.7])
         TitleCol.markdown('## WELL ACTIVITY')
         # TitleCol.markdown('<h3 style="text-align: left; font-size: 40px; margin-top: -10px;">WELL ACTIVITY</h3>', unsafe_allow_html=True)
         RealtimeLoadingContainer = st.empty()
@@ -298,7 +298,7 @@ def App():
         RTSensor_DF = IO_Data.DomeGetRealtimeSensorData(WellInfoDict,
                                                       UserDateRange, 
                                                       hours=0.5, 
-                                                      show_progress=True, 
+                                                      show_progress=False, 
                                                       runOnStreamlit=True,
                                                       _container=RealtimeLoadingContainer
                                                       )
@@ -309,7 +309,7 @@ def App():
                             RTSensor_DF, 
                             Activity.translateRigActivity2Activity(RigActivity_DF)
                             )
-        st.write(SectionParams_DF)
+
         RTSensor_DF = Activity.addSectionParams (
                             RTSensor_DF, 
                             SectionParams_DF
@@ -431,5 +431,5 @@ def App():
         # if 'IsFormSubmit' not in st.session_state:
         #     st.session_state['IsFormSubmit'] = False
 
-        st.write(st.session_state)
+        # st.write(st.session_state)
         st.stop()

@@ -386,7 +386,7 @@ def getCasingTripChart(CasingTrip_df, height=400, width=800,  RangeDateTime=None
         fig = go.Figure()
         fig.add_trace(go.Bar(
             x=CasingTrip_df['StartDateTime'],
-            y=CasingTrip_df['Duration_Hours'],
+            y=CasingTrip_df['Joint Per Hour'],
             name='Casing Trip Duration',
             marker_color='blue',  # You can choose a color
             #  width=bar_width 
@@ -396,7 +396,7 @@ def getCasingTripChart(CasingTrip_df, height=400, width=800,  RangeDateTime=None
             width=width,
             barmode='stack',  # This will group the bars side by side at each x-value (datetime)
             xaxis_title='Datetime',
-            yaxis_title='Duration (Hours)',
+            yaxis_title='Joint/Hour',
             xaxis=dict(type='date'),  # Ensuring x-axis is treated as date
             margin=dict(l=50, r=50, t=70, b=50),
         )
@@ -405,37 +405,35 @@ def getCasingTripChart(CasingTrip_df, height=400, width=800,  RangeDateTime=None
         return fig
     else:
         return None
-def getCasingTripBreakdownChart(ActSum_df, height=400, width=800, RangeDateTime=None):
-    CasingTrip_df = Activity.getCasingTripBreakdown_df(ActSum_df)
-    if CasingTrip_df is not None:
-        fig = go.Figure()
-        for LABEL_SubActivity in CasingTrip_df['LABEL_SubActivity'].unique():
-            CasingTrip_df_filter = CasingTrip_df[CasingTrip_df['LABEL_SubActivity'] == LABEL_SubActivity]
-            fig.add_trace(go.Bar(
-                x=CasingTrip_df_filter['StartDateTime'],
-                y=CasingTrip_df_filter['Duration_Hours'],
-                name=LABEL_SubActivity,
-                # marker_color='blue',  # You can choose a color
-                #  width=bar_width 
-            ))
-        fig.update_layout(
-            height=height,
-            width=width,
-            barmode='stack',  # This will group the bars side by side at each x-value (datetime)
-            xaxis_title='Datetime',
-            yaxis_title='Duration (Hours)',
-            bargap=0,
-            xaxis=dict(type='date'),  # Ensuring x-axis is treated as date
-            legend=dict(
-                orientation="h",  # Set legend orientation to horizontal
-                x=0.5,  # Center the legend horizontally
-                xanchor="center",
-                y=1.2  # Adjust vertical position of the legend
-            ),
-            margin=dict(l=50, r=50, t=70, b=50),
-        )
-        if RangeDateTime is not None:
-            fig.update_xaxes(range=[RangeDateTime[0], RangeDateTime[1]])
-        return fig
-    else:
-        return None
+def getCasingTripBreakdownChart(CasingTripBreakdown_df, height=400, width=800, RangeDateTime=None):
+    
+
+    fig = go.Figure()
+    for LABEL_SubActivity in CasingTripBreakdown_df['LABEL_SubActivity'].unique():
+        CasingTripBreakdown_df_filter = CasingTripBreakdown_df[CasingTripBreakdown_df['LABEL_SubActivity'] == LABEL_SubActivity]
+        fig.add_trace(go.Bar(
+            x=CasingTripBreakdown_df_filter['StartDateTime'],
+            y=CasingTripBreakdown_df_filter['Duration'],
+            name=LABEL_SubActivity,
+            # marker_color='blue',  # You can choose a color
+            #  width=bar_width 
+        ))
+    fig.update_layout(
+        height=height,
+        width=width,
+        barmode='stack',  # This will group the bars side by side at each x-value (datetime)
+        xaxis_title='Datetime',
+        yaxis_title='Duration (minutes)',
+        bargap=0,
+        xaxis=dict(type='date'),  # Ensuring x-axis is treated as date
+        legend=dict(
+            orientation="h",  # Set legend orientation to horizontal
+            x=0.5,  # Center the legend horizontally
+            xanchor="center",
+            y=1.2  # Adjust vertical position of the legend
+        ),
+        margin=dict(l=50, r=50, t=70, b=50),
+    )
+    if RangeDateTime is not None:
+        fig.update_xaxes(range=[RangeDateTime[0], RangeDateTime[1]])
+    return fig

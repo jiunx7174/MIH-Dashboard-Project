@@ -441,7 +441,8 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     if show_progress:
         # container.empty()
         my_bar = _container.progress(0.0,)
-
+    if runOnStreamlit:
+        ProgressStatus = st.progress(0., text=" Download Realtime Sensor Data, 0 % Complete")
 
     for ii in range(len((StartEndList))):
         print(f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
@@ -466,6 +467,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
 
 
         if runOnStreamlit and IsStillUpdate:
+            ProgressStatus.progress(np.round(ii/len(StartEndList),2),  text=f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
             if IsStillUpdate:
                 Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_SessionCache(Data_params)
             else:
@@ -501,6 +503,9 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     # print( np.mean(time_elapsed))
     # my_bar.progress(1.0)
     # ProgressContainer.empty()
+    if runOnStreamlit:
+        ProgressStatus.progress(1.,  text="Download Realtime Sensor Data Complete")
+        ProgressStatus.empty()
     return interpolateRealtimeData(filtered_DF[column_list])
 
 
@@ -648,7 +653,7 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
 # def DomeInsertActivitySummaryData():
 #     # TODO create API for Activity Summary upload
 #     pass
-def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict):
+def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict, runOnStreamlit=False):
     url_pdu_api = getURLAPI_pdu()
     TableAPI = f"{url_pdu_api}rtdc/ActivitySummary/delete"
     if isinstance(DateTimeRangeList, dict):
@@ -660,7 +665,14 @@ def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict):
             pass
     else:
         DeleteList = DateTimeRangeList
+    if runOnStreamlit:
+        ProgressStatusDelete = st.progress(0., text=f"Delete Activity Summary Data, 0 % Complete")
+        i = 0
+
     for ID_or_timestart in DeleteList:
+        if runOnStreamlit:
+            i = i+1
+            ProgressStatusDelete.progress(np.round(i/len(DeleteList),2), text=f"Delete Activity Summary Data, {ID_or_timestart} - {np.round(i/len(DeleteList),2)*100} % Complete", )
         response = (
             requests.post(
                 TableAPI, 
@@ -675,7 +687,9 @@ def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict):
         )
         print(f"{ID_or_timestart} - {response.json()}")
 
-
+    if runOnStreamlit:
+        ProgressStatusDelete.progress(1., text=f"Delete Activity Summary Data Complete")
+        ProgressStatusDelete.empty()
     #     # DateTimeRangeList = [DateTimeRangeList]
     # # TODO create API for Activity Summary delete
     # # Delete by range
@@ -737,7 +751,7 @@ def ActivitySummaryColumnRenameDict():
 
     }
     return out
-def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, insert_pic=False):
+def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, insert_pic=False, runOnStreamlit=False):
     url_pdu_api = getURLAPI_pdu()
     # try:
     # TODO create API for Activity Summary upload
@@ -775,8 +789,14 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, i
     ActSumdf = ActSumdf[keys_list]
     ActSumdf[["pic", "remark"]] = ActSumdf[["pic", "remark"]].fillna("")
     # ActSumdf[additional_key_list] = ""
+
+    if runOnStreamlit:
+        ProgressStatusInsert = st.progress(0., text="Upload **Activity Summary** Data, 0 % Complete")
+
     for idx,row in ActSumdf.iterrows():
         i = i+1
+        if runOnStreamlit:
+            ProgressStatusInsert.progress(np.round(i/i_end,2), text=f"Upload **New Activity Summary** Data, {np.round(i/i_end,2)*100} % Complete", )
         dict_row = row.to_dict()
         # print(dict_row)
         # IO_Data.DomeInsertData(dict_row, table_type='ActivitySummaryTable')
@@ -792,6 +812,9 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, i
         response = (
             DomeRequestPOST(AddRowAPI, json_queries)
         )
+    if runOnStreamlit:
+        ProgressStatusInsert.progress(1. , text=f"Upload **New Activity Summary** Data Complete")
+        ProgressStatusInsert.empty()
         # st.stop()
         # st.toast(dict(response.json())['message'])
 

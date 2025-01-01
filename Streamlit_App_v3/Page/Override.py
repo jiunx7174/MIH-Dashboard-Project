@@ -79,18 +79,20 @@ def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
         st.toast(f"Override Activity Summary StartDateTime: {startdatetime} - EndDateTime: {enddatetime}")
     # st.toast(list_startdatetime)
     # st.toast(list_enddatetime)
-    SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime)
+    SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime, runOnStreamlit=True)
     del st.session_state[f"{PrefixKey}_DataEditor"]
     del st.session_state[f"{PrefixKey}_df"]
     if 'OverrideActivityTable_df' in st.session_state:
         del st.session_state['OverrideActivityTable_df']
     # pass
-def UpdateRemarksActSumTable(OverrideRemark_df, WellInfoDict, PrefixKey):
+def UpdateRemarksActSumTable(OverrideRemark_df, WellInfoDict,UserAuthDict, PrefixKey):
 
     OverrideRemark_df = OverrideRemark_df.copy()
     OverrideRemark_df['wid'] = int(WellInfoDict['wid'])
+    PIC = UserAuthDict['data']['user_id']
 
     list_col_str = ['Remarks']
+    OverrideRemark_df[list_col_str] = OverrideRemark_df[list_col_str].fillna('')
     OverrideRemark_df[list_col_str] = OverrideRemark_df[list_col_str].astype(str)
 
     
@@ -107,6 +109,7 @@ def UpdateRemarksActSumTable(OverrideRemark_df, WellInfoDict, PrefixKey):
                 OverrideRemark_df.loc[int(idx), ['StartDate','StartTime', 'EndDate', 'EndTime']].to_dict()
             )
         ActivitySummaryRow['Remarks'] = row['Remarks']
+        ActivitySummaryRow['PIC'] = PIC
         ActSum_list.append(ActivitySummaryRow)
         FinalActSum = pd.concat(ActSum_list, ignore_index=True, axis=0)
 
@@ -116,7 +119,7 @@ def UpdateRemarksActSumTable(OverrideRemark_df, WellInfoDict, PrefixKey):
         #         OverrideRemark_df.loc[int(key), :].to_json()
         #     )
     IO_Data.DomeDeleteActivitySummaryData(FinalActSum['StartDateTime'].tolist(), WellInfoDict)
-    IO_Data.DomeInsertActivitySummaryData(WellInfoDict, FinalActSum,  insert_remark=True)
+    IO_Data.DomeInsertActivitySummaryData(WellInfoDict, FinalActSum,  insert_remark=True, insert_pic=True)
 
 
     del st.session_state[f"{PrefixKey}_DataEditor"]
@@ -182,7 +185,7 @@ def OverrideActivityTableWidget(WellInfoDict, container,
                                 hide_index = True,
                                 column_config=OverrideActivity_ColConfig,
                                 key=f"{PrefixKey}_DataEditor", num_rows='dynamic', use_container_width=True)
-        st.write(f"{PrefixKey}_DataEditor")
+        # st.write(f"{PrefixKey}_DataEditor")
         # st.form_submit_button("Submit", on_click=UpdateOverrideTable, args=(OverideActivity_df,WellInfoDict,PrefixKey))
         if st.form_submit_button("Submit"):
             UpdateOverrideTable(OverideActivity_df,WellInfoDict,PrefixKey)
@@ -335,7 +338,7 @@ def SimplifyTimeRange(list_startdatetime, list_enddatetime):
     return reduced_start_list, reduced_end_list
 
 # =================================================================================================
-def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime):
+def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime, runOnStreamlit=False):
     # print(list_startdatetime)
     # print(list_enddatetime)
     print("===================")
@@ -347,11 +350,11 @@ def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime):
         list_startdatetime, list_enddatetime = SimplifyTimeRange(list_startdatetime, list_enddatetime)
     # TODO uncomment the code below
     for startdatetime, enddatetime in zip(list_startdatetime, list_enddatetime):
-        DomeUpdateRealtimeData(WellInfoDict, startdatetime, enddatetime)
+        DomeUpdateRealtimeData(WellInfoDict, startdatetime, enddatetime, runOnStreamlit=runOnStreamlit)
 
 def DomeUpdateRealtimeData(WellInfoDict:dict, 
                startdatetime: str ,
-               enddatetime: str ,):
+               enddatetime: str , runOnStreamlit=False):
 
     # WellInfoDict = {
     # "cid": cid,
@@ -492,10 +495,10 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
     ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
     # TODO delete the ActivitySummary in startdatetime enddatetime range
-    IO_Data.DomeDeleteActivitySummaryData(UserDateRange_Sync, WellInfoDict)
+    IO_Data.DomeDeleteActivitySummaryData(UserDateRange_Sync, WellInfoDict, runOnStreamlit=runOnStreamlit)
     
     # TODO insert the new ActivitySummary in startdatetime enddatetime range
-    IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF )
+    IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF, runOnStreamlit=runOnStreamlit) 
     print("Activity Summary Updated:")
     print(ActivitySummary_DF)
 
@@ -661,8 +664,8 @@ def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
         
         # If we've adjusted more than 2 weeks, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
-            UserDateRange["StartDate"] = datetime.date(2003, 4, 10)
-            UserDateRange["StartTime"] = datetime.time(10, 51)
+            UserDateRange["StartDate"] = datetime_module(2003, 4, 10)
+            UserDateRange["StartTime"] = datetime_module(10, 51)
             break
     
         # return None

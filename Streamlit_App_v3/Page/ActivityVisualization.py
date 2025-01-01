@@ -20,7 +20,7 @@ def IsSubmitFormTrue(UserDateRange):
 
 
 @st.experimental_fragment
-def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
+def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict, UserAuthDict):
     
     TableContainer, ColumnSelectionContainer = st.columns([6, 1])
     ColumnRename_dict = {'Date':'Date',
@@ -37,6 +37,7 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
     'OnBottomDurationPerStand':'Total On-Bottom Duration per. Stand',
     'StandDuration':'Total Duration per. Stand',
     'Stand Group_Pred':'Stand Group ID',
+    'Stand Group_Pred_TRIP':'Casing Joint Group ID',
     'LABEL_ConnectionActivity':'Connection Group ID',
     'ConnectionDuration':'Connection Duration (min)',
     'LABEL_SubActivity':'Sub-Activity Group',
@@ -46,6 +47,7 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
     'PIC':'PIC',
     'Section':'Section Size',
     'Remarks':'Remarks',}
+    ColumnRename_r_dict = {v: k for k, v in ColumnRename_dict.items()}
 
     DatetimeColSelect_df = pd.DataFrame({
         'ColumnName': ['Date',
@@ -75,9 +77,10 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
         'OnBottomDurationPerStand',
         'StandDuration',
         'Stand Group_Pred',
+        'Stand Group_Pred_TRIP',
         'LABEL_ConnectionActivity',
         'ConnectionDuration',],
-        "Display":[False, False, False, False, False, False, False, False, False, False]
+        "Display":[False, False, False, False, False, False, False,False, False, False, False]
     })
     ActivityColSelect_df = pd.DataFrame({
         'ColumnName':['LABEL_SubActivity',
@@ -91,7 +94,7 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
                         'PIC',
                         'Section',
                         'Remarks'],
-        "Display":[True, True, True, True, True]
+        "Display":[True, False, True, True, True]
     })
     ColumnConfigColSel = {
         'ColumnName': st.column_config.TextColumn(
@@ -104,15 +107,15 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
         ),
     }
     ActSumColumnConfig = {
-    "Date": st.column_config.TextColumn(
+    "Date": st.column_config.DatetimeColumn(
         "Date",
         disabled=True
     ),
-    "StartDateTime": st.column_config.TextColumn(
+    "StartDateTime": st.column_config.DatetimeColumn(
         "Start Datetime",
         disabled=True
     ),
-    "EndDateTime": st.column_config.TextColumn(
+    "EndDateTime": st.column_config.DatetimeColumn(
         "End Datetime",
         disabled=True
     ),
@@ -160,6 +163,10 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
         "Stand Group ID",
         disabled=True
     ),
+    "Stand Group_Pred_TRIP": st.column_config.TextColumn(
+        "Casing Joint Group ID",
+        disabled=True
+    ),
     "LABEL_ConnectionActivity": st.column_config.TextColumn(
         "Connection Group ID",
         disabled=True
@@ -198,6 +205,14 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
     )
 }
 
+
+    DatetimeColSelect_df['ColumnName'] = DatetimeColSelect_df['ColumnName'].map(ColumnRename_dict)
+    BitPosColSelect_df['ColumnName'] = BitPosColSelect_df['ColumnName'].map(ColumnRename_dict)
+    DrillingOpsColSelect_df['ColumnName'] = DrillingOpsColSelect_df['ColumnName'].map(ColumnRename_dict)
+    ActivityColSelect_df['ColumnName'] = ActivityColSelect_df['ColumnName'].map(ColumnRename_dict)
+    AdditionalColSelect_df['ColumnName'] = AdditionalColSelect_df['ColumnName'].map(ColumnRename_dict)
+
+
     with ColumnSelectionContainer.popover("Datetime Columns", use_container_width=True):
         FinalDatetimeColSelect_df = st.data_editor(DatetimeColSelect_df, key='DatetimeColSelect', hide_index=True, column_config=ColumnConfigColSel)
     with ColumnSelectionContainer.popover("Bit Position Columns", use_container_width=True):
@@ -210,6 +225,7 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
         FinalAdditionalColSelect_df = st.data_editor(AdditionalColSelect_df, key='AdditionalColSelect',hide_index=True, column_config=ColumnConfigColSel)
     
     ColumnDisplaySelection_df= pd.concat([FinalDatetimeColSelect_df, FinalBitPosColSelect_df, FinalDrillingOpsColSelect_df, FinalActivityColSelect_df, FinalAdditionalColSelect_df])
+    ColumnDisplaySelection_df['ColumnName'] = ColumnDisplaySelection_df['ColumnName'].map(ColumnRename_r_dict)
     ColumnDisplaySelection_df = ColumnDisplaySelection_df[ColumnDisplaySelection_df['Display'] == True]
     ColumnDisplaySelection_list = ColumnDisplaySelection_df['ColumnName'].tolist()
     FinalActSumColumnConfig = {}
@@ -243,13 +259,13 @@ def ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict):
         # Drop the 'datetime' column
         FinalOverrideRemark_df = FinalOverrideRemark_df.drop(columns=['StartDateTime'])
         FinalOverrideRemark_df = FinalOverrideRemark_df.drop(columns=['EndDateTime'])
-
+        
 
         # st.write(FinalOverrideRemark_df)
         # st.write(FinalOverrideRemark_df)
         if st.button("Update Remarks", type="primary", use_container_width=True):
 
-            Override.UpdateRemarksActSumTable(FinalOverrideRemark_df, WellInfoDict, 'RemarksActSumTable',)
+            Override.UpdateRemarksActSumTable(FinalOverrideRemark_df, WellInfoDict,UserAuthDict, 'RemarksActSumTable',)
             st.success("Remarks Updated!")
 
 
@@ -281,7 +297,7 @@ def RecalculateActivitySummary():
     st.toast("Recalculating Activity Summary")
     Override.DomeUpdateRealtimeData(WellInfoDict, 
               list_startdatetime[0] ,
-               list_enddatetime[0])
+               list_enddatetime[0], runOnStreamlit=True)
     st.toast("Complete!")
 
 #     RecalculateStrtDateRT
@@ -293,7 +309,8 @@ def RecalculateActivitySummary():
     # )
 # @st.cache_data
 def cacheGetActivitySummaryData(*args, **kwargs):
-    return IO_Data.DomeGetActivitySummaryData(*args, **kwargs)
+    return Activity.GroupCasingJoint(IO_Data.DomeGetActivitySummaryData(*args, **kwargs))
+    # return 
 def validate_start_end_dates(UserDateRange):
     """
     Check if StartDateTime is less than EndDateTime.
@@ -317,12 +334,22 @@ def App():
     if 'IsFormSubmit' not in st.session_state:
         st.session_state['IsFormSubmit'] = False
     UserAuthDict = st.session_state['UserAuthDict']
+
     SelectComp = st.session_state['SelComp']
     SelectWell = st.session_state['SelWell']
     WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
     st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 0px;">ACTIVITY DASHBOARD</h1>', unsafe_allow_html=True)
     WellActivityContainer = st.container(border=True)
     DatetimeRangeCol = WellActivityContainer.container()
+
+    SectionFilter_col, DrillingCheckbox_col, TripCheckbox_col, TableCheckbox_col = WellActivityContainer.columns([3, 2.2,2.2,2.2], vertical_alignment="bottom")
+    with DrillingCheckbox_col:
+        st.checkbox("Display Drilling Chart", key="DrillingCheckbox", value=True)
+    with TripCheckbox_col:
+        st.checkbox("Display Trip Chart", key="TripCheckbox", value=True)
+    with TableCheckbox_col:
+        st.checkbox("Activity Summary Table", key="TableCheckbox", value=True)
+
     ActivateDate = datetime.strptime(WellInfoDict['ActiveDate'], '%Y-%m-%d').strftime('%d-%m-%Y')
     if datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d') > datetime.today():
         EndDate = datetime.today().strftime('%d-%m-%Y')
@@ -330,7 +357,7 @@ def App():
         EndDate = datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d').strftime('%d-%m-%Y')
     with DatetimeRangeCol.form(key='DateForm', border=False):
 
-        TitleCol,NothingCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1, 0.1, 1.4,1,0.1,1.4,1,0.7])
+        TitleCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1.2, 1.4,1,0.1,1.4,1,0.7])
         TitleCol.markdown('## WELL ACTIVITY')
         # TitleCol.markdown('<h3 style="text-align: left; font-size: 40px; margin-top: -10px;">WELL ACTIVITY</h3>', unsafe_allow_html=True)
         RealtimeLoadingContainer = st.empty()
@@ -390,10 +417,15 @@ def App():
         if ActivitySummary_DF.empty:
             st.warning("No data available for the selected date range.")
             st.stop()
+        SectionFilter_col.selectbox("Section Filter", options=['All'] + ActivitySummary_DF['Section'].unique().tolist(), key="SectionFilter", index=0)
+        if st.session_state['SectionFilter'] is not 'All':
+            ActivitySummary_DF = ActivitySummary_DF[ActivitySummary_DF['Section'] == st.session_state['SectionFilter']]
 
 
         # DashboardButtonCol, TableButtonCol = st.columns(2)
-        DashboardTab, TableTab = st.tabs(["Dashboard", "Table"])
+        # DashboardTab, TableTab = st.tabs(["Dashboard", "Table"])
+        DashboardTab = st.container()
+        TableTab = st.container()
         # with DashboardButtonCol:
         #     st.button("Dashboard", on_click=st.experimental_rerun, use_container_width=True)
         # with TableButtonCol:
@@ -401,7 +433,7 @@ def App():
 
         # Dashboard.SingleWellChart(ActivitySummary_DF)
         with TableTab:
-            ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict)
+            ActSumColumnSelectionWidget(ActivitySummary_DF, WellInfoDict, UserAuthDict)
 
 
             with st.expander("Recalculate Activity Summary Form").form(key='RecalculateForm', border=False):
@@ -451,7 +483,10 @@ def App():
                                                 type="primary")
 
         with DashboardTab:
-            Dashboard.SingleWellChart(ActivitySummary_DF, UserDateRange)
+            Dashboard.SingleWellChart(ActivitySummary_DF, 
+                                      UserDateRange, 
+                                      DisplayDrillingChart=st.session_state['DrillingCheckbox'], 
+                                      DisplayTripChart=st.session_state['TripCheckbox'])
 
         # st.write(ActivitySummary_DF)
         # st.plotly_chart(

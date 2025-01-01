@@ -68,6 +68,7 @@ def changeCompWell():
 
 def setPage(AppName):
     st.session_state['AppName'] = AppName
+
 init_session()
 st.set_page_config(
     page_title="RTDC App",
@@ -146,7 +147,7 @@ with MenuNavigationContainer:
               on_click=setPage, args=('Activity Mapping',), type='primary' if st.session_state['AppName'] == 'Activity Mapping' else 'secondary')
     st.button('Dashboard', use_container_width=True, key='Dashboard', disabled=(SelectWell==None or SelectWell=='-'),
               on_click=setPage, args=('Dashboard',), type='primary' if st.session_state['AppName'] == 'Dashboard' else 'secondary')
-
+    
 if (SelectWell == None) or (SelectWell == None):
     st.stop()
 AppDict = {
