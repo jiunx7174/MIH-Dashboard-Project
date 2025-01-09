@@ -11,8 +11,8 @@ RUN pip3 install -r requirements_PDU3.txt
 RUN chmod +x setup.sh && ./setup.sh
 # CMD ["streamlit","run","Streamlit_App_v3/Main.py"]
 
-CMD ["uvicorn","API.main_API:app", "--reload","--host","0.0.0.0", "--port", "8000"]
+CMD ["uvicorn","API.main_API:app", "--reload","--host","0.0.0.0", "--port", "8090"]
 
 
 # EXPOSE 8088
-EXPOSE 8000
+EXPOSE 8090
