@@ -461,7 +461,8 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
 
     idx_logic = idx_logic_activity &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['woba']==0) & (RTSensor_df['rpm']==0) & (RTSensor_df['stppress']>100) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']))
-    SubActivity_Label = "Wash Up/Down"
+    SubActivity_Label = "Reaming"
+    # SubActivity_Label = "Wash Up/Down"
     RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
     #4
 
@@ -496,7 +497,8 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
 
     # RTSensor_df["LABEL_SubActivity"] = "Check"
     idx_logic_2 = idx_logic_activity_2 & ((RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['rpm']==0) & (RTSensor_df['mudflowin']>10))
-    SubActivity_Label = "Wash Up/Down"
+    SubActivity_Label = "Reaming"
+    # SubActivity_Label = "Wash Up/Down"
     RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
     # DisplayDF(RTSensor_df.loc[idx_logic_2, :])
     #
@@ -879,7 +881,7 @@ def translateRigActivity2Activity(RigActivityDF):
     replacement_dict = {
         "Cementing":"Cementing Job",
         "Condition and/or Circulate mud":"Circulation",
-        "Connection (drilling)":"Connection",
+        "Connection (drilling)":"Drilling Formation",
         "Cut/Slip Drilling Line":"Other",
         "Drill Cement and/or Float Equipment":"Drill Out Cement",
         "Drilling":"Drilling Formation",

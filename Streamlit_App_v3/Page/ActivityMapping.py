@@ -119,11 +119,12 @@ def SectionParamsDataEditor(WellInfoDict, SectionParams_DF):
             step=5,
              required=True,
         ),
-        "Section Size": st.column_config.SelectboxColumn(
+        "Section Size": st.column_config.TextColumn(
             "Section Size",
             help="Select the well section size",
             width="medium",
-            options=SectionSizeList,
+            validate='*"',
+            # options=SectionSizeList,
             required=True,
         ),
         "In-Slip Threshold": st.column_config.NumberColumn(
