@@ -47,23 +47,7 @@ def changeCompWell():
         st.query_params['SelComp'] = st.session_state['SelComp']
     if 'SelWell' in st.session_state:
         st.query_params['SelWell'] = st.session_state['SelWell']
-    #     if st.session_state['SelComp'] == None:
-    #         try:
-    #             del st.session_state['SelComp']
-    #             del st.query_params['SelComp']
-    #         except:
 
-            
-    # if 'SelWell' in st.session_state:
-    #     if st.session_state['SelWell'] == None:
-    #         try:
-    #             del st.session_state['SelWell']
-    #             del st.query_params['SelWell']
-    #         except:
-    #             st.query_params['SelWell'] = st.session_state['SelWell']
-    #     # st.query_params['SelWell'] = st.session_state['SelWell']
-
-    # st.rerun()
     
 
 def setPage(AppName):
@@ -94,25 +78,10 @@ AvailComp_DF = IO_Data.getAvailableCompanyDF(UserAuthDict)
 SelectWell = None
 SelectComp = None
 with SelCompWellContainer:
-    # try:
-    #     indexComp = AvailComp_DF['company_name'].tolist().index(st.query_params['SelComp']) if 'SelComp' in st.query_params else None
-    # except:
-    #     indexComp = None
-    # if 'SelComp' in st.query_params:
-    #     st.session_state['SelComp'] = st.query_params['SelComp']
-    # indexComp = None
+
     SelectComp = ste.selectbox("Select Company",AvailComp_DF['company_name'].tolist(), index=None, key='SelComp', on_change=changeCompWell)
     if SelectComp != None:
         AvailWell_DF = IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)
-        # if 'SelWell' in st.query_params:
-        #     st.session_state['SelWell'] = st.query_params['SelWell']
-
-        # try:
-        #     indexWell = AvailWell_DF['well_name'].tolist().index(st.query_params['SelWell']) if 'SelWell' in st.query_params else None
-        # except:
-        #     indexWell = None
-        # indexWell = None
-
 
         SelectWell = ste.selectbox("Select Well", AvailWell_DF['well_name'].tolist(), index=None,key='SelWell', on_change=changeCompWell)
 
@@ -122,31 +91,17 @@ with SelCompWellContainer:
         st.sidebar.warning("Please select a company")
 
 
-# AppDict = {
-#     'Home': [st.Page(Welcome.App, title='Home', icon='🏠')],
-#     'Activity Mapping': [st.Page(ActivityMapping.App, title='ActivityMapping', icon='🗺️')],
-#     'Dashboard': [st.Page(ActivityVisualization.App, title='Dashboard', icon='📊')],
-#     # 'Data Analytics': DataAnalytics.App,
-#     # 'Override Activity': Override.App,
-# }
-
-# with st.container():
-#     pg = st.navigation(
-#         [st.Page(Welcome.App, title='Home', icon='🏠', url_path='Home'),
-#         st.Page(ActivityMapping.App, title='Activity Mapping', icon='🗺️', url_path='ActivityMapping'),
-#         st.Page(ActivityVisualization.App, title='Dashboard', icon='📊', url_path='Dashboard'),
-#         ]
-#     )
-#     pg.run()
 with MenuNavigationContainer:
-    # st.divider()
-    # st.caption("Select M")
+
     st.button('Home', use_container_width=True, key='Home', 
               on_click=setPage, args=('Home',), type='primary' if st.session_state['AppName'] == 'Home' else 'secondary')
     st.button('Activity Mapping', use_container_width=True, key='Activity Mapping', disabled=(SelectWell==None or SelectWell=='-'),
               on_click=setPage, args=('Activity Mapping',), type='primary' if st.session_state['AppName'] == 'Activity Mapping' else 'secondary')
     st.button('Dashboard', use_container_width=True, key='Dashboard', disabled=(SelectWell==None or SelectWell=='-'),
               on_click=setPage, args=('Dashboard',), type='primary' if st.session_state['AppName'] == 'Dashboard' else 'secondary')
+    
+    # st.button('Override', use_container_width=True, key='Override', disabled=(SelectWell==None or SelectWell=='-'),
+    #           on_click=setPage, args=('Override',), type='primary' if st.session_state['AppName'] == 'Override' else 'secondary')
     
 if (SelectWell == None) or (SelectWell == None):
     st.stop()
@@ -155,7 +110,6 @@ AppDict = {
     'Activity Mapping': ActivityMapping.App,
     'Dashboard': ActivityVisualization.App,
     'Data Analytics': DataAnalytics.App,
-    'Override Activity': Override.App,
+    # 'Override': Override.App,
 }
 AppDict[st.session_state['AppName']]()
-# st.write(st.session_state['AppName'])
