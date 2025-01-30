@@ -9,6 +9,7 @@ import datetime as datetime_module
 from PDU_Func import Activity, Authentification, IO_Data
 from Page.SubPage import RealtimeDataViz
 from importlib import reload
+import streamlit_ext as ste
 reload(IO_Data)
 reload(Activity)
 reload(RealtimeDataViz)
@@ -254,9 +255,10 @@ def SectionParamsTableWidget(WellInfoDict, container,
                 width="medium",
                 required=True,
             ),
-            "Section Size": st.column_config.SelectboxColumn(
+            "Section Size": st.column_config.TextColumn(
                 "Section Size",
-                options=SectionSizeList,
+                # options=SectionSizeList,
+                validate=r'^.*"$',
                 width="medium",
                 required=True,
             ),
