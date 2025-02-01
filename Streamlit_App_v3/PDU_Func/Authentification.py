@@ -1,6 +1,8 @@
 import requests
 import time
 import streamlit as st
+from . import IO_Data
+# getURLAPI_FastAPI, getURLAPI_FastAPI
 def retry_on_error(max_retries=10, retry_interval=5):
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -43,8 +45,9 @@ def getUserID(UserDict):
         # UserDict
         UniqueID = UserDict['ID']
         # print((UniqueID))
+        PDU_API = IO_Data.getURLAPI_pdu()
 
-        getWellAPI = "http://khansadev.xyz/dome_api/rtdc/get_verifikasi/" + UniqueID
+        getWellAPI = f"{PDU_API}rtdc/get_verifikasi/" + UniqueID
         UserLogin_dict = requests.get(
                 getWellAPI
             ).json()

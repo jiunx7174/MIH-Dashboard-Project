@@ -1,4 +1,4 @@
 {
-    "url_pdu_api": "http://khansadev.xyz/dome_api/",
-    "url_pdu_fastapi": "http://pdumitradome.id:8000/"
+    "url_pdu_api": "http://pdumitradome.id/dome_api/",
+    "url_pdu_fastapi": "http://pdumitradome.id:8090/"
 }
