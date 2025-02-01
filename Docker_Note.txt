@@ -2,7 +2,11 @@
 # Build docker file
 docker build -f Dockerfile-PDU3.1 -t streamlit-server-v3:1.3 .
 # run Docker container
-docker run -d --name streamlit-server-v3.3 -p 8086:8086 -v /home/admin/streamlit/MIH-Dashboard-Project/Streamlit_App_v3:/streamlit-app streamlit-server-v3:1.3
+docker run -d --name streamlit-server-v3.3 -p 8086:8086 \
+    -v /home/admin/streamlit/MIH-Dashboard-Project:/streamlit-app \
+    -v /home/admin/streamlit/MIH-Dashboard-Project/SSL:/streamlit-app/SSL \
+    -v /home/admin/streamlit/MIH-Dashboard-Project/Streamlit_App_v3/Config:/root/.streamlit \
+    streamlit-server-v3:1.3
 
 [FastAPI Server]
 # Build docker file

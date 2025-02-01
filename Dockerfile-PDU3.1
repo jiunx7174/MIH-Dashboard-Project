@@ -4,18 +4,10 @@ RUN mkdir streamlit-app && \
 WORKDIR streamlit-app/Streamlit_App_v3
 RUN mkdir -p SSL
 
-COPY SSL/ssl.pdumitradome.id.pem SSL/ssl.pdumitradome.id.pem
-COPY SSL/ssl.pdumitradome.id.key SSL/ssl.pdumitradome.id.key
-COPY SSL/ssl.pdumitradome.id.crt SSL/ssl.pdumitradome.id.crt
-COPY SSL/ssl.pdumitradome.id.ca SSL/ssl.pdumitradome.id.ca
-
-
 COPY requirements_PDU3.txt .
 COPY setup.sh .
 RUN pip install --upgrade pip
 RUN pip3 install -r requirements_PDU3.txt
-ENV PORT=8086
-RUN chmod +x setup.sh && ./setup.sh
 CMD ["streamlit","run","Main.py"]
 # WORKDIR streamlit-app/Streamlit_App_v3/API
 # CMD ["uvicorn","main_API:app", "--reload", "--port", "8000"]

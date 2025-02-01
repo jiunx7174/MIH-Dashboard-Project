@@ -1,0 +1,10 @@
+[server]
+headless = true
+port = 8086
+enableCORS = false
+sslCertFile = '/streamlit-app/SSL/ssl.pdumitradome.id.pem'
+sslKeyFile = '/streamlit-app/SSL/ssl.pdumitradome.id.key'
+[theme]
+base = 'light'
+[client]
+showErrorDetails=false
