@@ -13,3 +13,4 @@ docker run -d --name streamlit-server-v3.3 -p 8086:8086 \
 docker build -f Dockerfile-FastAPI -t pdu-fastapi:1.5 .
 # run docker container
 docker run -d --name pdu-fastapi -p 0.0.0.0:8090:8090 -v /home/admin/streamlit/MIH-Dashboard-Project/Streamlit_App_v3:/streamlit-app pdu-fastapi:1.5
+uvicorn FastAPI.main_api:app --reload

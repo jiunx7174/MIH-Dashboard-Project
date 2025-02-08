@@ -7,7 +7,8 @@ import sys
 import os
 import time
 import numpy as np
-
+import json
+import requests
 # Get the directory of the current file
 current_dir = os.path.dirname(__file__)
 # If you specifically want to use os.path.join() for clarity
@@ -16,6 +17,10 @@ up_one_folder = os.path.join(current_dir, '..')
 library_path = os.path.normpath(up_one_folder)
 # Add the path to sys.path
 sys.path.append(library_path)
+def getURLAPI_pdu():
+    return "http://pdumitradome.id/dome_api/"
+def getURLAPI_FastAPI():
+    return "http://pdumitradome.id:8090/"
 
 import pandas as pd
 from fastapi.responses import HTMLResponse
@@ -781,7 +786,39 @@ def section_params_get(data: Get_SectionParamsDataModel):
         return empty_data
     return SectionParams_df.to_dict(orient='records')
 
+@app.get("/get_company/")
+def getAvailableCompanyDF():
+    url_pdu_api = getURLAPI_pdu()
+    GetCompAPI = f"{url_pdu_api}rtdc/get_company/" 
+    CompName_JSON = requests.get(GetCompAPI).json()  
+    return CompName_JSON
 
+
+@app.get("/get_well/")
+def getAvailableWellDF(cid: int):
+    url_pdu_api = getURLAPI_pdu()
+    GetAvailableWellAPI =  f"{url_pdu_api}rtdc/get_well?cid=" + str(cid)
+    AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
+    return AvailableWell_JSON
+
+@app.post("/ActivitySummary/delete/")
+def deleteActivitySummary(wid: int, ID_or_timestart:str):
+    print(ID_or_timestart)
+    url_pdu_api = getURLAPI_pdu()
+    TableAPI = f"{url_pdu_api}rtdc/ActivitySummary/delete"
+    response = (
+        requests.post(
+            TableAPI, 
+            data=json.dumps(
+                            {
+                                "wid": wid,
+                                "time_start":str(ID_or_timestart)
+                            },
+                            indent = 4
+                        ) 
+            )
+    )
+    return response
 #########################################################################################
 ################################ Version 2 ##############################################
 #########################################################################################

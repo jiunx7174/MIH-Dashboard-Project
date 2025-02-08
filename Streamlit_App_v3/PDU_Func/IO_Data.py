@@ -175,6 +175,7 @@ def getWellInfoDict(UserAuthDict, SelectComp, SelectWell):
 def getWellInfoDict_byID(cid, wid):
     url_pdu_api = getURLAPI_pdu()
     GetAvailableWellAPI =  f"{url_pdu_api}rtdc/get_well?cid=" + str(cid)
+    # print(GetAvailableWellAPI)
     AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
     # st.json(AvailableWell_JSON)
     SelectWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
