@@ -924,6 +924,24 @@ def v2_get_bitdepth_vs_time(wid: int = Query(None, title="wid"),
     BitDepthTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     BitDepthTime_df = BitDepthTime_df[['StartDateTime', 'EndDateTime', 'Bit_Depth_avg', 'LABEL_Activity', 'LABEL_SubActivity', ]]
     return BitDepthTime_df.to_dict(orient='records')
+@app.get("/v2/get-flattime")
+def v2_get_flattime(wid: int = Query(None, title="wid"), 
+               cid: int = Query(None, title="cid"), 
+               StartDateTime: str = Query(None, title="StartDateTime"),
+               EndDateTime: str = Query(None, title="EndDateTime"),
+               ):
+    UserDateRange = {
+    "StartDateTime": datetime.datetime.strptime(StartDateTime, '%Y-%m-%d %H:%M:%S'),
+    "EndDateTime": datetime.datetime.strptime(EndDateTime, '%Y-%m-%d %H:%M:%S')
+    }
+    UserDateRange['StartDate'] = UserDateRange['StartDateTime'].date()
+    UserDateRange['StartTime'] = UserDateRange['StartDateTime'].time()
+    UserDateRange['EndDate'] = UserDateRange['EndDateTime'].date()
+    UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    FlatTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    FlatTime_df = FlatTime_df[['StartDateTime', 'EndDateTime', 'Duration', 'LABEL_Activity', 'LABEL_SubActivity', ]]
+    return FlatTime_df.to_dict(orient='records')
 
 
 @app.get("/v2/get-activity-rop-per-stand/")
@@ -1080,3 +1098,8 @@ def v2_get_casing_trip_breakdown_time(wid: int = Query(None, title="wid"),
 
 
     return CasingTripBreakdown_df.astype(str).to_dict(orient='records')
+
+
+
+
+
