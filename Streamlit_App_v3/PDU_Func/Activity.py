@@ -694,7 +694,7 @@ def getROP_df(ActSum_df):
     ROP_df['ROP_Percentage'] = ROP_df['ROP_Stand']/ROP_df['ROP_OnBottom']  * 100
     ROP_df['Stand Group_Pred'] = ROP_df['LABEL_ConnectionActivity'].str.replace('Connection-', 'Drilling Stand-')
     return ROP_df[['StartDateTime','EndDateTime', 'DrillingMeteragePerStand', 'OnBottomDurationPerStand', 'StandDuration', 'ROP_OnBottom', 'ROP_Stand', 'ROP_Percentage', 'Stand Group_Pred']]
-
+import streamlit as st
 def getConnectionTime_df(ActSum_df):
     ConnectionTime_df = ActSum_df.copy()
 
@@ -713,7 +713,7 @@ def getConnectionTime_df(ActSum_df):
         ).reset_index()
         # Pivot the data to match the requested output format
         ConnectionTime_pivot_df = ConnectionTime_agg_df.pivot(index='ConnectionID', columns='ConnectionCategory', values='Total_Duration').reset_index()
-
+        
         # Renaming columns to match the desired output
         # ConnectionTime_pivot_df.columns = ['ConnectionID', 'ConnectionDuration', 'PostConnectionDuration', 'PreConnectionDuration']
         ConnectionTime_pivot_df = ConnectionTime_pivot_df.rename(columns={
@@ -729,6 +729,9 @@ def getConnectionTime_df(ActSum_df):
 
         # Merging the pivoted DataFrame with the start and end times
         ConnectionTime_pivot_df = pd.merge(ConnectionTime_pivot_df, start_end_times, on='ConnectionID')
+        for ColName in ['PreConnectionDuration', 'ConnectionDuration', 'PostConnectionDuration']:
+            if ColName not in ConnectionTime_pivot_df.columns:
+                ConnectionTime_pivot_df[ColName] = 0
         ConnectionTime_pivot_df[['PreConnectionDuration', 'ConnectionDuration', 'PostConnectionDuration']] = ConnectionTime_pivot_df[['PreConnectionDuration', 'ConnectionDuration', 'PostConnectionDuration']].fillna(0)
         return ConnectionTime_pivot_df[[ 'StartDatetime', 'EndDatetime', 'PreConnectionDuration', 'ConnectionDuration', 'PostConnectionDuration', 'ConnectionID']]
     else:
