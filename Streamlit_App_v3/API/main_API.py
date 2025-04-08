@@ -633,12 +633,7 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
 
 @app.get("/hello/",response_class=HTMLResponse)
 def hello_func():
-    df = pd.DataFrame({"Message": ["Hello World"]})
-    
-    # Convert the DataFrame to HTML
-    html_content = df.to_html()
-    
-    return HTMLResponse(content=html_content)
+    return "Hello"
 
 
 
