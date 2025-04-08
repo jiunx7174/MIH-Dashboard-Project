@@ -98,6 +98,11 @@ def update_realtime_data(data: UpdateDataRequest):
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
 
     SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+    if SectionParams_DF.empty:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "inslip threshold not set"}
+        )
     df_list = []
     try:
         LastDateTime_obj = datetime.datetime.strptime(sync_datetime, '%Y-%m-%d %H:%M:%S')
@@ -567,6 +572,11 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
 
     # SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
     SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+    if SectionParams_DF.empty:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "inslip threshold not set"}
+        )
     df_list = []
     # LastDateTime_obj = datetime.datetime.strptime(sync_datetime, '%Y-%m-%d %H:%M:%S')
     try:
