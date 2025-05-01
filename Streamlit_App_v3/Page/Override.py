@@ -667,7 +667,7 @@ def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
         # If we've adjusted more than 2 weeks, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
             UserDateRange["StartDate"] = datetime_module.datetime(2003, 4, 10)
-            UserDateRange["StartTime"] = datetime_module.datetime(10, 51)
+            UserDateRange["StartTime"] = datetime_module.time(10, 51)
             break
     
         # return None
