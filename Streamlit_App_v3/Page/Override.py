@@ -468,7 +468,7 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     # df_list.append(pd.DataFrame.from_records([UserDateRange_Sync]))
     RTSensor_DF = IO_Data.DomeGetRealtimeSensorData(WellInfoDict,
                                                         UserDateRange_Sync, 
-                                                        hours=0.5, 
+                                                        hours=0.25, 
                                                         show_progress=False, 
                                                         runOnStreamlit=True,
                                                         )
