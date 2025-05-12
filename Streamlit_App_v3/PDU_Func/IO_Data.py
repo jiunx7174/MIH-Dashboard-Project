@@ -4,6 +4,7 @@ import streamlit as st
 import numpy as np
 import json
 import time
+import os
 
 from datetime import datetime,timedelta
 # from stqdm import stqdm
@@ -359,6 +360,8 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
     # }
     # print(Data_params)
     url_pdu_api = getURLAPI_pdu()
+    print(f"Request Realtime on :{url_pdu_api}rtdc/get_data")
+    print(Data_params)
     column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
     WellData = (
         (
@@ -373,19 +376,57 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
         return pd.DataFrame(columns=column_list)
     else:
         return pd.json_normalize(WellData, record_path='result')
-@st.cache_data(
-        # ttl=60*60*1.5,
-        persist=True,
-        show_spinner="Downloading Realtime Data...")
+    
+
+
+# @st.cache_data(
+#         # ttl=60*60*1.5,
+#         persist=True,
+#         show_spinner="Downloading Realtime Data...")
 def DomeGetRealtimeSensorDataChunk_DiskCache(Data_params):
     print("====================================")
     print("======== Use Streamlit Cache =======")
     print("====================================")
     return DomeGetRealtimeSensorDataChunk(Data_params)
-@st.cache_data(
-        ttl=60*60*1.5,
-        # persist=True,
-        show_spinner="Downloading Realtime Data...")
+def DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params):
+    print("====================================")
+    print("======== Use Parquet Cache =======")
+    print("====================================")
+    wid = Data_params['wid']
+    dir_path = f"Data/RealtimeCache/wid_{wid}"
+    StartDateTimeStr = Data_params['start'].replace(' ', '-').replace(':', '')
+    EndDateTimeStr = Data_params['end'].replace(' ', '-').replace(':', '')
+
+    ParquetCacheFilepath = dir_path + f"/{Data_params['wid']}_{StartDateTimeStr}_{EndDateTimeStr}.parquet"
+
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    if os.path.isfile(ParquetCacheFilepath):
+        # print(f"Read from Parquet Cache: {ParquetCacheFilepath}")
+        OutputRealtime =  pd.read_parquet(ParquetCacheFilepath)
+        return OutputRealtime
+    else:
+        OutputRealtime = DomeGetRealtimeSensorDataChunk(Data_params)
+        if OutputRealtime.empty:
+            return OutputRealtime
+        else:
+            print("====================================")
+            print(f"Save to Parquet Cache: {ParquetCacheFilepath}")
+            print("====================================")
+            OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
+            return OutputRealtime
+
+
+
+    # OutputRealtime[OutputRealtime['date'].astype(str) == date].to_parquet(ParquetCacheFilepath, compression='gzip')
+
+
+
+    # return DomeGetRealtimeSensorDataChunk(Data_params)
+# @st.cache_data(
+#         ttl=60*60*1.5,
+#         # persist=True,
+#         show_spinner="Downloading Realtime Data...")
 def DomeGetRealtimeSensorDataChunk_SessionCache(Data_params):
     print("====================================")
     print("======== Use Streamlit Cache =======")
@@ -461,26 +502,39 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
             "start" : str(StartDateTime),
             "end" : str(EndDateTime),
         }
+
+        
         current_time = datetime.now()
         # Define the 3-hour range before the current time
         hours_before = current_time - timedelta(hours=1)
 
         # Check if the range matches 3 hours before the current time
-        if EndDateTime <= hours_before:
+        
+        if EndDateTime >= hours_before:
             IsStillUpdate = True
         else:
             IsStillUpdate = False
+        # print(IsStillUpdate)
 
+        # if runOnStreamlit and IsStillUpdate:
+        #     ProgressStatus.progress(np.round(ii/len(StartEndList),2),  text=f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
+        #     if IsStillUpdate:
+        #         Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_SessionCache(Data_params)
+        #     else:
+        #         Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_DiskCache(Data_params)
 
-        if runOnStreamlit and IsStillUpdate:
-            ProgressStatus.progress(np.round(ii/len(StartEndList),2),  text=f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
-            if IsStillUpdate:
-                Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_SessionCache(Data_params)
-            else:
-                Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_DiskCache(Data_params)
-
-        else:
+        # else:
+        #     Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
+        
+        if IsStillUpdate and ((EndDateTime - StartDateTime) != timedelta(hours=hours)):
             Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
+        else:
+            Realtime_DF_temp = DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params)
+        if runOnStreamlit :
+            ProgressStatus.progress(np.round(ii/len(StartEndList),2),  text=f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
+
+        # else:
+        #     Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
         # Realtime_DF_temp = DomeGetRealtimeSensorDataChunk(Data_params)
         # print(Realtime_DF_temp)
         if not Realtime_DF_temp.empty:

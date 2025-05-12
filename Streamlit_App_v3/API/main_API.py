@@ -23,13 +23,14 @@ def getURLAPI_FastAPI():
     return "http://pdumitradome.id:8090/"
 
 import pandas as pd
+
 from fastapi.responses import HTMLResponse
-from PDU_Func import Activity, Authentification, IO_Data
-from Page import Override
+from PDU_Func import Activity , IO_Data #Authentification, 
+from Page.Override import DomeUpdateRealtimeData
 from importlib import reload
 import datetime
 reload(Activity)
-reload(IO_Data)
+# reload(IO_Data)
 # reload(IO_Data)
 # reload(Activity)
 app = FastAPI()
@@ -184,10 +185,34 @@ def recalculate_data(data: RecalculateDataRequest):
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
 
     # TODO redefine the startdatetime and enddatetime readjustment
-    Override.DomeUpdateRealtimeData(WellInfoDict, startdatetime, enddatetime) 
+    DomeUpdateRealtimeData(WellInfoDict, startdatetime, enddatetime) 
 
+@app.post("/force-cache-update/")
+def force_cache_update(data: RecalculateDataRequest):
+    wid = data.wid
+    cid = data.cid
+    startdatetime = data.startdatetime
+    enddatetime = data.enddatetime
+    WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
+    # TODO redefine the startdatetime and enddatetime readjustment
+    UserDateRange = {
+            "StartDate": startdatetime.split()[0].strftime('%Y-%m-%d'),
+            "StartTime": startdatetime.split()[1].strftime('%H:%M:%S'),
+            "EndDate": enddatetime.split()[0].strftime('%Y-%m-%d'),
+            "EndTime": enddatetime.split()[1].strftime('%H:%M:%S'),
+            }
+    StartDateTimeList,EndDateTimeList = IO_Data.splitDateTime(UserDateRange, hours=0.5)
+    for StartDateTime,EndDateTime in zip(StartDateTimeList,EndDateTimeList):
 
-### Visualization API
+        Data_params ={
+            "wid" : int(WellInfoDict['wid']),
+            "start" : str(StartDateTime),
+            "end" : str(EndDateTime),
+        }
+        IO_Data.DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params)
+        print(f"write {WellInfoDict['wid']} - {StartDateTime} - {EndDateTime} to Parquet cache")
+    return {"message": "Cache updated successfully"}
+    ### Visualization API
 class VisualDataModel(BaseModel):
     wid: int
     cid: int
