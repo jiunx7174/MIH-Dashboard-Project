@@ -294,11 +294,22 @@ def RecalculateActivitySummary():
     list_startdatetime = [datetime.combine(st.session_state['RecalculateStrtDateRT'], st.session_state['RecalculateStrtTimeRT']).strftime('%Y-%m-%d %H:%M:%S')]
     list_enddatetime = [datetime.combine(st.session_state['RecalculateEndDateRT'], st.session_state['RecalculateEndTimeRT']).strftime('%Y-%m-%d %H:%M:%S')]
     list_startdatetime, list_enddatetime = Override.SimplifyTimeRange(list_startdatetime, list_enddatetime)
-    st.toast("Recalculating Activity Summary")
-    Override.DomeUpdateRealtimeData(WellInfoDict, 
-              list_startdatetime[0] ,
-               list_enddatetime[0], runOnStreamlit=True)
-    st.toast("Complete!")
+    UserDateRange = {
+        'StartDate': list_startdatetime[0].split(' ')[0],
+        'StartTime': list_startdatetime[0].split(' ')[1],
+        'EndDate': list_enddatetime[0].split(' ')[0],
+        'EndTime': list_enddatetime[0].split(' ')[1]
+    }
+
+    Final_list_startdatetime, Final_list_enddatetime = IO_Data.splitDateTime(UserDateRange, hours=24)
+    print(Final_list_startdatetime, Final_list_enddatetime)
+    for Final_startdatetime, Final_enddatetime in zip(Final_list_startdatetime, Final_list_enddatetime):
+
+        # st.write(st.session_state['RecalculateStrtDateRT'], st.session_state['RecalculateStrtTimeRT'], st.session_state['RecalculateEndDateRT'], st.session_state['RecalculateEndTimeRT'])
+        Override.DomeUpdateRealtimeData(WellInfoDict, 
+                Final_startdatetime.strftime('%Y-%m-%d %H:%M:%S') ,
+                Final_enddatetime.strftime('%Y-%m-%d %H:%M:%S'), runOnStreamlit=True)
+        st.toast(f"{Final_startdatetime.strftime('%Y-%m-%d %H:%M:%S')} - {Final_enddatetime.strftime('%Y-%m-%d %H:%M:%S')} Complete!")
 
 #     RecalculateStrtDateRT
 # RecalculateStrtTimeRT

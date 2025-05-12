@@ -407,16 +407,17 @@ def DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params):
         return OutputRealtime
     else:
         OutputRealtime = DomeGetRealtimeSensorDataChunk(Data_params)
-        OutputRealtime['dt'] = OutputRealtime['dt'].astype('datetime64[ns]')
         
         if OutputRealtime.empty:
             return OutputRealtime
-        elif OutputRealtime['dt'].max() >= (datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S') - timedelta(seconds=20)):
+        OutputRealtime['dt'] = OutputRealtime['dt'].astype('datetime64[ns]')
+        if OutputRealtime['dt'].max() >= (datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S') - timedelta(seconds=20)):
 
             print("====================================")
             print(f"Save to Parquet Cache: {ParquetCacheFilepath}")
             print("====================================")
             OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
+            return OutputRealtime
         else:
             # OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
             return OutputRealtime
