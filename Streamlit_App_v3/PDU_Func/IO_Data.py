@@ -10,12 +10,17 @@ from datetime import datetime,timedelta
 
 
 def getURLAPI_pdu():
-    with open('app_config.json') as json_file:
-        return dict(json.load(json_file))['url_pdu_api']
+    try:
+        with open('app_config.json') as json_file:
+            return dict(json.load(json_file))['url_pdu_api']
+    except :
+        return  "http://pdumitradome.id/dome_api/"
 def getURLAPI_FastAPI():
-    with open('app_config.json') as json_file:
-        return dict(json.load(json_file))['url_pdu_fastapi']
-
+    try:
+        with open('app_config.json') as json_file:
+            return dict(json.load(json_file))['url_pdu_fastapi']
+    except :
+        return "http://pdumitradome.id:8090/"
     
 # for IO trial
 def retry_on_error(max_retries=10, retry_interval=10):

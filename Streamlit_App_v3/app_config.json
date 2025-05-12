@@ -1,4 +1,5 @@
 {
     "url_pdu_api": "http://pdumitradome.id/dome_api/",
-    "url_pdu_fastapi": "http://pdumitradome.id:8090/"
+    "url_pdu_fastapi": "http://localhost:8000/",
+    "url_pdu_fastapi_local": "http://pdumitradome.id:8090/"
 }
