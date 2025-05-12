@@ -196,10 +196,10 @@ def force_cache_update(data: RecalculateDataRequest):
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     # TODO redefine the startdatetime and enddatetime readjustment
     UserDateRange = {
-            "StartDate": startdatetime.split()[0].strftime('%Y-%m-%d'),
-            "StartTime": startdatetime.split()[1].strftime('%H:%M:%S'),
-            "EndDate": enddatetime.split()[0].strftime('%Y-%m-%d'),
-            "EndTime": enddatetime.split()[1].strftime('%H:%M:%S'),
+            "StartDate": startdatetime.split(' ')[0],
+            "StartTime": startdatetime.split(' ')[1], 
+            "EndDate": enddatetime.split(' ')[0],
+            "EndTime": enddatetime.split(' ')[1],
             }
     StartDateTimeList,EndDateTimeList = IO_Data.splitDateTime(UserDateRange, hours=0.5)
     for StartDateTime,EndDateTime in zip(StartDateTimeList,EndDateTimeList):
