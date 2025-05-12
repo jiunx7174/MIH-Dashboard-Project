@@ -407,13 +407,18 @@ def DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params):
         return OutputRealtime
     else:
         OutputRealtime = DomeGetRealtimeSensorDataChunk(Data_params)
+        OutputRealtime['dt'] = OutputRealtime['dt'].astype('datetime64[ns]')
+        
         if OutputRealtime.empty:
             return OutputRealtime
-        else:
+        elif OutputRealtime['dt'].max() >= (datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S') - timedelta(seconds=20)):
+
             print("====================================")
             print(f"Save to Parquet Cache: {ParquetCacheFilepath}")
             print("====================================")
             OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
+        else:
+            # OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
             return OutputRealtime
 
 
@@ -506,7 +511,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
         
         current_time = datetime.now()
         # Define the 3-hour range before the current time
-        hours_before = current_time - timedelta(hours=1)
+        hours_before = current_time - timedelta(hours=2)
 
         # Check if the range matches 3 hours before the current time
         
