@@ -970,6 +970,8 @@ def v2_get_flattime(wid: int = Query(None, title="wid"),
     UserDateRange['EndTime'] = UserDateRange['EndDateTime'].time()
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     FlatTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    DrillActivityList = ["DRILLING FORMATION"]
+    FlatTime_df = FlatTime_df[~FlatTime_df['LABEL_Activity'].isin(DrillActivityList)]
     FlatTime_df = FlatTime_df[['StartDateTime', 'EndDateTime', 'Duration', 'LABEL_Activity', 'LABEL_SubActivity', ]]
     return FlatTime_df.to_dict(orient='records')
 
