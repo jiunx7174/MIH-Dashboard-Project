@@ -973,7 +973,36 @@ def v2_get_flattime(wid: int = Query(None, title="wid"),
     DrillActivityList = ["DRILLING FORMATION"]
     FlatTime_df = FlatTime_df[~FlatTime_df['LABEL_Activity'].isin(DrillActivityList)]
     FlatTime_df = FlatTime_df[['StartDateTime', 'EndDateTime', 'Duration', 'LABEL_Activity', 'LABEL_SubActivity', ]]
-    return FlatTime_df.to_dict(orient='records')
+    # Make sure StartDateTime and EndDateTime are datetime types
+    FlatTime_df['StartDateTime'] = pd.to_datetime(FlatTime_df['StartDateTime'])
+    FlatTime_df['EndDateTime'] = pd.to_datetime(FlatTime_df['EndDateTime'])
+    FlatTime_df['Duration'] = FlatTime_df['Duration'].astype(float)
+
+
+    # Group by blocks of continuous LABEL_Activity
+    grouped = FlatTime_df.groupby((FlatTime_df['LABEL_Activity'].shift() != FlatTime_df['LABEL_Activity']).cumsum())
+
+    # Aggregate
+    summary_df = grouped.agg({
+        'StartDateTime': 'min',
+        'EndDateTime': 'max',
+        'Duration': 'sum',
+        'LABEL_Activity': 'first',
+        # 'LABEL_SubActivity': 'first'
+    }).reset_index(drop=True)
+    summary_df['Duration'] = summary_df['Duration'].astype(str)
+    summary_df['StartDateTime'] = summary_df['StartDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    summary_df['EndDateTime'] = summary_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
+    # for k,DF_Temp in FlatTime_df .groupby((FlatTime_df ['LABEL_Activity'].shift() != FlatTime_df ['LABEL_Activity']).cumsum()):
+
+
+
+
+
+
+    return summary_df.to_dict(orient='records')
 
 
 @app.get("/v2/get-activity-rop-per-stand/")
