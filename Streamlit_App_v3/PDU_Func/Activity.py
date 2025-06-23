@@ -411,17 +411,25 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     # errors='coerce'
     )
     if TripActivityList=='default':
-        TripActivityList = ['TRIP IN', 'TRIP OUT', 'WIPER TRIP']
+        TripActivityList = ['TRIP IN', 'TRIP OUT', 'WIPER TRIP', "WIPER/SHORT TRIP",]
 
         # TripActivityList = ['NPT', 'N/D BOP', 'N/U BOP', 'OTHER', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 
         #                     'TRIP IN', 'TRIP OUT', 'WAIT ON CEMENT', 'LAY DOWN BHA', 'MAKE UP BHA', 'WIPER TRIP']
         
     if DrillActivityList=='default':
-        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
+        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION',]
 
     if OverrideActivityList=='default':
         OverrideActivityList = ['CEMENTING JOB', 'CONNECTION', 'LAY DOWN BHA', 'MAKE UP BHA', 'NPT', 'N/D BOP', 
-                                'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR','N/A', 'OTHER']
+                                'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR','N/A', 'OTHER',"SLIP & CUT DRILLING LINE", 
+                                "N/U OR N/D BOP", 
+                                'DRILL OUT CEMENT',
+                                "CEMENTING JOB", 
+                                "PRESSURE TEST", 
+                                "REAMING", 
+                                "RUN CASING",
+                                "TEST BOP", 
+                                "WIRELINE LOGS", ]
 
     logic_status = 0
     RTSensor_df["SubActivity"] = "FALSE/Check"
@@ -885,29 +893,29 @@ def translateRigActivity2Activity(RigActivityDF):
         "Cementing":"Cementing Job",
         "Condition and/or Circulate mud":"Circulation",
         "Connection (drilling)":"Drilling Formation",
-        "Cut/Slip Drilling Line":"Other",
+        "Cut/Slip Drilling Line":"Slip & Cut Drilling Line",
         "Drill Cement and/or Float Equipment":"Drill Out Cement",
         "Drilling":"Drilling Formation",
         "Fishing":"Other",
         "Flow Check":"Other",
         "Lost Circulation":"Other",
         "Lubricate Rig":"Rig Repair",
-        "Nipple Up /Nipple Down BOP Stack":"Make up BHA",
-        "Plug Back":"Other",
-        "Pressure Integrity Test":"Other",
-        "Reaming":"Stationary",
+        "Nipple Up /Nipple Down BOP Stack":"N/U or N/D BOP",
+        "Plug Back":"Cementing Job",
+        "Pressure Integrity Test":"Pressure Test",
+        "Reaming":" Reaming",
         "Rig Repair":"Rig Repair",
-        "Run Casing":"Running Casing In",
-        "Short Trip In":"Trip In",
-        "Short Trip Out":"Trip Out",
+        "Run Casing":"Run Casing",
+        "Short Trip In":"Wiper/Short Trip",
+        "Short Trip Out":"Wiper/Short Trip",
         "Squeeze Cementing":"Cementing Job",
         "Stuck Pipe":"Stuck Pipe",
-        "Test BOP":"Make up BHA",
+        "Test BOP":"Test BOP",
         "Tripping In":"Trip In",
         "Tripping Out":"Trip Out",
         "Undefined Status":"Other",
         "Wait on Cement":"Wait on Cement",
-        "Wireline Logs":"Other",
+        "Wireline Logs":"Wireline Logs",
     }
     RigActivityDF['Activity'] = RigActivityDF['Activity'].replace(replacement_dict)
     RigActivityDF['Activity'] = RigActivityDF['Activity'].str.upper()
