@@ -115,7 +115,7 @@ def App(container, RTSensor_DF):
     }
 
     ListData = [
-        'bitdepth', 'md', 'blockpos', 'rop', 'hklda', 'woba', 'torqa', 'rpm', 'stppress', 'mudflowin'
+        'bitdepth', 'md', 'blockpos', 'rop', 'hklda', 'woba', 'torqa', 'rpm', 'stppress', 'mudflowin', 'speedup', 'speeddown',
     ]
     FinalPlotParamDict = {}
     for i, PlotParamCol in enumerate(PlotParamCol_list):

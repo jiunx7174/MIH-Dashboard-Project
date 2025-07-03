@@ -1,0 +1,197 @@
+2025-05-13 - upd recalculate widget
+2025-05-13 - add some conditional for parquet caching
+2025-05-13 - update cache interval
+2025-05-13 - Upd Force Cache API
+2025-05-13 - MajorUpd Add Parquet Caching Function
+2025-05-12 - add some update
+2025-05-01 - Merge branch 'main' of https://github.com/71unxv/MIH-Dashboard-Project into main
+2025-05-01 - fix datetime bug
+2025-04-10 - Merge branch 'main' of https://github.com/71unxv/MIH-Dashboard-Project
+2025-04-10 - update Override Func
+2025-04-08 - Merge branch 'main' of https://github.com/71unxv/MIH-Dashboard-Project into main
+2025-04-08 - add hello
+2025-04-08 - add exception on section params
+2025-04-07 - Merge branch 'main' of https://github.com/71unxv/MIH-Dashboard-Project
+2025-04-07 - update witsml notebook
+2025-04-07 - start witsml development
+2025-02-13 - add new api, fix connection bug
+2025-02-09 - update
+2025-02-02 - separate config.toml and add ssl certificate
+2025-02-02 - update URL API
+2025-01-30 - update Section Size
+2025-01-15 - update after evaluation
+2025-01-15 - Merge branch 'main' of https://github.com/71unxv/MIH-Dashboard-Project
+2025-01-15 - minor update
+2025-01-10 - add gitignore
+2025-01-10 - rebuild docker, try add ssl
+2025-01-09 - move redundant dockerfile
+2025-01-02 - minor typo module
+2025-01-02 - Major update, banyak deh poko e
+2025-01-01 - Major Dashboard Change
+2024-12-27 - Add Remarks Edit Widget
+2024-12-20 - update next connection func
+2024-12-20 - update get nextlast connection func
+2024-12-15 - add more cache opt
+2024-12-15 - add caching function, improve speed, add new widget
+2024-12-15 - update ROP API
+2024-12-15 - fix ROP API
+2024-12-12 - add http error if no data
+2024-12-11 - bug fix
+2024-12-09 - add new API
+2024-12-05 - fix ROP on Stand
+2024-12-04 - bug fixing
+2024-09-17 - leave some debugging note
+2024-09-17 - add new endpoints
+2024-09-17 - fix long connection issue
+2024-09-17 - update code
+2024-08-26 - update the visualization
+2024-08-19 - fix  bug
+2024-08-11 - Fix Override Bug
+2024-08-10 - fix DateTime bugs
+2024-08-07 - Merge branch 'main' of https://github.com/71unxv/MIH-Dashboard-Project
+2024-08-07 - update lagi
+2024-08-07 - update main.py
+2024-08-07 - update override
+2024-07-25 - add new api for visualization
+2024-07-22 - update
+2024-07-21 - update
+2024-05-04 - update ux
+2024-05-04 - update fastapi url
+2024-05-03 - update gitignore
+2024-05-03 - remove .parquet
+2024-05-03 - update gitignore
+2024-04-30 - Merge branch 'main' of https://github.com/71unxv/MIH-Dashboard-Project into main
+2024-04-30 - update parquet data
+2024-04-30 - updatestreamlit-ext ver
+2024-04-12 - fix override bugs
+2024-03-08 - debuging lot of things
+2024-02-29 - update fastapi connection
+2024-02-27 - resolve merge
+2024-02-27 - update v3
+2024-02-26 - update docker file
+2024-02-26 - add docker file
+2024-02-26 - update v3
+2024-02-26 - major update for v3
+2024-01-24 - i/p realtime update func
+2024-01-24 - i/p realtime update func
+2024-01-09 - update label stand, pseudocode realtime update
+2024-01-03 - add Bar and Pie Chart
+2024-01-02 - update Activity Mapping and Activity Dashboard
+2024-01-01 - add SectionParam data editor
+2023-12-30 - update Activity Mapping Page
+2023-12-30 - add realtime data function
+2023-12-28 - update Activity Mapping Page
+2023-12-28 - update Activity Mapping Page
+2023-12-28 - create main page with menu nav
+2023-12-27 - fix pipeline
+2023-12-27 - Refactor ActivitySummaryTable class and IO_Data module
+2023-10-23 - fix add new row actlogtable aggrid
+2023-10-20 - attempt fix
+2023-10-20 - fix PreCon_Idx
+2023-10-19 - add/fix connection activity
+2023-09-18 - bug fix on ActSum
+2023-09-15 - update the act sum calculation
+2023-08-30 - update the ActivityMapping Function
+2023-08-01 - update default datetime
+2023-07-20 - open access for special user
+2023-06-22 - fix: actlog lagi
+2023-06-22 - fix: ActLog DateTime and several default row
+2023-06-21 - fix: ActSum Sorting func, pdu access open for all
+2023-06-19 - fix: delete remaining st write
+2023-06-19 - fic: delete debugging
+2023-06-19 - fix: actlog input bug
+2023-06-19 - update: temporary remove example excel files
+2023-06-19 - test2
+2023-06-19 - test
+2023-06-19 - update: add database module, fill the gap actsum
+2023-06-18 - update: save actsum to db finally complete
+2023-06-18 - update: fix actlog actsum table, remove rerun
+2023-06-17 - actSum table is done
+2023-06-13 - tes
+2023-05-31 - solve the dt error in cache realtime
+2023-05-23 - i/p UploadActSum
+2023-05-22 - add output to excel button
+2023-05-22 - add recalculate func, update crud flow
+2023-05-22 - add recalculate func on ActSum, update CRUD Flow
+2023-05-21 - update the activitylog data
+2023-05-21 - update requirements
+2023-05-21 - update .toml
+2023-05-21 - update again
+2023-05-20 - update the actsum table and activirymapping page,
+2023-05-20 - update actsum and activity mapping page
+2023-05-20 - update the actsum
+2023-05-11 - dockerfile update
+2023-05-11 - dockerfile update
+2023-05-11 - docker file update
+2023-05-11 - docker update
+2023-05-11 - docker update
+2023-05-11 - update dockerfile
+2023-05-09 - requirements and dockerfile update
+2023-05-08 - update ActSum
+2023-05-06 - create an outline code
+2023-05-03 - update activity summary table
+2023-05-02 - delete some code
+2023-05-02 - Update the Activity Summary Table aggrid
+2023-04-29 - update ActSum Data flow
+2023-04-28 - update agrid table on activitysummary
+2023-04-28 - update the Activity Mapping Page
+2023-04-27 - add cleansensor and labelstand function
+2023-04-27 - add SubActivateMapping and GenerateDuration function
+2023-04-26 - Update the requirements library
+2023-04-26 - Update Requirement Library
+2023-04-24 - Update Activity summary function
+2023-04-24 - update activity function test notebook
+2023-04-24 - add activity labelling function
+2023-04-17 - half ActivitySummary Class
+2023-04-14 - update requirements and dockerfile
+2023-04-13 - open access for pdu team
+2023-04-13 - update App v2, update requirements pdu
+2023-03-30 - update v2
+2023-03-30 - update v2
+2023-03-30 - update v2
+2023-03-05 - so many changes
+2022-10-24 - 24-oct
+2022-09-26 - update the latest version
+2022-04-13 - update requirement file
+2022-04-13 - update chart, add report generation function
+2022-03-28 - add psycopg2
+2022-03-28 - change the main script into v.021
+2022-03-28 - major update, connect to postgre, refine the visualization, etc
+2022-03-08 - minor update chart
+2022-03-08 - add editable function and chart generation
+2022-03-03 - add additional comment
+2022-03-03 - switch radio button
+2022-03-03 - add activity summary table function
+2022-03-03 - add download/upload button
+2022-03-01 - fix basic summary function
+2022-02-28 - add st_aggrid installation
+2022-02-28 - update requirements file
+2022-02-28 - Merge pull request #2 from 71unxv/merge-final
+2022-02-28 - Merge branch 'main' into merge-final
+2022-02-28 - fix input widget and add specific activity database
+2022-02-28 - add aggrid table
+2022-02-24 - test
+2022-02-24 - tes
+2022-02-24 - ignore
+2022-02-24 - fix Mapping Function
+2022-02-24 - add additional funtion
+2022-02-24 - fix Mapping Function
+2022-02-21 - fix activity input bug and add session state function
+2022-02-18 - add summary table features
+2022-02-16 - add clear table function
+2022-02-16 - add activity mapping func
+2022-02-14 - update to v.02 version
+2022-02-14 - modify Procfile to v0.2
+2022-02-14 - update to v.02 version
+2022-02-10 - realtime
+2022-02-10 - anonym logo name
+2022-02-09 - realtime
+2022-02-09 - change csv directory
+2022-02-09 - add csv files
+2022-02-09 - edit MainApp
+2022-02-09 - changes setup.sh
+2022-02-09 - add heroku components
+2022-02-09 - finalize table function
+2022-02-02 - realtime viewer and PDU_Function upd
+2022-02-01 - beta 0.0.1, realtime analysis module
+2021-08-05 - first_commit

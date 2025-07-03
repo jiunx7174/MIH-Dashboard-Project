@@ -295,13 +295,17 @@ def interpolateRealtimeData(realtimeraw):
     finalRealtime['date'] = finalRealtime['dt'].dt.date
     finalRealtime['time'] = finalRealtime['dt'].dt.time
     finalRealtime['dt_relative'] = (finalRealtime['dt'] - finalRealtime['dt'].min()).dt.total_seconds()
-
-    list_cols = ["bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin"]
+    # column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin","speedup", "speeddown"]
+    list_cols = ["bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin", "speedup", "speeddown"]
     realtimeraw[list_cols] = realtimeraw[list_cols].astype(float)
+
     for cols in list_cols:
         # realtimeraw[cols] = realtimeraw[cols].astype(float)
         finalRealtime[cols] = np.interp(finalRealtime['dt_relative'], realtimeraw['dt_relative'].values, realtimeraw[cols])
     finalRealtime = finalRealtime.drop('dt_relative',axis=1)
+    finalRealtime["speedup"] = finalRealtime['speedup'].astype(int)
+    finalRealtime["speeddown"] = finalRealtime['speeddown'].astype(int)
+
     return finalRealtime
 def splitDateTime_BU(UserDateRange, hours=0.5):
     startDateTimeStr = UserDateRange['StartDate'] + ' ' + UserDateRange['StartTime']
@@ -362,7 +366,7 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
     url_pdu_api = getURLAPI_pdu()
     print(f"Request Realtime on :{url_pdu_api}rtdc/get_data")
     print(Data_params)
-    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
+    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin","speedup", "speeddown"]
     WellData = (
         (
             # requests.get("https://pdumitradome.id/dome_api/rtdc/rtdc/get_data", data=json.dumps(Data_params))
@@ -482,7 +486,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     # }
     StartDateTimeList,EndDateTimeList = splitDateTime(UserDateRange, hours=hours)
 
-    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin",]
+    column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin","speedup", "speeddown"]
     Realtime_List = []
     time_elapsed = []
     i = 0
@@ -572,6 +576,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     if runOnStreamlit:
         ProgressStatus.progress(1.,  text="Download Realtime Sensor Data Complete")
         ProgressStatus.empty()
+    # return filtered_DF
     return interpolateRealtimeData(filtered_DF[column_list])
 
 
