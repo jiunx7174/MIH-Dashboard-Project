@@ -132,17 +132,20 @@ def UpdateRemarksActSumTable(OverrideRemark_df, WellInfoDict,UserAuthDict, Prefi
 
 def OverrideActivityTableWidget(WellInfoDict, container, 
                           PrefixKey = 'OverrideActivityTable' , 
-                          TripActivityList='default', DrillActivityList='default', OverrideActivityList='default'):
+                          TripActivityList='default', DrillActivityList='default', 
+                          OverrideActivityList='default', RunCasingActivityList = 'default'):
     if isinstance(TripActivityList, str):
         TripActivityList = Activity.getTripActivityList()
     if isinstance(DrillActivityList, str):
         DrillActivityList = Activity.getDrillActivityList()
     if isinstance(OverrideActivityList, str):
         OverrideActivityList = Activity.getOverrideActivityList()
+    if isinstance(RunCasingActivityList, str):
+        RunCasingActivityList = Activity.getRunCasingActivityList()
 
     
     DrillSubActivityList = ['Rotary Drilling','Slide Drilling','Reaming','Wash Up/Down','Connection']
-    TripSubActivityList = ['Wash Up/Down','Reaming','Moving','Circulation','Connection','Stationary']
+    TripSubActivityList = ['Wash Up/Down','Reaming','Moving','Circulation','Connection','Stationary', 'Other']
     if f"{PrefixKey}_df" not in st.session_state:
         st.session_state[f"{PrefixKey}_df"] =  IO_Data.DomeOverrideActivity_Get(WellInfoDict)
     OverideActivity_df = st.session_state[f"{PrefixKey}_df"]
@@ -163,13 +166,13 @@ def OverrideActivityTableWidget(WellInfoDict, container,
             ),
             "LABEL_ACTIVITY": st.column_config.SelectboxColumn(
                 "Activity",
-                options=TripActivityList + DrillActivityList + OverrideActivityList,
+                options=TripActivityList + DrillActivityList + OverrideActivityList + RunCasingActivityList,
                 width="medium",
                 required=True,
             ),
             "LABEL_SUBACTIVITY": st.column_config.SelectboxColumn(
                 "Sub Activity",
-                options=DrillSubActivityList + TripSubActivityList+ TripActivityList + DrillActivityList + OverrideActivityList,
+                options=DrillSubActivityList + TripSubActivityList+ TripActivityList + DrillActivityList + RunCasingActivityList +OverrideActivityList,
                 width="medium",
                 required=True,
             ),
