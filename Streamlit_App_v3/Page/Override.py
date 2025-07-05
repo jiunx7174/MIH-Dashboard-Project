@@ -149,8 +149,8 @@ def OverrideActivityTableWidget(WellInfoDict, container,
 
     LABEL_Activity_list = TripActivityList + DrillActivityList + OverrideActivityList + RunCasingActivityList
     LABEL_SubActivity_list = DrillSubActivityList + TripSubActivityList+ TripActivityList + DrillActivityList + RunCasingActivityList +OverrideActivityList
-    LABEL_Activity_list = list(set(LABEL_Activity_list))
-    LABEL_SubActivity_list = list(set(LABEL_SubActivity_list))
+    LABEL_Activity_list = list(set(LABEL_Activity_list)).sort()
+    LABEL_SubActivity_list = list(set(LABEL_SubActivity_list)).sort()
 
     if f"{PrefixKey}_df" not in st.session_state:
         st.session_state[f"{PrefixKey}_df"] =  IO_Data.DomeOverrideActivity_Get(WellInfoDict)
