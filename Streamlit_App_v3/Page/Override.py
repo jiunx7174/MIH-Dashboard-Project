@@ -134,12 +134,11 @@ def OverrideActivityTableWidget(WellInfoDict, container,
                           PrefixKey = 'OverrideActivityTable' , 
                           TripActivityList='default', DrillActivityList='default', OverrideActivityList='default'):
     if isinstance(TripActivityList, str):
-        TripActivityList = ['TRIP IN', 'TRIP OUT', 'WIPER TRIP',]
+        TripActivityList = Activity.getTripActivityList()
     if isinstance(DrillActivityList, str):
-        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
+        DrillActivityList = Activity.getDrillActivityList()
     if isinstance(OverrideActivityList, str):
-        OverrideActivityList = ['CEMENTING JOB', 'CONNECTION', 'LAY DOWN BHA', 'MAKE UP BHA', 'NPT', 'N/D BOP', 
-                                'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR','N/A', 'OTHER',]
+        OverrideActivityList = Activity.getOverrideActivityList()
 
     
     DrillSubActivityList = ['Rotary Drilling','Slide Drilling','Reaming','Wash Up/Down','Connection']

@@ -57,7 +57,30 @@ def ActivitySummaryColumnRenameDict():
     }
     return out
 
-
+def getTripActivityList():
+    return ['TRIP IN', 'TRIP OUT', 'WIPER TRIP', "WIPER/SHORT TRIP",]
+def getRunCasingActivityList():
+    return ["RUN CASING"]
+def getDrillActivityList():
+    return ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','CIRCULATION',]
+def getOverrideActivityList():
+    return ['CEMENTING JOB', 'CONNECTION', 'LAY DOWN BHA', 'MAKE UP BHA', 'NPT', 'N/D BOP', 
+            'N/U BOP', 
+            'RUNNING CASING IN', 
+            'STATIONARY', 
+            'STUCK PIPE', 
+            'WAIT ON CEMENT', 
+            'RIG REPAIR','N/A', 
+            'OTHER',
+            "SLIP & CUT DRILLING LINE", 
+            "N/U OR N/D BOP", 
+            'DRILL OUT CEMENT',
+            "CEMENTING JOB", 
+            "PRESSURE TEST", 
+            "REAMING", 
+            
+            "TEST BOP", 
+            "WIRELINE LOGS", ]
 def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
     # if ActSum_df[ActSum_df['status']=='REVIEW'].empty:
     #     return ActSum_df
@@ -380,7 +403,7 @@ def groupActivity(RTSensor_df , DrillActivityList='default'):
         #     # )
     ActSum_df['LABEL_SubActivity'] = ActSum_df['LABEL_SubActivity'].replace('CONNECTION', 'Connection')
     return ActSum_df
-def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivityList='default', OverrideActivityList='default'):
+def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivityList='default', OverrideActivityList='default', RunCasingActivityList='default'):
     #TODO makesure the column name and data type is match
 
     RTSensor_df = RTSensor_df.astype(
@@ -398,6 +421,8 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
             "rpm":"float64",
             "stppress":"float64",
             "mudflowin":"float64",
+            "speedup":"float64",
+            "speeddown":"float64",
             # "Activity":"object",
             "In-Slip Threshold":"float64",
             # "PIC":'str',
@@ -411,25 +436,18 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     # errors='coerce'
     )
     if TripActivityList=='default':
-        TripActivityList = ['TRIP IN', 'TRIP OUT', 'WIPER TRIP', "WIPER/SHORT TRIP",]
+        TripActivityList = getTripActivityList()
+    if RunCasingActivityList=='default':
+        RunCasingActivityList = getRunCasingActivityList()
 
         # TripActivityList = ['NPT', 'N/D BOP', 'N/U BOP', 'OTHER', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 
         #                     'TRIP IN', 'TRIP OUT', 'WAIT ON CEMENT', 'LAY DOWN BHA', 'MAKE UP BHA', 'WIPER TRIP']
         
     if DrillActivityList=='default':
-        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION',]
+        DrillActivityList = getDrillActivityList()
 
     if OverrideActivityList=='default':
-        OverrideActivityList = ['CEMENTING JOB', 'CONNECTION', 'LAY DOWN BHA', 'MAKE UP BHA', 'NPT', 'N/D BOP', 
-                                'N/U BOP', 'RUNNING CASING IN', 'STATIONARY', 'STUCK PIPE', 'WAIT ON CEMENT', 'RIG REPAIR','N/A', 'OTHER',"SLIP & CUT DRILLING LINE", 
-                                "N/U OR N/D BOP", 
-                                'DRILL OUT CEMENT',
-                                "CEMENTING JOB", 
-                                "PRESSURE TEST", 
-                                "REAMING", 
-                                "RUN CASING",
-                                "TEST BOP", 
-                                "WIRELINE LOGS", ]
+        OverrideActivityList = getOverrideActivityList()
 
     logic_status = 0
     RTSensor_df["SubActivity"] = "FALSE/Check"
@@ -501,13 +519,75 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     idx_logic_activity_2 = RTSensor_df["Activity"].isin(
         TripActivityList
         )
+    
+    RTSensor_df['isBitDepthMoving'] = RTSensor_df['bitdepth'].shift(periods=-1) != RTSensor_df['bitdepth']
+
+    # RTSensor_df["LABEL_SubActivity"] = "Check"
+    idx_logic_2 = idx_logic_activity_2 & ((RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['rpm']==0) & (RTSensor_df['mudflowin']>10))
+    SubActivity_Label = "Reaming"
+    # SubActivity_Label = "Wash Up/Down"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    # DisplayDF(RTSensor_df.loc[idx_logic_2, :])
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #8
+    
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['rpm']>10) & (RTSensor_df['stppress']>100) & (RTSensor_df['mudflowin']>10))
+    SubActivity_Label = "Reaming"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #9
+
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['rpm']<10) & (RTSensor_df['stppress']<100) & (RTSensor_df['mudflowin']<50))
+    SubActivity_Label = "Moving"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #10
+
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & (~(RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['mudflowin']>10))
+    SubActivity_Label = "Circulation"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #11
+
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((RTSensor_df['mudflowin']<10) & (RTSensor_df['rpm']<10) & (RTSensor_df['hklda']<RTSensor_df['In-Slip Threshold']))
+    SubActivity_Label = "Connection"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+    #12
+
+    idx_logic_2 = idx_logic_activity_2 &(RTSensor_df["SubActivity"] == "FALSE/Check") & ((~RTSensor_df['isBitDepthMoving']) & (RTSensor_df['mudflowin']<10) & (RTSensor_df['rpm']<10) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']))
+    SubActivity_Label = "Stationary"
+    RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
+    #
+
+    logic_status = logic_status + 1
+    RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
+
+
+    idx_logic_activity_3 = RTSensor_df["Activity"].isin(
+        RunCasingActivityList
+        )
     # Define conditions in order of priority
-    condition1 = idx_logic_activity_2 & (
+    condition1 = idx_logic_activity_3 & (
         (RTSensor_df['hklda'] > RTSensor_df['In-Slip Threshold']) |
         (RTSensor_df['speeddown'] > 0) |
         (RTSensor_df['speedup'] > 0)
     )
-    condition2 = idx_logic_activity_2 & (
+    condition2 = idx_logic_activity_3 & (
         (RTSensor_df['hklda'] < RTSensor_df['In-Slip Threshold']) &
         (RTSensor_df['speeddown'] == 0) &
         (RTSensor_df['speedup'] == 0)
@@ -523,14 +603,14 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     #13
     ## force to be same as activity
 
-    idx_logic_3 = RTSensor_df["Activity"].isin(
+    idx_logic_4 = RTSensor_df["Activity"].isin(
                                                 OverrideActivityList
                                                 )
-    RTSensor_df.loc[idx_logic_3, "SubActivity"] = RTSensor_df.loc[idx_logic_3, "Activity"]
+    RTSensor_df.loc[idx_logic_4, "SubActivity"] = RTSensor_df.loc[idx_logic_4, "Activity"]
     #
 
     logic_status = logic_status + 1
-    RTSensor_df.loc[idx_logic_3, "logic_status"] = logic_status
+    RTSensor_df.loc[idx_logic_4, "logic_status"] = logic_status
     #14
 
     # print(RTSensor_df.columns)
