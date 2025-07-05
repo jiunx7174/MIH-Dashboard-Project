@@ -146,6 +146,12 @@ def OverrideActivityTableWidget(WellInfoDict, container,
     
     DrillSubActivityList = ['Rotary Drilling','Slide Drilling','Reaming','Wash Up/Down','Connection']
     TripSubActivityList = ['Wash Up/Down','Reaming','Moving','Circulation','Connection','Stationary', 'Other']
+
+    LABEL_Activity_list = TripActivityList + DrillActivityList + OverrideActivityList + RunCasingActivityList
+    LABEL_SubActivity_list = DrillSubActivityList + TripSubActivityList+ TripActivityList + DrillActivityList + RunCasingActivityList +OverrideActivityList
+    LABEL_Activity_list = list(set(LABEL_Activity_list))
+    LABEL_SubActivity_list = list(set(LABEL_SubActivity_list))
+
     if f"{PrefixKey}_df" not in st.session_state:
         st.session_state[f"{PrefixKey}_df"] =  IO_Data.DomeOverrideActivity_Get(WellInfoDict)
     OverideActivity_df = st.session_state[f"{PrefixKey}_df"]
@@ -166,13 +172,13 @@ def OverrideActivityTableWidget(WellInfoDict, container,
             ),
             "LABEL_ACTIVITY": st.column_config.SelectboxColumn(
                 "Activity",
-                options=TripActivityList + DrillActivityList + OverrideActivityList + RunCasingActivityList,
+                options=LABEL_Activity_list,
                 width="medium",
                 required=True,
             ),
             "LABEL_SUBACTIVITY": st.column_config.SelectboxColumn(
                 "Sub Activity",
-                options=DrillSubActivityList + TripSubActivityList+ TripActivityList + DrillActivityList + RunCasingActivityList +OverrideActivityList,
+                options=LABEL_SubActivity_list,
                 width="medium",
                 required=True,
             ),
