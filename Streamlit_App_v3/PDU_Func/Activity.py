@@ -271,7 +271,7 @@ def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=10, includ
 
 def groupActivity(RTSensor_df , DrillActivityList='default'):
     if DrillActivityList=='default':
-        DrillActivityList = ["DRILLING FORMATION", 'CIRCULATE HOLE CLEANING','CONNECTION','DRILL OUT CEMENT',]
+        DrillActivityList = getDrillActivityList()
 
 
     RTSensor_df ['dt'] = pd.to_datetime(RTSensor_df ['dt'])
@@ -828,8 +828,9 @@ def getBHA_TripBreakdown_df(ActSum_df):
 def GroupCasingJoint(ActSum_df):
     CasingTrip_df = ActSum_df.copy()
     CasingTrip_df['Stand Group_Pred_TRIP'] = ""
+    ListGroupCasing = getTripActivityList() + getRunCasingActivityList()
     
-    if ("TRIP IN" in CasingTrip_df['LABEL_Activity'].unique()) or ("TRIP OUT" in CasingTrip_df['LABEL_Activity'].unique()):
+    if any(elem in CasingTrip_df['LABEL_Activity'].unique() for elem in ListGroupCasing):
             CasingTrip_df['GroupChange'] = (CasingTrip_df['LABEL_Activity'] != CasingTrip_df['LABEL_Activity'].shift()).cumsum()
             CasingTripGroup = CasingTrip_df.groupby('GroupChange').apply(
                 lambda x: {
@@ -839,7 +840,7 @@ def GroupCasingJoint(ActSum_df):
                 }
             )
             CasingTripGroup = pd.DataFrame(CasingTripGroup.tolist())
-            CasingTripGroup = CasingTripGroup[CasingTripGroup['Group'].isin(['TRIP IN', 'TRIP OUT'])]
+            CasingTripGroup = CasingTripGroup[CasingTripGroup['Group'].isin(ListGroupCasing)]
             for idx, row in CasingTripGroup.iterrows():
                 CasingTrip_df_temp = CasingTrip_df.loc[row['StartIndex']:row['EndIndex']]
 
