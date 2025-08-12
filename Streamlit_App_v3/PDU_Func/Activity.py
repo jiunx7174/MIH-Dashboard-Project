@@ -456,9 +456,17 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     idx_logic_activity = RTSensor_df["Activity"].isin(
                                                     DrillActivityList
                                                     )
-    # print((RTSensor_df.dtypes))
+
     #### Rotary Drilling Rule
-    idx_logic = idx_logic_activity & (RTSensor_df['bitdepth'] == RTSensor_df['md']) & (RTSensor_df['woba'] >= 0) & (RTSensor_df['rpm']>0) & (RTSensor_df['mudflowin']>100) & (RTSensor_df['hklda'] > RTSensor_df['In-Slip Threshold'])
+    idx_logic = (
+        idx_logic_activity 
+        & (RTSensor_df['bitdepth'] == RTSensor_df['md']) 
+        & (RTSensor_df['woba'] >= 0) 
+        & (RTSensor_df['rpm']>0) 
+        & (RTSensor_df['mudflowin']>100) 
+        & (RTSensor_df['hklda'] > RTSensor_df['In-Slip Threshold'])
+        )
+
     SubActivity_Label = "Rotary Drilling"
     RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
 
@@ -466,18 +474,34 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
 
     idx_logic_activity = ~idx_logic & idx_logic_activity
-    
+
     ##################################################### Slide Drilling Rule
-    idx_logic = idx_logic_activity &(RTSensor_df['bitdepth'] == RTSensor_df['md']) & (RTSensor_df['woba'] >= 0) & (RTSensor_df['rpm']==0) & (RTSensor_df['mudflowin']>100) & (RTSensor_df['hklda'] > RTSensor_df['In-Slip Threshold'])
+    idx_logic = (
+        idx_logic_activity 
+        & (RTSensor_df['bitdepth'] == RTSensor_df['md']) 
+        & (RTSensor_df['woba'] >= 0) 
+        & (RTSensor_df['rpm']==0) 
+        & (RTSensor_df['mudflowin']>100) 
+        & (RTSensor_df['hklda'] > RTSensor_df['In-Slip Threshold'])
+    )
+
     SubActivity_Label = "Slide Drilling"
     RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
 
     logic_status = logic_status + 1
     RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
 
-    idx_logic_activity = ~idx_logic & idx_logic_activity    
+    idx_logic_activity = ~idx_logic & idx_logic_activity
+
     ##################################################### Reaming Rule
-    idx_logic = idx_logic_activity & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['mudflowin']>=0)& (RTSensor_df['woba']>=0)& (RTSensor_df['rpm']>=0)
+    idx_logic = (
+        idx_logic_activity 
+        & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) 
+        & (RTSensor_df['mudflowin']>=0)
+        & (RTSensor_df['woba']>=0)
+        & (RTSensor_df['rpm']>=0)
+    )
+
     SubActivity_Label = "Reaming"
     RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
 
@@ -485,8 +509,15 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     RTSensor_df.loc[idx_logic, "logic_status"] = logic_status
 
     idx_logic_activity = ~idx_logic & idx_logic_activity
+
     ##################################################### Connection Rule
-    idx_logic = idx_logic_activity & (RTSensor_df['bitdepth']<RTSensor_df['md']) & (RTSensor_df['rpm']<220)& (RTSensor_df['mudflowin']<50) & (RTSensor_df['hklda']<RTSensor_df['In-Slip Threshold'])
+    idx_logic = (
+        idx_logic_activity 
+        & (RTSensor_df['bitdepth']<RTSensor_df['md']) 
+        & (RTSensor_df['rpm']<22)
+        & (RTSensor_df['mudflowin']<50) 
+        & (RTSensor_df['hklda']<RTSensor_df['In-Slip Threshold'])
+    )
     SubActivity_Label = "Connection"
     RTSensor_df.loc[idx_logic, "SubActivity"] = SubActivity_Label
 
@@ -498,7 +529,11 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     SubActivity_Label = "Other"
     RTSensor_df.loc[idx_logic_activity, "SubActivity"] = SubActivity_Label
 
-    # ############################
+
+
+
+
+    ############################# 
     idx_logic_activity_2 = RTSensor_df["Activity"].isin(
         TripActivityList
         )
@@ -506,12 +541,19 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
     RTSensor_df['isBitDepthMoving'] = RTSensor_df['bitdepth'].shift(periods=-1) != RTSensor_df['bitdepth']
 
     # RTSensor_df["LABEL_SubActivity"] = "Check"
-    idx_logic_2 = idx_logic_activity_2 & ((RTSensor_df['isBitDepthMoving']) & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) & (RTSensor_df['rpm']==0) & (RTSensor_df['mudflowin']>10))
+    idx_logic_2 = (
+        idx_logic_activity_2 
+        & ((RTSensor_df['isBitDepthMoving']) 
+        & (RTSensor_df['hklda']>RTSensor_df['In-Slip Threshold']) 
+        & (RTSensor_df['rpm']==0) 
+        & (RTSensor_df['mudflowin']>10))
+    )
+
     SubActivity_Label = "Reaming"
     # SubActivity_Label = "Wash Up/Down"
     RTSensor_df.loc[idx_logic_2, "SubActivity"] = SubActivity_Label
     # DisplayDF(RTSensor_df.loc[idx_logic_2, :])
-    #
+
 
     logic_status = logic_status + 1
     RTSensor_df.loc[idx_logic_2, "logic_status"] = logic_status
@@ -565,22 +607,33 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
         RunCasingActivityList
         )
     # Define conditions in order of priority
-    condition1 = idx_logic_activity_3 & (
+    idx_logic_3 = idx_logic_activity_3 & (
         (RTSensor_df['hklda'] > RTSensor_df['In-Slip Threshold']) |
         (RTSensor_df['speeddown'] > 0) |
         (RTSensor_df['speedup'] > 0)
     )
-    condition2 = idx_logic_activity_3 & (
+
+    SubActivity_Label = "Moving"
+    RTSensor_df.loc[idx_logic_3, "SubActivity"] = SubActivity_Label
+
+    idx_logic_activity_3 = ~idx_logic_3 & idx_logic_activity_3
+    idx_logic_3 = idx_logic_activity_3 & (
         (RTSensor_df['hklda'] < RTSensor_df['In-Slip Threshold']) &
         (RTSensor_df['speeddown'] == 0) &
         (RTSensor_df['speedup'] == 0)
     )
+    SubActivity_Label = "Connection"
+    RTSensor_df.loc[idx_logic_3, "SubActivity"] = SubActivity_Label
+
+    idx_logic_activity_3 = ~idx_logic_3 & idx_logic_activity_3
+    RTSensor_df.loc[idx_logic_activity_3, "SubActivity"] = 'Other'
+
     # Use np.select to assign values based on conditions
-    RTSensor_df['SubActivity'] = np.select(
-        [condition1, condition2],          # list of conditions in priority order
-        ['Moving', 'Connection'],          # corresponding outputs
-        default='Other'                    # if none of the conditions match
-    )
+    # RTSensor_df['SubActivity'] = np.select(
+    #     [condition1, condition2],          # list of conditions in priority order
+    #     ['Moving', 'Connection'],          # corresponding outputs
+    #     default='Other'                    # if none of the conditions match
+    # )
     
     
     #13
@@ -594,6 +647,7 @@ def predictSubActivityLabel(RTSensor_df, TripActivityList='default', DrillActivi
 
     logic_status = logic_status + 1
     RTSensor_df.loc[idx_logic_4, "logic_status"] = logic_status
+    # RTSensor_df.to_csv("RT_Sensor.csv")
     #14
 
     # print(RTSensor_df.columns)
