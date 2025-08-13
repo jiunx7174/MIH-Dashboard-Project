@@ -9,6 +9,7 @@ import time
 import numpy as np
 import json
 import requests
+import re
 # Get the directory of the current file
 current_dir = os.path.dirname(__file__)
 # If you specifically want to use os.path.join() for clarity
@@ -1201,6 +1202,7 @@ def v3_get_remarks(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     Remarks_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         Remarks_df = Remarks_df[Remarks_df['Section'] == SectionSize]
     Remarks_df = Activity.getRemarks(Remarks_df)
     if Remarks_df.empty:
@@ -1238,6 +1240,7 @@ def v3_get_activity_duration(wid: int = Query(None, title="wid"),
     ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     DurationCol = 'Duration'
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         ActSum_df = ActSum_df[ActSum_df['Section'] == SectionSize]
 
     ActSum_df[DurationCol] = ActSum_df[DurationCol].astype(float)
@@ -1268,6 +1271,7 @@ def v3_get_activity_drilling_meterage(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     ActSum_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         ActSum_df = ActSum_df[ActSum_df['Section'] == SectionSize]
     ActSum_df['DrillingMeterage'] = ActSum_df['DrillingMeterage'].astype(float)
     # Group by the new 'Date' column and sum the 'DrillingMeterage'
@@ -1293,6 +1297,7 @@ def v3_get_bitdepth_vs_time(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     BitDepthTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         BitDepthTime_df = BitDepthTime_df[BitDepthTime_df['Section'] == SectionSize]
     BitDepthTime_df = BitDepthTime_df[['StartDateTime', 'EndDateTime', 'Bit_Depth_avg', 'LABEL_Activity', 'LABEL_SubActivity', ]]
     return BitDepthTime_df.to_dict(orient='records')
@@ -1314,6 +1319,7 @@ def v3_get_flattime(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     FlatTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         FlatTime_df = FlatTime_df[FlatTime_df['Section'] == SectionSize]
     DrillActivityList = ["DRILLING FORMATION"]
     FlatTime_df = FlatTime_df[~FlatTime_df['LABEL_Activity'].isin(DrillActivityList)]
@@ -1368,6 +1374,7 @@ def v3_get_activity_rop_per_stand(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     ROP_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         ROP_df = ROP_df[ROP_df['Section'] == SectionSize]
     ROP_df = Activity.getROP_df(ROP_df)
     ROP_df.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -1401,6 +1408,7 @@ def v3_get_connection_time(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     ConnectionTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         ConnectionTime_df = ConnectionTime_df[ConnectionTime_df['Section'] == SectionSize]
     # print(ConnectionTime_df['LABEL_ConnectionActivity'].to_csv("Connection.csv"))
     ConnectionTime_df = Activity.getConnectionTime_df(ConnectionTime_df)
@@ -1429,6 +1437,7 @@ def v3_get_activity_stand_time(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     StandTime_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         StandTime_df = StandTime_df[StandTime_df['Section'] == SectionSize]
     StandTime_df = Activity.getStandTime_df(StandTime_df)
     if StandTime_df.empty:
@@ -1456,6 +1465,7 @@ def v3_get_BHA_trip_breakdown(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     BHA_Trip_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         BHA_Trip_df = BHA_Trip_df[BHA_Trip_df['Section'] == SectionSize]
     BHA_Trip_df = Activity.getBHA_TripBreakdown_df(BHA_Trip_df)
     if BHA_Trip_df.empty:
@@ -1483,6 +1493,7 @@ def v3_get_casing_trip_time(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     CasingTrip_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         CasingTrip_df = CasingTrip_df[CasingTrip_df['Section'] == SectionSize]
     CasingTrip_df = Activity.GroupCasingJoint(CasingTrip_df)
     CasingTrip_df = Activity.getCasingTrip_df(CasingTrip_df)
@@ -1511,6 +1522,7 @@ def v3_get_casing_trip_breakdown_time(wid: int = Query(None, title="wid"),
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
     CasingTripBreakdown_df = IO_Data.DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
     if SectionSize:  # Will skip if empty string
+        SectionSize = re.sub(r'\\"', '"', SectionSize)
         CasingTripBreakdown_df = CasingTripBreakdown_df[CasingTripBreakdown_df['Section'] == SectionSize]
     CasingTripBreakdown_df = Activity.GroupCasingJoint(CasingTripBreakdown_df)
     CasingTripBreakdown_df = Activity.getCasingTripBreakdown_df(CasingTripBreakdown_df)
