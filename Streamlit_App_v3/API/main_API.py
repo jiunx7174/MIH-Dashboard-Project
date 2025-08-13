@@ -816,6 +816,18 @@ def section_params_get(data: Get_SectionParamsDataModel):
         return empty_data
     return SectionParams_df.to_dict(orient='records')
 
+    # Load the dataframe
+    SectionParams_df = pd.read_parquet('Data/SectionParams_TABLE.parquet')
+    SectionParams_df = SectionParams_df[SectionParams_df['wid'] == WellInfoDict['wid']]
+    
+    # Handle empty result
+    if SectionParams_df.empty:
+        return {"SectionSize": []}
+    
+    # Get unique SectionSize values
+    unique_sizes = SectionParams_df['SectionSize'].dropna().unique().tolist()
+    
+    return {"SectionSize": unique_sizes}
 @app.get("/get_company/")
 def getAvailableCompanyDF():
     url_pdu_api = getURLAPI_pdu()
