@@ -243,12 +243,13 @@ def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=10, includ
         
         ActSum_df.loc[idx_same, 'LABEL_SubActivity'] = ActSum_df.loc[idx_before, 'LABEL_SubActivity'].values
         ActSum_df.loc[idx_same, 'LABEL_All'] = ActSum_df.loc[idx_before, 'LABEL_All'].values
+        ActSum_df['BDxDur'] = ActSum_df['Bit_Depth_avg'] * ActSum_df['Duration']
         AggDict = {'Date': 'max',
                     'StartDateTime': 'min',
                     'EndDateTime': 'max',
                     'Duration': 'sum',
                     'Hole_Depth_max': 'max',
-                    'Bit_Depth_avg': 'mean',
+                    'Bit_Depth_avg': 'first',
                     'DrillingMeterage': 'sum',
                     'RotateDrillingDuration': 'sum',
                     'SlideDrillingDuration': 'sum',
@@ -261,11 +262,14 @@ def cleanFalseSensor(ActSum_df, MinuteTolerances=1, CleaningIteration=10, includ
                     # 'PIC': 'first',
                     'InSlip_Treshold': 'first',
                     # 'Remarks': 'first',
-                    'Section': 'first'
+                    'Section': 'first',
+                    'BDxDur': 'sum', 
                     }
         # if includeStatus:
         #     AggDict['status'] = 'first'
         ActSum_df = ActSum_df.groupby((ActSum_df['LABEL_All'].shift() != ActSum_df['LABEL_All']).cumsum(), as_index=False).agg(AggDict)
+        ActSum_df['Bit_Depth_avg'] = ActSum_df['BDxDur'] / ActSum_df['Duration']
+        ActSum_df = ActSum_df.drop(columns=['BDxDur'])
 
     return ActSum_df
 
