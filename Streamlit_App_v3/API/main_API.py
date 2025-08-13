@@ -815,7 +815,10 @@ def section_params_get(data: Get_SectionParamsDataModel):
         empty_data = {col: [] for col in ['wid', 'DateTime', 'SectionSize', 'InSlipThreshold',  'PIC']}
         return empty_data
     return SectionParams_df.to_dict(orient='records')
-
+@app.post("/section-params-table/getUniqueSectionSize/")
+def get_unique_section_size(data: Get_SectionParamsDataModel):
+    WellInfoDict = data.model_dump()
+    
     # Load the dataframe
     SectionParams_df = pd.read_parquet('Data/SectionParams_TABLE.parquet')
     SectionParams_df = SectionParams_df[SectionParams_df['wid'] == WellInfoDict['wid']]
