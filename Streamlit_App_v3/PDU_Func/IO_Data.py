@@ -227,7 +227,7 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
     """
     url_pdu_api = getURLAPI_pdu()
     # getRigActAPI = 'https://pdumitradome.id/dome_api/rtdc/get_drilling_activity'
-    getRigActAPI = f'{url_pdu_api}rtdc/get_drilling_activity'
+    getRigActAPI = f'{url_pdu_api}rtdc/drilling-activity'
 
     getRigActAPI_json = json.dumps(
     {
@@ -238,7 +238,7 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
     indent = 4
     )
     response = (
-            requests.post(
+            requests.get(
                 getRigActAPI, data=getRigActAPI_json 
             )
             )
