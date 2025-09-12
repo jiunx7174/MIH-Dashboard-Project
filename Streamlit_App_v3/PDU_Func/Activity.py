@@ -117,78 +117,39 @@ def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
     for k,ActSum_df_Temp in ActSum_df.groupby((ActSum_df['LABEL_Activity'].shift() != ActSum_df ['LABEL_Activity']).cumsum()):
         if ActSum_df_Temp['LABEL_Activity'].tolist()[0] in (DrillActivityList):
             ii = 1
-            idx_start = ActSum_df_Temp.index[0]
+
+            idx_connection_list = ActSum_df_Temp[ActSum_df_Temp['LABEL_SubActivity'] == 'Connection'].index.tolist()
+            idx_conn_start_list = idx_connection_list[:-1]   # everything except the last element
+            idx_conn_end_list   = idx_connection_list[1:]  # everything except the first and last
+
+            for idx_conn_start, idx_conn_end in zip(idx_conn_start_list, idx_conn_end_list):
+                    idx = idx_conn_end
+                    idx_start = idx_conn_start + 1
+                    idx_end = idx_conn_end - 1
+                    ActSum_df_Stand = ActSum_df[idx_start:idx_end+1]
+
+                    if 'Reaming' in ActSum_df_Stand['LABEL_SubActivity'].tolist():
+                        OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
+                        StandDuration =  ActSum_df.loc[idx_start:idx_end+1, 'Duration'].sum()
+                        DrillingMeteragePerStand = ActSum_df.loc[idx_start:idx_end, 'DrillingMeterage'].sum()
+                        stand_num = int(ActSum_df.loc[idx, 'StartDateTime'].replace(tzinfo=timezone.utc).timestamp())
+
+                        ActSum_df.loc[idx, 'OnBottomDurationPerStand'] = OnBottomDurationPerStand
+                        ActSum_df.loc[idx, 'StandDuration'] = StandDuration
+                        ActSum_df.loc[idx, "DrillingMeteragePerStand"] = DrillingMeteragePerStand
+                        ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Drilling Stand-' + str(stand_num)
 
 
-
-            len_connection = len(ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')])
-            # First, define the stand first
-            for idx,row in ActSum_df_Temp[(ActSum_df_Temp['LABEL_SubActivity']=='Connection')].iterrows():
-                idx_end=idx-1
-                ActSum_df_Stand = ActSum_df[idx_start:idx_end+1]
-
-                if 'Reaming' in ActSum_df_Stand['LABEL_SubActivity'].tolist():
-                    OnBottomDurationPerStand =  ActSum_df.loc[idx_start:idx_end, 'RotateDrillingDuration'].sum() + ActSum_df.loc[idx_start:idx_end, 'SlideDrillingDuration'].sum()
-                    StandDuration =  ActSum_df.loc[idx_start:idx_end+1, 'Duration'].sum()
-                    DrillingMeteragePerStand = ActSum_df.loc[idx_start:idx_end, 'DrillingMeterage'].sum()
-                    stand_num = int(ActSum_df.loc[idx, 'StartDateTime'].replace(tzinfo=timezone.utc).timestamp())
-
-                    ActSum_df.loc[idx, 'OnBottomDurationPerStand'] = OnBottomDurationPerStand
-                    ActSum_df.loc[idx, 'StandDuration'] = StandDuration
-                    ActSum_df.loc[idx, "DrillingMeteragePerStand"] = DrillingMeteragePerStand
-                    ActSum_df.loc[idx_start:idx_end, 'Stand Group_Pred'] = 'Drilling Stand-' + str(stand_num)
-                    if ii==1:
                         PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
-                        
                         PreCon_End_idx = (idx-1)
                         ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
                         ActSum_df.loc[idx,'LABEL_ConnectionActivity'] = 'Connection-'+str(stand_num)
                         # stand_num = stand_num-1
-                        ii = ii +1
-                        # st.write(PreCon_Start_idx)
-                        before_stand_num = stand_num
-                    else:
-                        
-                        # try:
+
                         PostCon_Start_idx = idx_start
                         PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
-                        ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(before_stand_num)
-                        # print(PostCon_Start_idx)
-                        # print('PostCon')
-                        # print(PostCon_End_idx)
-                        # if ii < len_connection:
-                        ActSum_df.loc[idx,'LABEL_ConnectionActivity'] = 'Connection-'+str(stand_num)
-                        before_stand_num = stand_num
-                        PreCon_Start_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[-1]
-                        PreCon_End_idx = (idx-1)
-                        ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = 'Pre Connection-'+str(stand_num)
-                        # st.write(f"PreConIdx {PreCon_Start_idx} - {PreCon_End_idx}")
+                        ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num)
 
-                        # except:
-                        #     pass
-                        ii = ii+1
-                    # st.write()
-                    stand_num = stand_num+1
-                
-                idx_start = idx+1
-            
-            #################################################################################
-            ###### uncomment this code if you want to remove the latest post connection
-            #################################################################################
-            try:
-                ActSum_df_PostCon = ActSum_df_Temp[idx_start-2:]
-                # st.write(ActSum_df_PostCon)
-
-                PostCon_Start_idx = idx_start
-                PostCon_End_idx = ActSum_df_PostCon[ActSum_df_PostCon['LABEL_SubActivity']=='Reaming'].index[0]
-                ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(before_stand_num)
-            except:
-                # st.write(ii)
-                try:
-                    ActSum_df.loc[PreCon_Start_idx:PreCon_End_idx,'LABEL_ConnectionActivity'] = ''
-                except:
-                    pass
-                pass
 
     return ActSum_df
 def replace_connection_with_nearest_activity(ActSum_df):
