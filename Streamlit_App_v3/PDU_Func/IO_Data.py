@@ -393,6 +393,37 @@ def DomeGetRealtimeSensorDataChunk_DiskCache(Data_params):
     print("====================================")
     return DomeGetRealtimeSensorDataChunk(Data_params)
 def DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params):
+    def validate_and_cleanup_parquet(file_path: str, retries: int = 5, delay: int = 10) -> bool:
+        """
+        Check if a .parquet file can be read. 
+        If not readable after multiple retries, delete the file.
+        
+        Args:
+            file_path (str): Path to the parquet file.
+            retries (int): Number of retry attempts before deleting.
+            delay (int): Delay in seconds between retries.
+        
+        Returns:
+            bool: True if the file is valid and readable, False if deleted.
+        """
+        for attempt in range(1, retries + 1):
+            try:
+                # Try to read just the metadata (faster than full read)
+                pd.read_parquet(file_path, engine="pyarrow", columns=[])
+                print(f"File {file_path} is valid (attempt {attempt}).")
+                return True
+            except Exception as e:
+                print(f"Attempt {attempt} failed for {file_path}: {e}")
+                if attempt < retries:
+                    time.sleep(delay)  # wait before retrying
+        
+        # If all retries failed, delete the file
+        try:
+            os.remove(file_path)
+            print(f"Deleted corrupted file after {retries} attempts: {file_path}")
+        except Exception as remove_err:
+            print(f"Failed to delete {file_path}: {remove_err}")
+        return False
     print("====================================")
     print("======== Use Parquet Cache =======")
     print("====================================")
@@ -407,8 +438,27 @@ def DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params):
         os.makedirs(dir_path)
     if os.path.isfile(ParquetCacheFilepath):
         # print(f"Read from Parquet Cache: {ParquetCacheFilepath}")
-        OutputRealtime =  pd.read_parquet(ParquetCacheFilepath)
-        return OutputRealtime
+        try:
+            OutputRealtime =  pd.read_parquet(ParquetCacheFilepath)
+            return OutputRealtime
+        except:
+            validate_and_cleanup_parquet(ParquetCacheFilepath)
+            OutputRealtime = DomeGetRealtimeSensorDataChunk(Data_params)
+            
+            if OutputRealtime.empty:
+                return OutputRealtime
+            OutputRealtime['dt'] = OutputRealtime['dt'].astype('datetime64[ns]')
+            if OutputRealtime['dt'].max() >= (datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S') - timedelta(seconds=20)):
+
+                print("====================================")
+                print(f"Save to Parquet Cache: {ParquetCacheFilepath}")
+                print("====================================")
+                OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
+                return OutputRealtime
+            else:
+                # OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
+                return OutputRealtime
+            
     else:
         OutputRealtime = DomeGetRealtimeSensorDataChunk(Data_params)
         
