@@ -44,9 +44,9 @@ def changeCompWell():
         if i in st.session_state:
             del st.session_state[i]
     if 'SelComp' in st.session_state:
-        st.query_params['SelComp'] = st.session_state['SelComp']
+        st.query_params['SelComp'] = st.session_state['SYNC_SelComp']
     if 'SelWell' in st.session_state:
-        st.query_params['SelWell'] = st.session_state['SelWell']
+        st.query_params['SelWell'] = st.session_state['SYNC_SelWell']
 
     
 
@@ -80,10 +80,12 @@ SelectComp = None
 with SelCompWellContainer:
 
     SelectComp = ste.selectbox("Select Company",AvailComp_DF['company_name'].tolist(), index=None, key='SelComp', on_change=changeCompWell)
+    st.session_state['SelComp'] = st.session_state['SYNC_SelComp'] 
     if SelectComp != None:
         AvailWell_DF = IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)
 
         SelectWell = ste.selectbox("Select Well", AvailWell_DF['well_name'].tolist(), index=None,key='SelWell', on_change=changeCompWell)
+        st.session_state['SelWell'] = st.session_state['SYNC_SelWell']
 
         if SelectWell == None:
             st.warning("Please select a well")
@@ -102,9 +104,10 @@ with MenuNavigationContainer:
     
     # st.button('Override', use_container_width=True, key='Override', disabled=(SelectWell==None or SelectWell=='-'),
     #           on_click=setPage, args=('Override',), type='primary' if st.session_state['AppName'] == 'Override' else 'secondary')
-    
+
 if (SelectWell == None) or (SelectWell == None):
     st.stop()
+# st.write(st.session_state)
 AppDict = {
     'Home': Welcome.App,
     'Activity Mapping': ActivityMapping.App,

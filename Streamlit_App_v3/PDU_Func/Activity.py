@@ -663,6 +663,7 @@ def addSectionParams (RTSensor_df, InputActivity_DB, UserDateRange="All"):
         RTSensor_df = RTSensor_df[(RTSensor_df['dt'] >= StartDateTime) & (RTSensor_df['dt'] < EndDateTime)]
 
     InputActivity_DB = InputActivity_DB.reset_index()
+    InputActivity_DB['In-Slip Run Casing Threshold'] = InputActivity_DB['In-Slip Run Casing Threshold'].fillna(-999999)
 
 
     for i,row in InputActivity_DB.iterrows():
@@ -681,8 +682,12 @@ def addSectionParams (RTSensor_df, InputActivity_DB, UserDateRange="All"):
         # activity_label_temp = InputActivity_DB.loc[ii, 'Activity']
         # pic_label_temp = InputActivity_DB.loc[ii, 'PIC']
         section_label_temp = InputActivity_DB.loc[ii, 'Section Size']
+        # print(InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold'])
         # remarks_label_temp = InputActivity_DB.loc[ii, 'Remarks']
-        activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Threshold']
+        if InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold'] not in [None, np.nan, '', -999999]:
+            activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold']
+        else:
+            activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Threshold']
 
         # RTSensor_df.loc[idx_logic, ("Activity")] = activity_label_temp
         # RTSensor_df.loc[idx_logic, ("PIC")] = pic_label_temp

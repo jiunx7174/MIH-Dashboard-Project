@@ -248,9 +248,53 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
     RigActivityDF.sort_values(by='dt', inplace=True)
     RigActivityDF.rename(columns={'activity': 'Activity', 'dt':'DateTime'}, inplace=True)
     RigActivityDF['DateTime'] = pd.to_datetime(RigActivityDF['DateTime'])
+    # RigActivityDF.sort_values(by='DateTime', inplace=True)
     # RigActivityDF['DateTime'] = RigActivityDF['DateTime'].apply(round_seconds_to_nearest_5_seconds)
     RigActivityDF = RigActivityDF.reset_index(drop=True)
+    print("get Rig Activity")
     return RigActivityDF
+
+def insertRigActivity(WellInfoDict, DateTime_str, ActCode_int):
+    url_pdu_api = getURLAPI_pdu()
+    insertRigActAPI = f'{url_pdu_api}rtdc/drilling-activity'
+    insertRigActAPI_json = json.dumps(
+    {
+                    "wid":WellInfoDict['wid'],
+                    "DateTime":DateTime_str,
+                    "ActCode":int(ActCode_int)
+                    },
+    indent = 4
+    )
+    print(insertRigActAPI_json)
+    print(insertRigActAPI + " Post | " + f"{DateTime_str} - {ActCode_int}")
+    response = (
+            requests.post(
+                insertRigActAPI, data=insertRigActAPI_json 
+            )
+            )
+    print(response)
+    # pass
+# @retry_on_error()
+def updateRigActivity(WellInfoDict, DateTime_str, ActCode_int):
+    url_pdu_api = getURLAPI_pdu()
+    # getRigActAPI = 'https://pdumitradome.id/dome_api/rtdc/get_drilling_activity'
+    updateRigActAPI = f'{url_pdu_api}rtdc/drilling-activity'
+    updateRigActAPI_json = json.dumps(
+    {
+                    "wid":WellInfoDict['wid'],
+                    "DateTime":DateTime_str,
+                    "ActCode":ActCode_int
+                    },
+    indent = 4
+    )
+    print(updateRigActAPI_json)
+    print(updateRigActAPI + " PUT | " + f"{DateTime_str} - {ActCode_int}")
+    response = (
+            requests.put(
+                updateRigActAPI, data=updateRigActAPI_json 
+            )
+            )
+    print(response)
 
 
 @retry_on_error()
@@ -1356,7 +1400,9 @@ def DomeSectionParamsTable_Get(WellInfoDict):
 
     SectionParamsTable_df.rename(columns={'SectionSize': 'Section Size',}, inplace=True)
     SectionParamsTable_df.rename(columns={'InSlipThreshold': 'In-Slip Threshold',}, inplace=True)
+    SectionParamsTable_df.rename(columns={'InSlipRunCasingThreshold': 'In-Slip Run Casing Threshold',}, inplace=True)
     SectionParamsTable_df = SectionParamsTable_df[SectionParamsTable_df['wid'] == WellInfoDict['wid']]
+    SectionParamsTable_df["In-Slip Run Casing Threshold"] = SectionParamsTable_df["In-Slip Run Casing Threshold"].replace(-999999, np.nan)
 
     return SectionParamsTable_df
 
@@ -1367,6 +1413,7 @@ def DomeSectionParamsTable_Delete(DeleteJSON):
     key_mapping = {'DateTime': 'DateTime', 
                    'Section Size': 'SectionSize',
                    'In-Slip Threshold': 'InSlipThreshold',
+                   'In-Slip Run Casing Threshold': 'InSlipRunCasingThreshold',
                      'PIC': 'PIC',
                      'wid': 'wid',
                    }
@@ -1387,17 +1434,21 @@ def DomeSectionParamsTable_Delete(DeleteJSON):
     #     indent = 4
     # )
     # print(DomeRequestPOST(API_Request, json_queries))
+
     if isinstance(DeleteJSON, dict):
+
         DeleteJSON = json.dumps(
             DeleteJSON,
             indent = 4
         )
+    print(DeleteJSON)
     print(DomeRequestPOST(API_Request, DeleteJSON))
 def DomeSectionParamsTable_Insert(InsertJSON):
     # InsertJSON = json.loads(InsertJSON)
     key_mapping = {'DateTime': 'DateTime', 
                    'Section Size': 'SectionSize',
                    'In-Slip Threshold': 'InSlipThreshold',
+                   'In-Slip Run Casing Threshold': 'InSlipRunCasingThreshold',
                      'PIC': 'PIC',
                      'wid': 'wid',
                    }
@@ -1408,6 +1459,8 @@ def DomeSectionParamsTable_Insert(InsertJSON):
             new_dict[new_key] = InsertJSON[old_key]
     
     InsertJSON = new_dict
+    if InsertJSON['InSlipRunCasingThreshold'] in [None, '', 'nan', np.nan]:
+        InsertJSON['InSlipRunCasingThreshold'] = -999999
     try:
         new_dict['DateTime'] =  datetime.strptime(new_dict['DateTime'],"%Y-%m-%dT%H:%M:%S.%f")
         new_dict['DateTime'] =  datetime.strftime(new_dict['DateTime'],"%Y-%m-%d %H:%M:%S")

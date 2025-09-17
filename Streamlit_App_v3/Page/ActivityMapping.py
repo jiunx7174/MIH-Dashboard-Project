@@ -1,7 +1,7 @@
 import streamlit as st
 from PDU_Func import Activity, Authentification, IO_Data
 from Page import  Override
-from Page.SubPage import RealtimeDataViz
+from Page.SubPage import RealtimeDataViz, ActSumTableViz, RigActivityTable
 from importlib import reload
 import pandas as pd
 from datetime import datetime,timedelta
@@ -139,7 +139,7 @@ def SectionParamsDataEditor(WellInfoDict, SectionParams_DF):
    
     with st.form(key='SectionParamsFormKey', border=False):
         
-        SectionParamsEdit = st.data_editor(SectionParams_DF[['DateTime', 'Section Size', 'In-Slip Threshold']].sort_values(by='DateTime', ascending=False),
+        SectionParamsEdit = st.data_editor(SectionParams_DF[['DateTime', 'Section Size', 'In-Slip Threshold', 'In-Slip Run Casing Threshold']].sort_values(by='DateTime', ascending=False),
                                            hide_index=True,
                                          num_rows='dynamic', key=getDataEditorKey(),
                                         column_config=column_config,
@@ -190,32 +190,45 @@ def App():
                    end_date="2100-01-01 00:00:01"))
     # st.dataframe(SectionParams_DF)
 
-    RigActivityCols = st.container(border=False).columns([5,5])
-    RigActivityCols[0].markdown(f"##### Rig Name: *{RigName}*")
+    RigActivityCols = st.container(border=False).columns([5,5],)
     if RigActivity_DF.empty:
         RigActivityCols[0].error("No Rig Activity")
+    RigActivityCols[1].markdown(f"##### Well Name: *{SelectWell}*")
+    # RigNameCols, IsRigEditCol = RigActivityCols[0].columns([7,3], vertical_alignment='center') 
+    # RigNameCols.markdown(f"##### Rig Name: *{RigName}*")
+    # if RigActivity_DF.empty:
+    #     RigNameCols.error("No Rig Activity")
 
-    RigActivityCols[1].markdown(f"##### Well Parameters: *{SelectWell}*")
-    # if SectionParams_DF.empty:
-    #     RigActivityCols[1].error("No Well Parameters")
+    # RigActivityCols[1].markdown(f"##### Well Name: *{SelectWell}*")
 
     RigActivity_DF_Display = RigActivity_DF.copy()
     RigActivity_DF_Display['Detail Rig Activity'] = RigActivity_DF_Display['Activity']
     RigActivity_DF_Display['Simple Activity'] = Activity.translateRigActivity2Activity(RigActivity_DF_Display)['Activity']
     # st.write()
     # RigActivity_DF_Display['Simple Activity'] = RigActivity_DFg
-    RigActivityCols[0].dataframe(RigActivity_DF_Display[['DateTime', 'Detail Rig Activity', 'Simple Activity']].sort_values(by='DateTime', ascending=False),
-                    use_container_width=True,
-                    hide_index=True,
-                    height=200,
-                    column_config={
-                        "DateTime": st.column_config.DatetimeColumn(
-                            "DateTime",
-                            format="YYYY-MM-DD | HH:mm:ss",
-                            )
-                        }
+    # RigActivityCols[0].dataframe(RigActivity_DF_Display[['DateTime', 'Detail Rig Activity', 'Simple Activity']].sort_values(by='DateTime', ascending=False),
+    #                 use_container_width=True,
+    #                 hide_index=True,
+    #                 height=200,
+    #                 column_config={
+    #                     "DateTime": st.column_config.DatetimeColumn(
+    #                         "DateTime",
+    #                         format="YYYY-MM-DD | HH:mm:ss",
+    #                         )
+    #                     }
                     
-                   )
+    #                )
+    # with IsRigEditCol.container(horizontal_alignment='right'):
+    #     IsRigActivityEdit = st.toggle("Edit Rig Activity", key="IsRigActivityEdit")
+    with RigActivityCols[0]:
+        # IsRigActivityEdit = st.toggle("Edit Rig Activity", key="IsRigActivityEdit")
+        RigActivityTable.App(WellInfoDict,
+                             RigName, 
+                             RigActivity_DF_Display, 
+                             is_editable = True
+                             )
+
+    # st.stop()
     Override.SectionParamsTableWidget(WellInfoDict, RigActivityCols[1], 
                           PrefixKey = 'SectionParamsTable' , 
                           SectionSizeList='default',)
@@ -239,8 +252,8 @@ def App():
         st.session_state['IsFormSubmit'] = False
     with DatetimeRangeCol.form(key='DateForm', border=False):
 
-        TitleCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1.2,  1.4,1,0.1,1.4,1,0.7])
-        TitleCol.markdown('## WELL ACTIVITY')
+        TitleCol, StartDateCol,StartTimeCol, MiddleCol, EndDateCol, EndTimeCol, BtnSubmitCol = st.columns([1.5,  1.4,1,0.1,1.4,1,0.7],vertical_alignment='center' )
+        TitleCol.markdown('### DATETIME SELECTION')
         # TitleCol.markdown('<h3 style="text-align: left; font-size: 40px; margin-top: -10px;">WELL ACTIVITY</h3>', unsafe_allow_html=True)
         RealtimeLoadingContainer = st.empty()
 
@@ -266,7 +279,7 @@ def App():
                                         )
         with StartTimeCol:
             UserDateRange['StartTime'] = ste.time_input(
-                                        "",
+                                        "-",
                                         # "Start Time",
                                         label_visibility='collapsed',
                                         value = datetime.strptime('00:00', '%H:%M').time(),
@@ -281,7 +294,7 @@ def App():
                                         key="EndDateRT")
         with EndTimeCol:
             UserDateRange['EndTime'] = ste.time_input(
-                                        "",
+                                        "--",
                                         label_visibility='collapsed',
                                         # "End Time",
                                         value = datetime.strptime('23:59', '%H:%M').time(),
@@ -291,7 +304,11 @@ def App():
                                            args=(UserDateRange,), 
                                            use_container_width=True, 
                                            type="secondary" if st.session_state['IsFormSubmit'] else "primary")
-
+        # st.write(st.session_state)
+        st.session_state['StrtDateRT'] = st.session_state['SYNC_StrtDateRT']
+        st.session_state['StrtTimeRT'] = st.session_state['SYNC_StrtTimeRT']
+        st.session_state['EndDateRT'] = st.session_state['SYNC_EndDateRT']
+        st.session_state['EndTimeRT'] = st.session_state['SYNC_EndTimeRT']
     if not st.session_state['IsFormSubmit']:
         st.warning("Please select a date range")
     else:
@@ -323,13 +340,12 @@ def App():
         # WellActivityContainer.divider()
         # WellActivityContainer.write("#### Realtime Activity Data")
         # RTDataContainer,RTVizContainer = WellActivityContainer.tabs(['Table', 'Visualization'])
-        RTVizContainer = WellActivityContainer.container()
-        RTDataContainer = WellActivityContainer.container()
+        RTVizContainer = st.container().expander("📊 Realtime Drilling Data Visualization", expanded=False)
+        RTDataContainer = st.container().expander("📅 Realtime Drilling Data Table ", expanded=False)
 
         with RTDataContainer: 
             st.dataframe(RTSensor_DF, height = 300,)
         with RTVizContainer:
-
             RealtimeDataViz.App(st, RTSensor_DF)
         # RealtimeActTabs[1].RealtimeDataViz
 
@@ -344,13 +360,15 @@ def App():
         ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
         ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
         ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
-        WellActivityContainer.write("##### Activity Summary")
-        ActivitySummaryTable, ActivitySummaryOverrideTable = WellActivityContainer.tabs(['Table','Override Table'])
+        ActivitySummary_DF = Activity.GroupCasingJoint(ActivitySummary_DF)
+        # GroupCasingJoint(ActSum_df)
+        st.write("##### Activity Summary")
+        ActivitySummaryTable, ActivitySummaryOverrideTable = st.tabs(['Table','Override Table'])
         with ActivitySummaryTable:
-            with st.container(height=600):
-                st.dataframe(ActivitySummary_DF, height=500)
+            with st.container(border=None):
+                ActSumTableViz.App(ActivitySummary_DF, WellInfoDict, UserAuthDict, RemarksEdit=False)
         with ActivitySummaryOverrideTable:
-            with st.container(height=600):
+            with st.container(border=None):
                 Override.OverrideActivityTableWidget(WellInfoDict, st.container(), 
                             PrefixKey = 'OverrideActivityTable' , 
                             TripActivityList='default', DrillActivityList='default', OverrideActivityList='default')

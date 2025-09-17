@@ -90,24 +90,22 @@ def getRealtimeVisualization(df, plot_params):
 
     return fig
 # @st.experimental_fragment
+@st.fragment
 def App(container, RTSensor_DF):
-    TitleContainer, NumberContainer, EmptyRightCol_title = container.columns([3,2,4])
-    TitleContainer.markdown("### Realtime Data Visualization")
-    EmptyLeftCol, PlotParamContainer, EmptyRightCol = container.columns([0.075,1,0.075])
+    PlotContainer = container.container()
+    PlotParamsContainer = container.expander("🛠️ Plot Parameters", expanded=False)
+
+    # TitleContainer, NumberContainer, EmptyRightCol_title = container.columns([3,2,4])
+    # # TitleContainer.markdown("### Realtime Data Visualization")
+    # EmptyLeftCol, PlotParamContainer, EmptyRightCol = container.columns([0.1,1,0.1])
 
     if "NumPlot" not in st.session_state:
         st.session_state["NumPlot"] = 3
-    try:
-        with NumberContainer.popover(f"Number of Plot: {st.session_state['NumPlot']}", use_container_width=True ):
-            NumPlot = st.number_input("Number of Plot", min_value=1, max_value=5,  step=1, key="NumPlot")
-    except:
-        with NumberContainer.popover(f"Number of Plot: 3", use_container_width=True ):
-            NumPlot = st.number_input("Number of Plot", min_value=1, max_value=5, value=3,  step=1, key="NumPlot")
+    NumberPlotTitleCol, NumberPlotWidgetCol = PlotParamsContainer.columns([1,4])
+    NumPlot = NumberPlotWidgetCol.number_input("Number of Plot", min_value=1, max_value=5,  step=1, key="NumPlot", label_visibility="collapsed")
+    NumberPlotTitleCol.markdown("##### Number of Plot: ")
 
-        # st.markdown("Hello World 👋")
-        # name = st.text_input("What's your name?")
-
-    PlotParamCol_list = PlotParamContainer.columns(NumPlot)
+    # PlotParamCol_list = PlotParamContainer.columns(NumPlot)
     DefaultPlotDict = {
         'PlotRT_0': [ "hklda", "woba", "blockpos"],   
         'PlotRT_1': [ "torqa", "woba", "stppress"],   
@@ -117,19 +115,28 @@ def App(container, RTSensor_DF):
     ListData = [
         'bitdepth', 'md', 'blockpos', 'rop', 'hklda', 'woba', 'torqa', 'rpm', 'stppress', 'mudflowin', 'speedup', 'speeddown',
     ]
+
+
     FinalPlotParamDict = {}
-    for i, PlotParamCol in enumerate(PlotParamCol_list):
+    for i in range(NumPlot):
+
         if f"PlotRT_{i}" in DefaultPlotDict.keys():
             DefaultPlotList = DefaultPlotDict[f"PlotRT_{i}"]
         else:
             DefaultPlotList=None
-        PlotParamList = PlotParamCol.multiselect("Select Data", ListData,default=DefaultPlotList, key=f"PlotRT_{i}")
+        LeftCol, RightCol = PlotParamsContainer.columns([1,4])
+        LeftCol.markdown(f"##### Track {i+1}: ")
+        with RightCol:
+
+
+            PlotParamList = st.multiselect("Select Data", ListData,default=DefaultPlotList, key=f"PlotRT_{i}",label_visibility="collapsed")
         PlotParamDict = {}
         for Param in PlotParamList:
             PlotParamDict[Param] = getDefaultPlotParamDict()[Param]
 
         FinalPlotParamDict[f"PlotRT_{i}"] = PlotParamDict
-    container.plotly_chart(getRealtimeVisualization(RTSensor_DF, FinalPlotParamDict), use_container_width=True, theme=None)
+
+    PlotContainer.plotly_chart(getRealtimeVisualization(RTSensor_DF, FinalPlotParamDict), use_container_width=True, theme=None)
 
 
 

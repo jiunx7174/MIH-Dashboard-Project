@@ -763,6 +763,7 @@ class Insert_SectionParamsDataModel(BaseModel):
     DateTime : str
     SectionSize : str
     InSlipThreshold : float
+    InSlipRunCasingThreshold : float
     PIC : str
 class Get_SectionParamsDataModel(BaseModel):
     wid:int
@@ -772,6 +773,7 @@ class Delete_SectionParamsDataModel(BaseModel):
     DateTime : str
     SectionSize : str
     InSlipThreshold : float
+    InSlipRunCasingThreshold : float
     PIC : str
 
 @app.post("/section-params-table/insert/")
@@ -782,6 +784,9 @@ def section_params_insert(data: Insert_SectionParamsDataModel):
     insert_df = convert_datetime_column(insert_df, ['StartDateTime', 'EndDateTime'])
     
     SectionParams_df = pd.concat([SectionParams_df,insert_df], ignore_index=True)
+    SectionParams_df['InSlipRunCasingThreshold'] = (
+        SectionParams_df['InSlipRunCasingThreshold'].fillna(-999999)
+    )
     SectionParams_df.to_parquet('Data/SectionParams_TABLE.parquet', index=False)
     return {"message": "Data inserted successfully"}
 
@@ -796,6 +801,7 @@ def section_params_delete(data: Delete_SectionParamsDataModel):
                     (SectionParams_df['DateTime'] == DeleteDict['DateTime']) & \
                     (SectionParams_df['SectionSize'] == DeleteDict['SectionSize']) & \
                     (SectionParams_df['InSlipThreshold'] == DeleteDict['InSlipThreshold']) & \
+                    (SectionParams_df['InSlipRunCasingThreshold'] == DeleteDict['InSlipRunCasingThreshold']) & \
                     (SectionParams_df['PIC'] == DeleteDict['PIC'])
 
         # Remove the row(s) by inverting the condition
@@ -811,9 +817,15 @@ def section_params_get(data: Get_SectionParamsDataModel):
     list_col_str = 'DateTime'
     WellInfoDict = data.model_dump()
     SectionParams_df = pd.read_parquet('Data/SectionParams_TABLE.parquet')
+    # print(SectionParams_df)
     SectionParams_df = SectionParams_df[SectionParams_df['wid'] == WellInfoDict['wid']]
     if SectionParams_df.empty:
-        empty_data = {col: [] for col in ['wid', 'DateTime', 'SectionSize', 'InSlipThreshold',  'PIC']}
+        empty_data = {col: [] for col in ['wid', 
+                                          'DateTime', 
+                                          'SectionSize', 
+                                          'InSlipThreshold',
+                                          'InSlipRunCasingThreshold', 
+                                          'PIC']}
         return empty_data
     return SectionParams_df.to_dict(orient='records')
 @app.post("/section-params-table/getUniqueSectionSize/")
