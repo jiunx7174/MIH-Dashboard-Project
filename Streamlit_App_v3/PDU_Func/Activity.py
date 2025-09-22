@@ -684,7 +684,7 @@ def addSectionParams (RTSensor_df, InputActivity_DB, UserDateRange="All"):
         section_label_temp = InputActivity_DB.loc[ii, 'Section Size']
         # print(InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold'])
         # remarks_label_temp = InputActivity_DB.loc[ii, 'Remarks']
-        if InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold'] not in [None, np.nan, '', -999999]:
+        if (InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold'] not in [None, np.nan, '', -999999]) and (row['Activity'] != "RUN CASING"):
             activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold']
         else:
             activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Threshold']
