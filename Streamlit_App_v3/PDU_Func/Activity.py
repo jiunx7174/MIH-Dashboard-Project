@@ -684,16 +684,19 @@ def addSectionParams (RTSensor_df, InputActivity_DB, UserDateRange="All"):
         section_label_temp = InputActivity_DB.loc[ii, 'Section Size']
         # print(InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold'])
         # remarks_label_temp = InputActivity_DB.loc[ii, 'Remarks']
-        if (InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold'] not in [None, np.nan, '', -999999]) and (row['Activity'] != "RUN CASING"):
-            activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold']
-        else:
-            activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Threshold']
-
+        # if (InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold'] not in [None, np.nan, '', -999999]) and (row['Activity'] != "RUN CASING"):
+        #     activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold']
+        # else:
+        #     activity_label_temp = InputActivity_DB.loc[ii, 'In-Slip Threshold']
+        InSlipThreshold_value =InputActivity_DB.loc[ii, 'In-Slip Threshold']
+        InSlipCasingThreshold_value = InputActivity_DB.loc[ii, 'In-Slip Run Casing Threshold']
+        idx_casing_logic = RTSensor_df['Activity'] == "RUN CASING"
         # RTSensor_df.loc[idx_logic, ("Activity")] = activity_label_temp
         # RTSensor_df.loc[idx_logic, ("PIC")] = pic_label_temp
         RTSensor_df.loc[idx_logic, ("Section Size")] = section_label_temp
         # RTSensor_df.loc[idx_logic, ("remarks")] = remarks_label_temp
-        RTSensor_df.loc[idx_logic, ("In-Slip Threshold")] = activity_label_temp
+        RTSensor_df.loc[idx_logic, ("In-Slip Threshold")] = InSlipThreshold_value
+        RTSensor_df.loc[idx_logic & idx_casing_logic, ("In-Slip Threshold")] = InSlipCasingThreshold_value
         ii = ii+1
     return RTSensor_df
 
