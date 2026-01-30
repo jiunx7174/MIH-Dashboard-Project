@@ -838,7 +838,7 @@ def getBHA_TripBreakdown_df(ActSum_df):
 def GroupCasingJoint(ActSum_df):
     CasingTrip_df = ActSum_df.copy()
     CasingTrip_df['Stand Group_Pred_TRIP'] = ""
-    ListGroupCasing = getTripActivityList() + getRunCasingActivityList()
+    ListGroupCasing = getRunCasingActivityList()
     
     if any(elem in CasingTrip_df['LABEL_Activity'].unique() for elem in ListGroupCasing):
             CasingTrip_df['GroupChange'] = (CasingTrip_df['LABEL_Activity'] != CasingTrip_df['LABEL_Activity'].shift()).cumsum()
