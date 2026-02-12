@@ -805,7 +805,7 @@ def getStandTime_df(ActSum_df):
 
         last_indices = StandTime_df.groupby("Stand Group_Pred").apply(lambda x: x.index[-1]).values
         StandTime_df = ActSum_df.copy()
-        StandTime_df.loc[last_indices[:-1] + 1, 'Stand Group_Pred'] = StandTime_df.loc[last_indices[:-1], 'Stand Group_Pred'].values
+        StandTime_df.loc[last_indices + 1, 'Stand Group_Pred'] = StandTime_df.loc[last_indices, 'Stand Group_Pred'].values
         StandTime_df = StandTime_df[ StandTime_df['Stand Group_Pred'].str.contains(r'Drilling', case=False, na=False)]
         StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']] = StandTime_df[['RotateDrillingDuration', 'SlideDrillingDuration', 'ReamingDuration', 'ConnectionDuration']].astype(float)
         
