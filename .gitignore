@@ -16,3 +16,6 @@ WITSML_Development/dataset/*
 Data/*
 *workspace*
 *SSL*/
+Streamlit_App_v3/app_config.json
+Streamlit_App_v3/Config/machine_id_v4
+Streamlit_App_v3/app_config.json
