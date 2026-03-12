@@ -49,8 +49,8 @@ def App(WellInfoDict, RigName, RigActivity_DF_Display, is_editable=False):
     # if is_edit = False:
     # else:
     #     is_edit = IsRigEditCol.toggle("Edit Rig Activity", key="IsRigActivityEdit")
-    RigActivity_DF_Display = RigActivity_DF_Display[['DateTime', 'Detail Rig Activity', 'Simple Activity']].sort_values(by='DateTime', ascending=False)
-
+    RigActivity_DF_Display = RigActivity_DF_Display[['id', 'DateTime', 'Detail Rig Activity', 'Simple Activity']].sort_values(by='DateTime', ascending=False)
+    RigActivity_DF_Display.set_index('id', inplace=True)
     if is_edit:
         selection = st.segmented_control(
                 "", ['Insert', 'Remove', 'Update'], selection_mode="single", width= 'stretch', label_visibility="collapsed", default=None,key="RigEditAction"
@@ -81,8 +81,18 @@ def App(WellInfoDict, RigName, RigActivity_DF_Display, is_editable=False):
                 hide_index=True,
                 height=150,
             )
+            deleted_RigActivity_DF = RigActivity_DF_Display.loc[list(RigActivity_DF_Display.index[event.selection['rows']])]
             st.warning("Select rows to remove from the table above, then click the button below to confirm.")
-            st.button("Remove Selected Rows", type="primary", disabled=True, width='stretch')
+            isDisabled = len(event.selection['rows'])==0
+            if st.button("Remove Selected Rows", type="primary", disabled=isDisabled, width='stretch'):
+                for idx, row in deleted_RigActivity_DF.iterrows():
+                    IO_Data.deleteRigActivity(WellInfoDict,row_id=idx)
+                    st.toast(f"{str(row['DateTime'])} with activity {row['Detail Rig Activity']} is removed")
+                time.sleep(2)
+                st.rerun()
+
+
+
         elif selection == 'Insert':
             st.dataframe(
                 RigActivity_DF_Display,
@@ -134,14 +144,16 @@ def App(WellInfoDict, RigName, RigActivity_DF_Display, is_editable=False):
 
 
             st.warning("Edit the details directly in the table above, then click the button below to confirm updates.")
-            if st.button("Update", type="primary", disabled=True, width='stretch'):
+            isDisabled = len(st.session_state['RigUpdateActivityWidget']['edited_rows'].keys())==0
+            if st.button("Update", type="primary", disabled=isDisabled, width='stretch'):
                 UpdatedResult_df = pd.DataFrame(result.iloc[list(st.session_state['RigUpdateActivityWidget']['edited_rows'].keys())])
-                st.write(UpdatedResult_df)
-                # st.write(result)
+
                 for idx,row in UpdatedResult_df.iterrows():
                     DateTime_str = str(row['DateTime'])
                     ActCode_int = replacement_dict[row['Detail Rig Activity']]
-                    IO_Data.updateRigActivity(WellInfoDict, DateTime_str, ActCode_int)
+                    # st.write(f"Updating row id {idx} with DateTime: {DateTime_str} and Activity: {row['Detail Rig Activity']} (ActCode: {ActCode_int})")
+                    IO_Data.updateRigActivity(WellInfoDict, DateTime_str, ActCode_int, row_id=idx)
+                    # updateRigActivity(WellInfoDict, DateTime_str, ActCode_int, row_id):
                     st.toast(f"{DateTime_str} is updated to {row['Detail Rig Activity']}")
                 time.sleep(2)
                 # st.rerun()

@@ -69,9 +69,11 @@ def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit', PrefixKey
             st.write(st.session_state['DataEditorKey'])
             st.stop()
         st.session_state['DataEditorKey'] = InitialKey + f"_{num}"
-        del st.session_state[f"{PrefixKey}_DataEditor"]
+        if f"{PrefixKey}_DataEditor" in st.session_state:
+            del st.session_state[f"{PrefixKey}_DataEditor"]
 
-        del st.session_state[f"{PrefixKey}_df"]
+        if f"{PrefixKey}_df" in st.session_state:
+            del st.session_state[f"{PrefixKey}_df"]
         if 'OverrideActivityTable_df' in st.session_state:
             del st.session_state['OverrideActivityTable_df']
 

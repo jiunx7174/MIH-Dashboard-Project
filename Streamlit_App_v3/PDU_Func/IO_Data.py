@@ -310,7 +310,7 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
             )
             )
     # return dict(response.json())
-    RigActivityDF = pd.DataFrame(dict(response.json())['data'], columns=['dt', 'actcode', 'activity'])
+    RigActivityDF = pd.DataFrame(dict(response.json())['data'], columns=['id','dt', 'actcode', 'activity'])
 
     RigActivityDF.sort_values(by='dt', inplace=True)
     RigActivityDF.rename(columns={'activity': 'Activity', 'dt':'DateTime'}, inplace=True)
@@ -342,14 +342,13 @@ def insertRigActivity(WellInfoDict, DateTime_str, ActCode_int):
     print(response)
     # pass
 # @retry_on_error()
-def updateRigActivity(WellInfoDict, DateTime_str, ActCode_int):
+def updateRigActivity(WellInfoDict, DateTime_str, ActCode_int, row_id):
     url_pdu_api = getURLAPI_pdu()
     # getRigActAPI = 'https://pdumitradome.id/dome_api/rtdc/get_drilling_activity'
-    updateRigActAPI = f'{url_pdu_api}rtdc/drilling-activity'
+    updateRigActAPI = f'{url_pdu_api}rtdc/drilling-activity/{row_id}'
     updateRigActAPI_json = json.dumps(
     {
                     "wid":WellInfoDict['wid'],
-                    "DateTime":DateTime_str,
                     "ActCode":ActCode_int
                     },
     indent = 4
@@ -358,6 +357,24 @@ def updateRigActivity(WellInfoDict, DateTime_str, ActCode_int):
     print(updateRigActAPI + " PUT | " + f"{DateTime_str} - {ActCode_int}")
     response = (
             requests.put(
+                updateRigActAPI, data=updateRigActAPI_json 
+            )
+            )
+    print(response)
+def deleteRigActivity(WellInfoDict,  row_id=None):
+    url_pdu_api = getURLAPI_pdu()
+    # getRigActAPI = 'https://pdumitradome.id/dome_api/rtdc/get_drilling_activity'
+    updateRigActAPI = f'{url_pdu_api}rtdc/drilling-activity/{row_id}'
+    updateRigActAPI_json = json.dumps(
+    {
+                    "wid":WellInfoDict['wid']
+                    },
+    indent = 4
+    )
+    print(updateRigActAPI_json)
+    print(updateRigActAPI + " DELETE | " + f"wid: {WellInfoDict['wid']} - {row_id}")
+    response = (
+            requests.delete(
                 updateRigActAPI, data=updateRigActAPI_json 
             )
             )
