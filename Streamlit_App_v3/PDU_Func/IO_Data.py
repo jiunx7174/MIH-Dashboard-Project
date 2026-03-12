@@ -24,29 +24,96 @@ def getURLAPI_FastAPI():
         return "http://pdumitradome.id:8090/"
     
 # for IO trial
+# def retry_on_error(max_retries=10, retry_interval=10):
+#     def decorator(func):
+#         def wrapper(*args, **kwargs):
+#             for _ in range(max_retries):
+#                 try:
+#                     result = func(*args, **kwargs)
+#                     return result
+#                 except Exception as e:
+#                     print(f"Error: {e}. Retrying in {retry_interval} seconds...")
+#                     time.sleep(retry_interval)
+#             raise Exception(f"Function {func.__name__} still failed after {max_retries} retries.")
+#         return wrapper
+#     return decorator
 def retry_on_error(max_retries=10, retry_interval=10):
     def decorator(func):
         def wrapper(*args, **kwargs):
-            for _ in range(max_retries):
+
+            last_error = None
+
+            for attempt in range(1, max_retries + 1):
                 try:
-                    result = func(*args, **kwargs)
-                    return result
+                    return func(*args, **kwargs)
+
                 except Exception as e:
-                    print(f"Error: {e}. Retrying in {retry_interval} seconds...")
+                    last_error = e
+                    print(
+                        f"[Retry {attempt}/{max_retries}] "
+                        f"Error: {e}. Retrying in {retry_interval} seconds..."
+                    )
                     time.sleep(retry_interval)
-            raise Exception(f"Function {func.__name__} still failed after {max_retries} retries.")
+
+            raise Exception(
+                f"Function {func.__name__} failed after {max_retries} retries.\n"
+                f"Last error: {last_error}"
+            )
+
         return wrapper
     return decorator
 @retry_on_error()
 def DomeRequestGET(API, Data_params):
     print(API)
     print(Data_params)
-    return requests.get(API, data=Data_params)
+    response = requests.get(
+        API,
+        data=Data_params,
+    )
+
+    if response.status_code >= 500:
+        raise RuntimeError(
+            f"Server error {response.status_code} | "
+            f"URL: {API} | "
+            f"Params: {Data_params} | "
+            f"Response: {response.text}"
+        )
+
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"Client error {response.status_code} | "
+            f"URL: {API} | "
+            f"Params: {Data_params} | "
+            f"Response: {response.text}"
+        )
+
+    return response
 @retry_on_error()
 def DomeRequestPOST(API, Data_params):
     print(API)
     print(Data_params)
-    return requests.post(API, data=Data_params)
+    response = requests.post(
+        API,
+        data=Data_params,
+    )
+
+    if response.status_code >= 500:
+        raise RuntimeError(
+            f"Server error {response.status_code} | "
+            f"URL: {API} | "
+            f"Payload: {Data_params} | "
+            f"Response: {response.text}"
+        )
+
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"Client error {response.status_code} | "
+            f"URL: {API} | "
+            f"Payload: {Data_params} | "
+            f"Response: {response.text}"
+        )
+
+    return response
 
 @retry_on_error()
 def DomeCheckTable(wid: int, table_type: str="ActivityLogTable"):
