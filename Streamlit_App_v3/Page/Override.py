@@ -238,7 +238,18 @@ def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
         for InsertDict in st.session_state[f"{PrefixKey}_DataEditor"]['added_rows']:
             InsertDict['wid'] = int(wid)
             InsertDict['In-Slip Threshold'] = float(InsertDict['In-Slip Threshold'])
-            InsertDict['In-Slip Run Casing Threshold'] = float(InsertDict['In-Slip Run Casing Threshold'])
+            if "in-slip run casing threshold" not in InsertDict:
+                InsertDict['In-Slip Run Casing Threshold'] = -999999  # if the value is NaN, set it to -999999 
+            else:
+                if InsertDict['In-Slip Run Casing Threshold'] == '' or InsertDict['In-Slip Run Casing Threshold'] is None:
+                    InsertDict['In-Slip Run Casing Threshold'] = -999999
+                else:
+
+                    InsertDict['In-Slip Run Casing Threshold'] = float(InsertDict['In-Slip Run Casing Threshold'])
+
+
+
+                    
             # InsertDict['SectionSize'] = str(InsertDict['SectionSize']).replace('"', '')
             IO_Data.DomeSectionParamsTable_Insert(InsertDict)
 
