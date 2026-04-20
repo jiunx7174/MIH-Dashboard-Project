@@ -115,68 +115,56 @@ def DomeRequestPOST(API, Data_params):
 
     return response
 
-@retry_on_error()
-def DomeCheckTable(wid: int, table_type: str="ActivityLogTable"):
-    url_pdu_api = getURLAPI_pdu()
-    if table_type=="ActivityLogTable":    
-        WellAPI = f"{url_pdu_api}rtdc/ActivitylogRT/cek_table"
-        json_queries = {
-        "wid": wid
-        }
-
-        response = (
-            requests.post(
-                WellAPI, data=json.dumps(json_queries, indent = 4) 
-            )
-        )
-        print('check ActivityLogTable')
-        return dict(response.json())
-    
-    elif table_type=="ActivitySummaryTable":
-        WellAPI = f"{url_pdu_api}rtdc/ActivitySummaryRT/cek_table"
-        json_queries = {
-        "wid": wid
-        }
-
-        response = (
-            requests.post(
-                WellAPI, data=json.dumps(json_queries, indent = 4) 
-            )
-        )
-        print('check ActivitySummaryTable')
-        return dict(response.json())
+_TABLE_TYPE_ENDPOINT = {
+    "ActivityLogTable":     "ActivitylogRT",
+    "ActivitySummaryTable": "ActivitySummaryRT",
+    "ActivityLog":          "Activitylog",
+    "ActivitySummary":      "ActivitySummary",
+}
 
 @retry_on_error()
-def DomeCreateTable(wid: int, table_type: str="ActivityLogTable"):
+def DomeCheckTable(wid: int, table_type: str = "ActivityLogTable"):
     url_pdu_api = getURLAPI_pdu()
-    if table_type=="ActivityLogTable":    
-        WellAPI = f"{url_pdu_api}rtdc/ActivitylogRT/create_table"
-        json_queries = {
-        "wid": wid
-        }
+    endpoint = _TABLE_TYPE_ENDPOINT.get(table_type)
+    if endpoint is None:
+        raise ValueError(f"Unknown table_type: {table_type}")
 
-        response = (
-            requests.post(
-                WellAPI, data=json.dumps(json_queries, indent = 4) 
-            )
-        )
-        print('create ActivityLogTable')
+    WellAPI = f"{url_pdu_api}rtdc/{endpoint}/cek_table"
+    json_queries = {"wid": wid}
+    response = requests.post(WellAPI, data=json.dumps(json_queries, indent=4))
+    print(f'check {table_type}')
+    return dict(response.json())
 
-        return dict(response.json())
-    elif table_type=="ActivitySummaryTable":    
-        WellAPI = f"{url_pdu_api}rtdc/ActivitySummaryRT/create_table"
-        json_queries = {
-        "wid": wid
-        }
+@retry_on_error()
+def DomeCreateTable(wid: int, table_type: str = "ActivityLogTable"):
+    url_pdu_api = getURLAPI_pdu()
+    endpoint = _TABLE_TYPE_ENDPOINT.get(table_type)
+    if endpoint is None:
+        raise ValueError(f"Unknown table_type: {table_type}")
 
-        response = (
-            requests.post(
-                WellAPI, data=json.dumps(json_queries, indent = 4) 
-            )
-        )
+    WellAPI = f"{url_pdu_api}rtdc/{endpoint}/create_table"
+    json_queries = {"wid": wid}
+    response = requests.post(WellAPI, data=json.dumps(json_queries, indent=4))
+    print(f'create {table_type}')
+    return dict(response.json())
 
-        print('create ActivitySummaryTable')
-        return dict(response.json())
+
+def ensureTable(wid: int, table_type: str):
+    """Check if DOME table exists for this wid; create it if not.
+    Returns True if the table is ready (existed or successfully created)."""
+    try:
+        check = DomeCheckTable(wid, table_type)
+    except Exception as e:
+        print(f"[ensureTable] check failed for {table_type} wid={wid}: {e}")
+        return False
+
+    if check.get('table') == 0:
+        try:
+            DomeCreateTable(wid, table_type)
+        except Exception as e:
+            print(f"[ensureTable] create failed for {table_type} wid={wid}: {e}")
+            return False
+    return True
 
 
 def initiateTable(WellInfoDict):
@@ -228,20 +216,27 @@ def getAvailableWellDF(SelectComp,UserAuthDict):
 
 def getWellInfoDict(UserAuthDict, SelectComp, SelectWell):
 
-    SelectWellDF = getAvailableWellDF(SelectComp,UserAuthDict)
-    Comp_ID = int(SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'cid'].values[0])
-    Well_ID = int(SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'wid'].values[0])
-    WellActiveDate = SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'active_date'].tolist()[0]
-    WellEndDate = SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'end_date'].tolist()[0]
-    RigName = SelectWellDF.loc[SelectWellDF['well_name']==SelectWell, 'rig_name']
+    SelectWellDF = getAvailableWellDF(SelectComp, UserAuthDict)
+    match = SelectWellDF.loc[SelectWellDF['well_name'] == SelectWell]
+    if match.empty:
+        # State mismatch: sidebar still holds a well from the previous company.
+        # Stop this run cleanly; Streamlit will rerun once the selectbox resets.
+        st.warning(f"Well '{SelectWell}' is not available under company '{SelectComp}'. Please re-select.")
+        st.stop()
+
+    Comp_ID = int(match['cid'].values[0])
+    Well_ID = int(match['wid'].values[0])
+    WellActiveDate = match['active_date'].tolist()[0]
+    WellEndDate = match['end_date'].tolist()[0]
+    RigName = match['rig_name']
 
     SelectWellInfoDict = {
         'cid': Comp_ID,
         'wid': Well_ID,
-        'WellName':SelectWell,
-        'RigName':RigName,
-        'ActiveDate':WellActiveDate,
-        'EndDate':WellEndDate
+        'WellName': SelectWell,
+        'RigName': RigName,
+        'ActiveDate': WellActiveDate,
+        'EndDate': WellEndDate
     }
     return SelectWellInfoDict
 # @retry_on_error()
@@ -304,19 +299,31 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
                     },
     indent = 4
     )
-    response = (
-            requests.get(
-                getRigActAPI, data=getRigActAPI_json 
-            )
-            )
-    # return dict(response.json())
-    RigActivityDF = pd.DataFrame(dict(response.json())['data'], columns=['id','dt', 'actcode', 'activity'])
+    empty_df = pd.DataFrame(columns=['id', 'DateTime', 'actcode', 'Activity'])
+    try:
+        response = requests.get(getRigActAPI, data=getRigActAPI_json)
+    except Exception as e:
+        print(f"[getRigActivity] request failed for wid={WellInfoDict['wid']}: {e}")
+        return empty_df
 
+    # DOME kadang return 200 dengan body kosong kalau tidak ada data
+    if not response.text.strip():
+        print(f"[getRigActivity] empty response for wid={WellInfoDict['wid']}")
+        return empty_df
+    try:
+        payload = dict(response.json())
+    except Exception as e:
+        print(f"[getRigActivity] non-JSON response for wid={WellInfoDict['wid']}: {e} | body={response.text[:200]}")
+        return empty_df
+
+    data = payload.get('data', [])
+    if not data:
+        return empty_df
+
+    RigActivityDF = pd.DataFrame(data, columns=['id', 'dt', 'actcode', 'activity'])
     RigActivityDF.sort_values(by='dt', inplace=True)
-    RigActivityDF.rename(columns={'activity': 'Activity', 'dt':'DateTime'}, inplace=True)
+    RigActivityDF.rename(columns={'activity': 'Activity', 'dt': 'DateTime'}, inplace=True)
     RigActivityDF['DateTime'] = pd.to_datetime(RigActivityDF['DateTime'])
-    # RigActivityDF.sort_values(by='DateTime', inplace=True)
-    # RigActivityDF['DateTime'] = RigActivityDF['DateTime'].apply(round_seconds_to_nearest_5_seconds)
     RigActivityDF = RigActivityDF.reset_index(drop=True)
     print("get Rig Activity")
     return RigActivityDF
@@ -774,6 +781,7 @@ def DomeGetActivityLogData(WellInfoDict, start_date="2000-01-01 00:00:01", end_d
                             }
     
     # ActivityLogColumns = ['id', 'dt', 'date', 'time', 'activity', 'in_slip_threshold', 'remarks', 'pic', 'section']
+    ensureTable(WellInfoDict['wid'], 'ActivityLog')
     TableAPI = f"{url_pdu_api}rtdc/Activitylog/get_data"
 
     json_queries = json.dumps(
@@ -784,13 +792,17 @@ def DomeGetActivityLogData(WellInfoDict, start_date="2000-01-01 00:00:01", end_d
         },
         indent = 4
     )
-    response = DomeRequestGET(TableAPI, json_queries)
+    try:
+        response = DomeRequestGET(TableAPI, json_queries)
+        result = dict(response.json()).get('result', [])
+    except Exception as e:
+        print(f"[DomeGetActivityLogData] get_data failed for wid={WellInfoDict['wid']}: {e}")
+        result = []
 
-    if (dict(response.json())['result']) == []:
-
+    if result == []:
         ActivityLog_DF = pd.DataFrame(columns=list(ActivityLogColumnRenameDict.keys()))
     else:
-        ActivityLog_DF = pd.DataFrame(dict(response.json())['result'])
+        ActivityLog_DF = pd.DataFrame(result)
         ActivityLog_DF = ActivityLog_DF.sort_values(by='dt')
 
     ActivityLog_DF.rename(columns = ActivityLogColumnRenameDict, inplace = True)
@@ -854,6 +866,49 @@ def DomeInsertActivityLogData(WellInfoDict, ActLogDF):
         # st.stop()
     # return dict(response.json())
 
+def DomeUpdateActivityLogData(WellInfoDict, ActLogDF):
+    """Update existing Activity Log rows. ActLogDF must contain the 'id' column
+    of the rows to update (plus any fields to change)."""
+    url_pdu_api = getURLAPI_pdu()
+    ActivityLogColumnRenameDict = {
+        'id': 'id',
+        'DateTime': 'dt',
+        'Date': 'date',
+        'Time': 'time',
+        'Activity': 'activity',
+        'In-Slip Threshold': 'in_slip_threshold',
+        'Remarks': 'remarks',
+        'PIC': 'pic',
+        'Section Size': 'section'
+    }
+    ActLogDF = ActLogDF.copy()
+    ActLogDF['wid'] = WellInfoDict['wid']
+    ActLogDF = ActLogDF.rename(columns=ActivityLogColumnRenameDict)
+
+    keys_list = ["id", "wid", "dt", "date", "time", "activity",
+                 "in_slip_threshold", "remarks", "pic", "section"]
+    ActLogDF = ActLogDF[[c for c in keys_list if c in ActLogDF.columns]]
+
+    if 'dt' in ActLogDF.columns:
+        if ActLogDF['dt'].dtype != 'datetime64[ns]':
+            ActLogDF['dt'] = pd.to_datetime(ActLogDF['dt'], errors='coerce')
+        ActLogDF['dt'] = ActLogDF['dt'].dt.strftime('%Y-%m-%d %H:%M:%S')
+
+    for col in ['date', 'time', 'activity', 'in_slip_threshold',
+                'remarks', 'pic', 'section']:
+        if col in ActLogDF.columns:
+            ActLogDF[col] = ActLogDF[col].astype(str)
+    ActLogDF['wid'] = ActLogDF['wid'].astype(int)
+
+    UpdateRowAPI = f"{url_pdu_api}rtdc/Activitylog/update"
+    for _, row in ActLogDF.iterrows():
+        json_queries = json.dumps(row.to_dict(), indent=4)
+        response = DomeRequestPOST(UpdateRowAPI, json_queries)
+        try:
+            st.toast(dict(response.json()).get('message', 'updated'))
+        except Exception:
+            pass
+
 def DomeDeleteActivityLogData(WellInfoDict, row_id):
     url_pdu_api = getURLAPI_pdu()
     DeleteRowAPI = f"{url_pdu_api}rtdc/Activitylog/delete"
@@ -877,6 +932,7 @@ def DomeDeleteActivityLogData(WellInfoDict, row_id):
 # Activity Summary
 def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
     url_pdu_api = getURLAPI_pdu()
+    ensureTable(int(WellInfoDict['wid']), 'ActivitySummary')
     TableAPI = f"{url_pdu_api}rtdc/ActivitySummary/get_data"
     # print(wid)
     json_queries = json.dumps(
@@ -887,16 +943,19 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
         indent = 4
     )
 
-    response = DomeRequestGET(TableAPI, json_queries)
-    # print((response.json()))
-    
-    ActivitySummary_DF = pd.DataFrame(dict(response.json())['result'])
-    # print("Columns:")
-    # print(ActivitySummary_DF.columns)
+    empty_cols = list(ActivitySummaryColumnRenameDict()['ColumnName'].values())
+    try:
+        response = DomeRequestGET(TableAPI, json_queries)
+        result = dict(response.json()).get('result', [])
+    except Exception as e:
+        print(f"[DomeGetActivitySummaryData] get_data failed for wid={WellInfoDict['wid']}: {e}")
+        return pd.DataFrame(columns=empty_cols)
+
+    ActivitySummary_DF = pd.DataFrame(result)
     ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict()['ColumnName'], inplace = True)
-    
+
     if ActivitySummary_DF.empty:
-        return pd.DataFrame(columns=ActivitySummaryColumnRenameDict()['ColumnName'].values())
+        return pd.DataFrame(columns=empty_cols)
     else:
         return ActivitySummary_DF
 # def DomeInsertActivitySummaryData():
@@ -1076,6 +1135,63 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, i
     #     ProgressBarContainer.success("Upload Success!")
     #     time.sleep(3)
     #     ProgressBarContainer.empty()
+
+def DomeUpdateActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, insert_pic=False, runOnStreamlit=False):
+    """Update existing Activity Summary rows. The input DataFrame must carry
+    the same columns used at insert time; the server identifies rows by
+    (wid, time_start)."""
+    url_pdu_api = getURLAPI_pdu()
+    ConversionDict = ActivitySummaryColumnRenameDict()
+    ActSumdf = ActSumdf.copy()
+    ActSumdf['wid'] = WellInfoDict['wid']
+    if "LABEL_All" in ActSumdf.columns:
+        ActSumdf = ActSumdf.drop(['LABEL_All'], axis=1)
+    ActSumdf = ActSumdf.rename(
+        columns={value: key for key, value in ConversionDict['ColumnName'].items()}
+    )
+    ActSumdf['stand_on_bottom'] = 0
+    ActSumdf = ActSumdf.astype('string')
+
+    keys_list = ['wid', 'date', 'time_start', 'time_end', 'duration_minutes', 'hole_depth',
+                 'bit_depth', 'meterage_drilling', 'rotate_drilling_time', 'slide_drilling_time',
+                 'reaming_time', 'connection_time', 'on_bottom_hours', 'stand_duration',
+                 'label_subactivity', 'label_activity', 'stand_meterage_drilling',
+                 'stand_durationx', 'connection_activity', 'stand_on_bottom',
+                 'section', 'stand_group']
+    if insert_remark:
+        keys_list.append('remark')
+    else:
+        keys_list.append('remark')
+        ActSumdf['remark'] = ""
+    if insert_pic:
+        keys_list.append('pic')
+    else:
+        keys_list.append('pic')
+        ActSumdf['pic'] = ""
+    ActSumdf = ActSumdf[keys_list]
+    ActSumdf[["pic", "remark"]] = ActSumdf[["pic", "remark"]].fillna("")
+
+    UpdateRowAPI = f"{url_pdu_api}rtdc/ActivitySummary/update"
+
+    i = 0
+    i_end = len(ActSumdf)
+    if runOnStreamlit:
+        ProgressStatusUpdate = st.progress(0., text="Update **Activity Summary** Data, 0 % Complete")
+
+    for _, row in ActSumdf.iterrows():
+        i += 1
+        if runOnStreamlit:
+            ProgressStatusUpdate.progress(
+                np.round(i / i_end, 2),
+                text=f"Update **Activity Summary** Data, {np.round(i / i_end, 2) * 100} % Complete",
+            )
+        json_queries = json.dumps(row.to_dict(), indent=4)
+        DomeRequestPOST(UpdateRowAPI, json_queries)
+
+    if runOnStreamlit:
+        ProgressStatusUpdate.progress(1., text="Update **Activity Summary** Data Complete")
+        ProgressStatusUpdate.empty()
+
 
 def getLastConnectionDateTime(WellInfoDict, UserDateRange):
     # Initialize variables
