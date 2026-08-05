@@ -82,11 +82,6 @@ def getOverrideActivityList():
             "TEST BOP", 
             "WIRELINE LOGS", ]
 def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
-    # if ActSum_df[ActSum_df['status']=='REVIEW'].empty:
-    #     return ActSum_df
-    # else:
-    # ActSum_df = ActSum_df[ActSum_df['status']=='REVIEW']
-
     ActSum_df['DrillingMeteragePerStand'] = np.NaN
     ActSum_df['StandDuration'] = np.NaN
     ActSum_df['OnBottomDurationPerStand'] = np.NaN
@@ -113,12 +108,24 @@ def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
         stand_num = 0
     stand_num = stand_num+1
 
+    prev_df = None 
+
+
     # st.write(ActSum_df_Drilling.index[0])
     for k,ActSum_df_Temp in ActSum_df.groupby((ActSum_df['LABEL_Activity'].shift() != ActSum_df ['LABEL_Activity']).cumsum()):
+        
         if ActSum_df_Temp['LABEL_Activity'].tolist()[0] in (DrillActivityList):
             ii = 1
 
             idx_connection_list = ActSum_df_Temp[ActSum_df_Temp['LABEL_SubActivity'] == 'Connection'].index.tolist()
+            if prev_df is not None:
+                prev_conn_idx = prev_df[
+                    prev_df['LABEL_SubActivity'] == 'Connection'
+                ].index.tolist()
+                if prev_conn_idx:
+                    idx_connection_list = [prev_conn_idx[-1]] + idx_connection_list
+            
+            
             idx_conn_start_list = idx_connection_list[:-1]   # everything except the last element
             idx_conn_end_list   = idx_connection_list[1:]  # everything except the first and last
 
@@ -149,7 +156,7 @@ def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
                         PostCon_Start_idx = idx_start
                         PostCon_End_idx = ActSum_df_Stand[ActSum_df_Stand['LABEL_SubActivity']=='Reaming'].index[0]
                         ActSum_df.loc[PostCon_Start_idx:PostCon_End_idx,'LABEL_ConnectionActivity'] = 'Post Connection-'+str(stand_num)
-
+        prev_df = ActSum_df_Temp
 
     return ActSum_df
 def replace_connection_with_nearest_activity(ActSum_df):

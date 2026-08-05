@@ -5,6 +5,30 @@ from PDU_Func import Activity, Authentification, IO_Data
 from datetime import datetime, timedelta
 import time
 from importlib import reload
+def time_input_with_seconds(
+    label: str,
+    default=None,
+    key: str | None = None,
+):
+    if default is None:
+        default = datetime.strptime("00:00:00", "%H:%M:%S").time()
+
+    time_text = st.text_input(
+        label,
+        value=default.strftime("%H:%M:%S"),
+        placeholder="HH:MM:SS",
+        key=key,
+    )
+
+    try:
+        return datetime.strptime(time_text, "%H:%M:%S").time()
+
+    except ValueError:
+        st.error(
+            "Invalid time. Please use HH:MM:SS format, "
+            "for example 14:30:05."
+        )
+        return None
 
 reload(IO_Data)
 @st.fragment
@@ -101,7 +125,14 @@ def App(WellInfoDict, RigName, RigActivity_DF_Display, is_editable=False):
             )
             RigEditDateCol, RigEditTimeCol, RigEditActivityCol = st.columns([2.5,2.5,5])
             RigEditDateCol.date_input("Select Date", key="RigEditDate")
-            RigEditTimeCol.time_input("Select Time", key="RigEditTime")
+            # RigEditTimeCol.time_input("Select Time", key="RigEditTime", value="00:00:00")
+            with RigEditTimeCol:
+                selected_time = time_input_with_seconds(
+                    label="Select Time",
+                    default=datetime.strptime("00:00:00", "%H:%M:%S").time(),
+                    key="RigEditTime",
+                )
+
             RigEditActivityCol.selectbox("Detail Rig Activity",list(replacement_dict.keys()),index=None, key="RigInsertActivityWidget")
             if st.session_state['RigInsertActivityWidget'] == None:
                 st.warning("Fill in the details above, then click the button below to insert a new activity.")
@@ -131,6 +162,16 @@ def App(WellInfoDict, RigName, RigActivity_DF_Display, is_editable=False):
                     "Detail Rig Activity": st.column_config.SelectboxColumn(
                         "Detail Rig Activity",
                         options = list(replacement_dict.keys()),
+                        
+                        # max_chars=50,
+                        # ed
+                        ),
+
+                    "Simple Activity": st.column_config.TextColumn(
+                        "Simple Activity",
+                        disabled=True,
+
+
                         # max_chars=50,
                         # ed
                         ),
@@ -143,11 +184,17 @@ def App(WellInfoDict, RigName, RigActivity_DF_Display, is_editable=False):
 
 
 
-            st.warning("Edit the details directly in the table above, then click the button below to confirm updates.")
             isDisabled = len(st.session_state['RigUpdateActivityWidget']['edited_rows'].keys())==0
-            if st.button("Update", type="primary", disabled=isDisabled, width='stretch'):
-                UpdatedResult_df = pd.DataFrame(result.iloc[list(st.session_state['RigUpdateActivityWidget']['edited_rows'].keys())])
+            if isDisabled:
+                st.warning("Edit the details directly in the table above, then click the button below to confirm updates.")
+                HelpMsg = "Please modify a row first. The button will become available once a change is detected."
+            else:
+                HelpMsg = "Click **Update** to submit."
 
+        
+            if st.button("Update", type="primary", disabled=isDisabled, width='stretch', help = HelpMsg):
+                UpdatedResult_df = pd.DataFrame(result.iloc[list(st.session_state['RigUpdateActivityWidget']['edited_rows'].keys())])
+                
                 for idx,row in UpdatedResult_df.iterrows():
                     DateTime_str = str(row['DateTime'])
                     ActCode_int = replacement_dict[row['Detail Rig Activity']]
