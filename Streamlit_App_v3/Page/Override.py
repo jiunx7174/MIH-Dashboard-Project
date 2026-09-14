@@ -7,6 +7,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import datetime as datetime_module
 from PDU_Func import Activity,  IO_Data
+from PDU_Func import MemLogger
 from Page.SubPage import RealtimeDataViz
 from importlib import reload
 import streamlit_ext as ste
@@ -440,6 +441,7 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     print("===============")
     print("===============")
     print(UserDateRange_Sync)
+    MemLogger.checkpoint("sync_range", wid=WellInfoDict["wid"], sync_range=str(UserDateRange_Sync))
     print("===============")
     print("===============")
     # st.toast(UserDateRange_Sync)
@@ -506,6 +508,7 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
                                                         show_progress=False, 
                                                         runOnStreamlit=False,
                                                         )
+    MemLogger.checkpoint("realtime_downloaded", df=RTSensor_DF)
     RigActivity_DF = (IO_Data.getRigActivity(WellInfoDict, 
                     start_date="2000-01-01 00:00:01", 
                     end_date="2100-01-01 00:00:01"))
@@ -513,28 +516,36 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
                         RTSensor_DF, 
                         Activity.translateRigActivity2Activity(RigActivity_DF)
                         )
+    MemLogger.checkpoint("rig_activity_labelled", df=RTSensor_DF, rig_rows=len(RigActivity_DF))
     RTSensor_DF = Activity.addSectionParams (
                         RTSensor_DF, 
                         SectionParams_DF
                         )
+    MemLogger.checkpoint("section_params_applied", df=RTSensor_DF)
     RTSensor_DF = Activity.predictSubActivityLabel(
                         RTSensor_DF, 
                         TripActivityList='default', 
                         DrillActivityList='default', 
                         OverrideActivityList='default')
+    MemLogger.checkpoint("subactivity_predicted", df=RTSensor_DF)
     Override_df = IO_Data.DomeOverrideActivity_Get(WellInfoDict)
     RTSensor_DF = Activity.Override(RTSensor_DF, Override_df)
 
     # TODO add the override labelling here
 
+    MemLogger.checkpoint("override_applied", df=RTSensor_DF, override_rows=len(Override_df))
     ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
+    MemLogger.checkpoint("grouped", df=ActivitySummary_DF)
     ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
     ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
+    MemLogger.checkpoint("stand_labelled", df=ActivitySummary_DF)
     # TODO delete the ActivitySummary in startdatetime enddatetime range
     IO_Data.DomeDeleteActivitySummaryData(UserDateRange_Sync, WellInfoDict, runOnStreamlit=runOnStreamlit)
+    MemLogger.checkpoint("actsum_deleted", wid=WellInfoDict["wid"])
     
     # TODO insert the new ActivitySummary in startdatetime enddatetime range
     IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF, runOnStreamlit=runOnStreamlit) 
+    MemLogger.checkpoint("actsum_inserted", wid=WellInfoDict["wid"], df=ActivitySummary_DF)
     print("Activity Summary Updated:")
     print(ActivitySummary_DF)
 

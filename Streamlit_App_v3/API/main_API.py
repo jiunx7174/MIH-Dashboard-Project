@@ -35,6 +35,8 @@ reload(Activity)
 # reload(IO_Data)
 # reload(Activity)
 app = FastAPI()
+from PDU_Func import MemLogger
+MemLogger.install(app)
 
 class SectionParamsDataModel(BaseModel):
     # Define the structure of your JSON data here
@@ -100,6 +102,7 @@ def update_realtime_data(data: UpdateDataRequest):
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
 
     SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+    MemLogger.checkpoint("section_params", wid=wid, cid=cid, df=SectionParams_DF)
     if SectionParams_DF.empty:
         return JSONResponse(
             status_code=404,
@@ -129,6 +132,7 @@ def update_realtime_data(data: UpdateDataRequest):
     }
 
     print(f"request realtime data {UserDateRange_Sync}")
+    MemLogger.checkpoint("sync_range", wid=wid, sync_range=str(UserDateRange_Sync))
     df_list.append(pd.DataFrame.from_records([UserDateRange_Sync]))
     RTSensor_DF = IO_Data.DomeGetRealtimeSensorData(WellInfoDict,
                                                         UserDateRange_Sync, 
@@ -136,6 +140,7 @@ def update_realtime_data(data: UpdateDataRequest):
                                                         show_progress=False, 
                                                         runOnStreamlit=False,
                                                         )
+    MemLogger.checkpoint("realtime_downloaded", df=RTSensor_DF)
     RigActivity_DF = (IO_Data.getRigActivity(WellInfoDict, 
                     start_date="2000-01-01 00:00:01", 
                     end_date="2100-01-01 00:00:01"))
@@ -143,24 +148,32 @@ def update_realtime_data(data: UpdateDataRequest):
                         RTSensor_DF, 
                         Activity.translateRigActivity2Activity(RigActivity_DF)
                         )
+    MemLogger.checkpoint("rig_activity_labelled", df=RTSensor_DF, rig_rows=len(RigActivity_DF))
     RTSensor_DF = Activity.addSectionParams (
                         RTSensor_DF, 
                         SectionParams_DF
                         )
+    MemLogger.checkpoint("section_params_applied", df=RTSensor_DF)
     RTSensor_DF = Activity.predictSubActivityLabel(
                         RTSensor_DF, 
                         TripActivityList='default', 
                         DrillActivityList='default', 
                         OverrideActivityList='default')
+    MemLogger.checkpoint("subactivity_predicted", df=RTSensor_DF)
     Override_df = IO_Data.DomeOverrideActivity_Get(WellInfoDict)
     RTSensor_DF = Activity.Override(RTSensor_DF, Override_df)
+    MemLogger.checkpoint("override_applied", df=RTSensor_DF, override_rows=len(Override_df))
     ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
+    MemLogger.checkpoint("grouped", df=ActivitySummary_DF)
     ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
     ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
+    MemLogger.checkpoint("stand_labelled", df=ActivitySummary_DF)
     df_list.append(ActivitySummary_DF)
 
     IO_Data.DomeDeleteActivitySummaryData(UserDateRange_Sync, WellInfoDict)
+    MemLogger.checkpoint("actsum_deleted", wid=wid)
     IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF )
+    MemLogger.checkpoint("actsum_inserted", wid=wid, df=ActivitySummary_DF)
     output_dict = {"Last Data":ActivitySummary_DF.tail(1).astype(str).to_dict()}
     
 
@@ -186,7 +199,9 @@ def recalculate_data(data: RecalculateDataRequest):
     WellInfoDict = IO_Data.getWellInfoDict_byID(cid, wid)
 
     # TODO redefine the startdatetime and enddatetime readjustment
+    MemLogger.checkpoint("recalculate_start", wid=wid, startdatetime=startdatetime, enddatetime=enddatetime)
     DomeUpdateRealtimeData(WellInfoDict, startdatetime, enddatetime) 
+    MemLogger.checkpoint("recalculate_done", wid=wid)
 
 @app.post("/force-cache-update/")
 def force_cache_update(data: RecalculateDataRequest):
@@ -211,6 +226,7 @@ def force_cache_update(data: RecalculateDataRequest):
             "end" : str(EndDateTime),
         }
         IO_Data.DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params)
+        MemLogger.checkpoint("cache_chunk", wid=wid, start=str(StartDateTime), end=str(EndDateTime))
         print(f"write {WellInfoDict['wid']} - {StartDateTime} - {EndDateTime} to Parquet cache")
     return {"message": "Cache updated successfully"}
     ### Visualization API
@@ -598,6 +614,7 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
 
     # SectionParams_DF = pd.read_excel('Data/SectionParams.xlsx')
     SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+    MemLogger.checkpoint("section_params", wid=wid, cid=cid, df=SectionParams_DF)
     if SectionParams_DF.empty:
         return JSONResponse(
             status_code=404,
@@ -628,6 +645,7 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
     "EndTime": LastDateTime_obj.time()
     }
     print(f"request realtime data {UserDateRange_Sync}")
+    MemLogger.checkpoint("sync_range", wid=wid, sync_range=str(UserDateRange_Sync))
     df_list.append(pd.DataFrame.from_records([UserDateRange_Sync]))
     RTSensor_DF = IO_Data.DomeGetRealtimeSensorData(WellInfoDict,
                                                         UserDateRange_Sync, 
@@ -635,6 +653,7 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
                                                         show_progress=False, 
                                                         runOnStreamlit=False,
                                                         )
+    MemLogger.checkpoint("realtime_downloaded", df=RTSensor_DF)
     RigActivity_DF = (IO_Data.getRigActivity(WellInfoDict, 
                     start_date="2000-01-01 00:00:01", 
                     end_date="2100-01-01 00:00:01"))
@@ -642,24 +661,32 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
                         RTSensor_DF, 
                         Activity.translateRigActivity2Activity(RigActivity_DF)
                         )
+    MemLogger.checkpoint("rig_activity_labelled", df=RTSensor_DF, rig_rows=len(RigActivity_DF))
     RTSensor_DF = Activity.addSectionParams (
                         RTSensor_DF, 
                         SectionParams_DF
                         )
+    MemLogger.checkpoint("section_params_applied", df=RTSensor_DF)
     RTSensor_DF = Activity.predictSubActivityLabel(
                         RTSensor_DF, 
                         TripActivityList='default', 
                         DrillActivityList='default', 
                         OverrideActivityList='default')
+    MemLogger.checkpoint("subactivity_predicted", df=RTSensor_DF)
     Override_df = IO_Data.DomeOverrideActivity_Get(WellInfoDict)
     RTSensor_DF = Activity.Override(RTSensor_DF, Override_df)
+    MemLogger.checkpoint("override_applied", df=RTSensor_DF, override_rows=len(Override_df))
     ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
+    MemLogger.checkpoint("grouped", df=ActivitySummary_DF)
     ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
     ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
+    MemLogger.checkpoint("stand_labelled", df=ActivitySummary_DF)
     df_list.append(ActivitySummary_DF)
 
     IO_Data.DomeDeleteActivitySummaryData(UserDateRange_Sync, WellInfoDict)
+    MemLogger.checkpoint("actsum_deleted", wid=wid)
     IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF )
+    MemLogger.checkpoint("actsum_inserted", wid=wid, df=ActivitySummary_DF)
     
 
     # Convert the DataFrame to HTML

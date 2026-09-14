@@ -7,6 +7,10 @@ import time
 import os
 
 from datetime import datetime,timedelta
+try:
+    from PDU_Func import MemLogger
+except Exception:  # PDU_Func not importable as a package
+    import MemLogger
 # from stqdm import stqdm
 
 
@@ -325,6 +329,7 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
     RigActivityDF.rename(columns={'activity': 'Activity', 'dt': 'DateTime'}, inplace=True)
     RigActivityDF['DateTime'] = pd.to_datetime(RigActivityDF['DateTime'])
     RigActivityDF = RigActivityDF.reset_index(drop=True)
+    MemLogger.checkpoint("rig_activity_fetch", wid=WellInfoDict["wid"], df=RigActivityDF)
     print("get Rig Activity")
     return RigActivityDF
 
@@ -750,6 +755,9 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
         st.stop()
         # return pd.DataFrame(columns=column_list)
     Realtime_DF = pd.concat(Realtime_List, axis=0, ignore_index=True)
+    MemLogger.checkpoint("realtime_concat", wid=WellInfoDict["wid"], chunks=len(Realtime_List),
+                         range=f"{UserDateRange['StartDate']} {UserDateRange['StartTime']} - {UserDateRange['EndDate']} {UserDateRange['EndTime']}",
+                         df=Realtime_DF)
 
     start = str(UserDateRange['StartDate']) + " " + str(UserDateRange['StartTime'])
     end = str(UserDateRange['EndDate']) + " " + str(UserDateRange['EndTime'])
@@ -762,6 +770,7 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
         ProgressStatus.progress(1.,  text="Download Realtime Sensor Data Complete")
         ProgressStatus.empty()
     # return filtered_DF
+    MemLogger.checkpoint("realtime_filtered", wid=WellInfoDict["wid"], df=filtered_DF)
     return interpolateRealtimeData(filtered_DF[column_list])
 
 
@@ -953,6 +962,9 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
 
     ActivitySummary_DF = pd.DataFrame(result)
     ActivitySummary_DF.rename(columns = ActivitySummaryColumnRenameDict()['ColumnName'], inplace = True)
+    MemLogger.checkpoint("actsum_fetch", wid=WellInfoDict["wid"],
+                         start=f"{UserDateRange['StartDate']} {UserDateRange['StartTime']}",
+                         end=f"{UserDateRange['EndDate']} {UserDateRange['EndTime']}", df=ActivitySummary_DF)
 
     if ActivitySummary_DF.empty:
         return pd.DataFrame(columns=empty_cols)
@@ -977,6 +989,7 @@ def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict, runOnStreamli
         ProgressStatusDelete = st.progress(0., text=f"Delete Activity Summary Data, 0 % Complete")
         i = 0
 
+    MemLogger.checkpoint("actsum_delete_start", wid=WellInfoDict["wid"], n_rows=len(DeleteList) if "DeleteList" in locals() else -1)
     for ID_or_timestart in DeleteList:
         if runOnStreamlit:
             i = i+1
@@ -1101,6 +1114,7 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, i
     if runOnStreamlit:
         ProgressStatusInsert = st.progress(0., text="Upload **Activity Summary** Data, 0 % Complete")
 
+    MemLogger.checkpoint("actsum_insert_start", wid=WellInfoDict["wid"], n_rows=len(ActSumdf))
     for idx,row in ActSumdf.iterrows():
         i = i+1
         if runOnStreamlit:
