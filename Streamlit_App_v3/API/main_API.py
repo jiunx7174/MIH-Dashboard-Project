@@ -6,6 +6,12 @@ from importlib import reload
 import sys
 import os
 import time
+# Write print() output to the Docker log line by line instead of in 8 KB blocks,
+# so log timestamps match when things happened (same effect as PYTHONUNBUFFERED=1).
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except Exception:
+    pass
 import numpy as np
 import json
 import requests

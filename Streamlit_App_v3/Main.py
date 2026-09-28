@@ -1,3 +1,10 @@
+import sys
+# Write print() output to the Docker log line by line instead of in 8 KB blocks,
+# so log timestamps match when things happened (same effect as PYTHONUNBUFFERED=1).
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except Exception:
+    pass
 import streamlit as st
 from PDU_Func import Authentification, IO_Data
 from Page import ActivityMapping,  ActivityVisualization, Override, DataAnalytics
