@@ -21,57 +21,9 @@ def cache_getRigActivity(WellInfoDict, **kwargs):
 def cache_getWellParams(WellInfoDict, **kwargs):
     return IO_Data.DomeGetActivityLogData(WellInfoDict, **kwargs)
 
-# ---------------------------------------------------------------------------
-# Realtime sensor data cache (result level, in memory, shared by all sessions)
-#
-# The parquet cache in IO_Data avoids re-downloading chunks from DOME, but every
-# rerun still loops over all chunks, concatenates and interpolates. This caches
-# the finished DataFrame so a rerun or reconnect with the same well and range
-# returns immediately.
-# - Ranges ending in the last 2 hours (live well) expire after 5 minutes,
-#   matching the "IsStillUpdate" rule in IO_Data.DomeGetRealtimeSensorData.
-# - Fully historical ranges expire after 1 hour.
-# - "Refresh Data" in the sidebar clears both caches.
-# ---------------------------------------------------------------------------
-REALTIME_CACHE_TTL_LIVE = 300        # seconds
-REALTIME_CACHE_TTL_HISTORY = 3600    # seconds
-REALTIME_CACHE_MAX_ENTRIES = 8       # per cache; one entry can be ~10-100 MB
-REALTIME_LIVE_WINDOW = timedelta(hours=2)
-
-
-def _download_realtime(wid, active_date, end_date, start_date, start_time, stop_date, stop_time):
-    # Only the keys DomeGetRealtimeSensorData reads. Plain arguments keep the
-    # cache key hashable (WellInfoDict['RigName'] is a pandas Series).
-    well_info = {'wid': wid, 'ActiveDate': active_date, 'EndDate': end_date}
-    # Fresh dict: DomeGetRealtimeSensorData rewrites the range it is given
-    # when clamping to the well's active dates.
-    date_range = {'StartDate': start_date, 'StartTime': start_time,
-                  'EndDate': stop_date, 'EndTime': stop_time}
-    # runOnStreamlit=False: no per-chunk progress bar inside a cached function.
-    return IO_Data.DomeGetRealtimeSensorData(well_info, date_range, hours=0.5,
-                                             show_progress=False, runOnStreamlit=False)
-
-
-@st.cache_data(ttl=REALTIME_CACHE_TTL_HISTORY, max_entries=REALTIME_CACHE_MAX_ENTRIES,
-               show_spinner="Retrieve Realtime Sensor Data...")
-def cache_realtime_history(wid, active_date, end_date, start_date, start_time, stop_date, stop_time):
-    return _download_realtime(wid, active_date, end_date, start_date, start_time, stop_date, stop_time)
-
-
-@st.cache_data(ttl=REALTIME_CACHE_TTL_LIVE, max_entries=REALTIME_CACHE_MAX_ENTRIES,
-               show_spinner="Retrieve Realtime Sensor Data...")
-def cache_realtime_live(wid, active_date, end_date, start_date, start_time, stop_date, stop_time):
-    return _download_realtime(wid, active_date, end_date, start_date, start_time, stop_date, stop_time)
-
-
-def cache_DomeGetRealtimeSensorData(WellInfoDict, UserDateRange):
-    args = (int(WellInfoDict['wid']), WellInfoDict['ActiveDate'], WellInfoDict['EndDate'],
-            UserDateRange['StartDate'], UserDateRange['StartTime'],
-            UserDateRange['EndDate'], UserDateRange['EndTime'])
-    range_end = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
-    if range_end >= datetime.now() - REALTIME_LIVE_WINDOW:
-        return cache_realtime_live(*args)
-    return cache_realtime_history(*args)
+# @st.cache_data(show_spinner="Retrieve Realtime Sensor Data")
+def cache_DomeGetRealtimeSensorData(WellInfoDict,UserDateRange, **kwargs):
+    return IO_Data.DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, **kwargs)
 
 # @st.cache_data(show_spinner="Retrieve Override Activity Data")
 def cache_DomeOverrideActivity_Get(WellInfoDict, **kwargs):
@@ -109,8 +61,7 @@ def validate_start_end_dates(UserDateRange):
 def resetDataEditorKey(WellInfoDict, InitialKey = 'SectionParamsEdit', PrefixKey = 'OverrideActivityTable'):
         # st.session_state["SectionParams_DF"] = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
         # cache_getWellParams.clear()
-        cache_realtime_history.clear()
-        cache_realtime_live.clear()
+        # cache_DomeGetRealtimeSensorData.clear()
         # cache_getRigActivity.clear()
         try:
             num = int(st.session_state['DataEditorKey'].split('_')[1]) + 1
@@ -364,7 +315,13 @@ def App():
         st.warning("Please select a date range")
     else:
         validate_start_end_dates(UserDateRange)
-        RTSensor_DF = cache_DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+        RTSensor_DF = IO_Data.DomeGetRealtimeSensorData(WellInfoDict,
+                                                      UserDateRange, 
+                                                      hours=0.5, 
+                                                      show_progress=False, 
+                                                      runOnStreamlit=True,
+                                                      _container=RealtimeLoadingContainer
+                                                      )
 
         RealtimeLoadingContainer.empty()
         # InputActivity_DB = ActivityMapping.translateRigActivity2Activity(RigActivity_DF)
