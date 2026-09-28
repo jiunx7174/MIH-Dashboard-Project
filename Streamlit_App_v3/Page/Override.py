@@ -29,7 +29,7 @@ def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
     OverideActivity_df['EndDateTime'] = OverideActivity_df['EndDateTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
     list_col_str = ['LABEL_ACTIVITY', 'LABEL_SUBACTIVITY', 'PIC']
     OverideActivity_df[list_col_str] = OverideActivity_df[list_col_str].astype(str)
-    print(st.session_state[f"{PrefixKey}_DataEditor"])
+    IO_Data._vlog(st.session_state[f"{PrefixKey}_DataEditor"])
     list_startdatetime = []
     list_enddatetime = []
     ######### If User Update the Table
@@ -218,7 +218,7 @@ def UpdateSectionParamsTable(SectionParamsTable_df, wid, PrefixKey):
     SectionParamsTable_df['In-Slip Run Casing Threshold'] = SectionParamsTable_df['In-Slip Run Casing Threshold'].astype(float)
     SectionParamsTable_df['In-Slip Run Casing Threshold'] = SectionParamsTable_df['In-Slip Run Casing Threshold'].fillna(-999999)
     # SectionParamsTable_df['SectionSize'] = SectionParamsTable_df['SectionSize'].replace('"', '')
-    print(st.session_state[f"{PrefixKey}_DataEditor"])
+    IO_Data._vlog(st.session_state[f"{PrefixKey}_DataEditor"])
     ## If User Update the Table
     if st.session_state[f"{PrefixKey}_DataEditor"]['edited_rows'] != []:
         for key,val in st.session_state[f"{PrefixKey}_DataEditor"]['edited_rows'].items():
@@ -378,11 +378,7 @@ def SimplifyTimeRange(list_startdatetime, list_enddatetime):
 def SyncUpdateRealtimeData(WellInfoDict, list_startdatetime, list_enddatetime, runOnStreamlit=False):
     # print(list_startdatetime)
     # print(list_enddatetime)
-    print("===================")
-    print("Simplify Time Range:")
-    print(list_startdatetime)
-    print(list_enddatetime)
-    print("===================")
+    print(f"[override] sync ranges wid={WellInfoDict['wid']} start={list_startdatetime} end={list_enddatetime}")
     if (list_enddatetime != []) and (list_startdatetime != []):
         list_startdatetime, list_enddatetime = SimplifyTimeRange(list_startdatetime, list_enddatetime)
     # TODO uncomment the code below
@@ -438,12 +434,8 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
                                             "EndDate": EndDateTime_obj.date(),
                                             "EndTime": EndDateTime_obj.time(),
                                             })
-    print("===============")
-    print("===============")
-    print(UserDateRange_Sync)
+    print(f"[override] recalculate wid={WellInfoDict['wid']} range={UserDateRange_Sync}")
     MemLogger.checkpoint("sync_range", wid=WellInfoDict["wid"], sync_range=str(UserDateRange_Sync))
-    print("===============")
-    print("===============")
     # st.toast(UserDateRange_Sync)
     # defined_startdate = StartDateTime_obj.date()
     # defined_starttime = StartDateTime_obj.time()
@@ -546,8 +538,8 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     # TODO insert the new ActivitySummary in startdatetime enddatetime range
     IO_Data.DomeInsertActivitySummaryData(WellInfoDict, ActivitySummary_DF, runOnStreamlit=runOnStreamlit) 
     MemLogger.checkpoint("actsum_inserted", wid=WellInfoDict["wid"], df=ActivitySummary_DF)
-    print("Activity Summary Updated:")
-    print(ActivitySummary_DF)
+    print(f"[override] activity summary updated wid={WellInfoDict['wid']} rows={len(ActivitySummary_DF)}")
+    IO_Data._vlog(ActivitySummary_DF)
 
 def Override(RTSensor_df, Override_df, UserDateRange="All"):
     if Override_df.empty:
