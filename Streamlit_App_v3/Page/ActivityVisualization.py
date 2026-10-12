@@ -55,6 +55,10 @@ def RecalculateActivitySummary():
     # )
 # @st.cache_data
 def cacheGetActivitySummaryData(*args, **kwargs):
+    # One attempt only: with DOME slow this is the call users wait on. The
+    # 600 s read timeout in IO_Data bounds it; the error is shown by call_or_stop.
+    kwargs.setdefault("retries", 1)
+    kwargs.setdefault("raise_on_error", True)
     return Activity.GroupCasingJoint(IO_Data.DomeGetActivitySummaryData(*args, **kwargs))
     # return 
 def validate_start_end_dates(UserDateRange):
@@ -83,7 +87,7 @@ def App():
 
     SelectComp = st.session_state['SelComp']
     SelectWell = st.session_state['SelWell']
-    WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
+    WellInfoDict = IO_Data.call_or_stop("Memuat info well dari DOME", IO_Data.getWellInfoDict, UserAuthDict, SelectComp, SelectWell)
     st.markdown('<h1 style="text-align: center; font-size: 40px; margin-top: 0px;">ACTIVITY DASHBOARD</h1>', unsafe_allow_html=True)
     WellActivityContainer = st.container(border=True)
     DatetimeRangeCol = WellActivityContainer.container()
@@ -160,7 +164,7 @@ def App():
         st.warning("Please select a date range")
     else:
         validate_start_end_dates(UserDateRange)
-        ActivitySummary_DF = cacheGetActivitySummaryData(WellInfoDict, UserDateRange)
+        ActivitySummary_DF = IO_Data.call_or_stop("Mengambil Activity Summary dari DOME", cacheGetActivitySummaryData, WellInfoDict, UserDateRange)
         if ActivitySummary_DF.empty:
             st.warning("No data available for the selected date range.")
             st.stop()
