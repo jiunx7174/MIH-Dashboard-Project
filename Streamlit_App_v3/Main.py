@@ -67,7 +67,7 @@ st.set_page_config(
     page_icon=None, layout="wide",)
 
 query_params = st.query_params
-UserAuthDict = Authentification.getUserID(query_params)
+UserAuthDict = IO_Data.call_or_stop("Verifikasi login ke DOME", Authentification.getUserID, query_params)
 st.session_state['UserAuthDict'] = UserAuthDict
 if UserAuthDict['verification'] != 'verified':
     # st.stop()
@@ -81,7 +81,7 @@ SelCompWellContainer = st.sidebar.container()
 showUserInfo(UserAuthDict['data'], UserInfoContainer)
 
 # with SidebarContainer:
-AvailComp_DF = IO_Data.getAvailableCompanyDF(UserAuthDict)
+AvailComp_DF = IO_Data.call_or_stop("Memuat daftar company dari DOME", IO_Data.getAvailableCompanyDF, UserAuthDict)
 SelectWell = None
 SelectComp = None
 with SelCompWellContainer:
@@ -89,7 +89,7 @@ with SelCompWellContainer:
     SelectComp = ste.selectbox("Select Company",AvailComp_DF['company_name'].tolist(), index=None, key='SelComp', on_change=changeCompWell)
     st.session_state['SelComp'] = st.session_state['SYNC_SelComp'] 
     if SelectComp != None:
-        AvailWell_DF = IO_Data.getAvailableWellDF(SelectComp, UserAuthDict)
+        AvailWell_DF = IO_Data.call_or_stop("Memuat daftar well dari DOME", IO_Data.getAvailableWellDF, SelectComp, UserAuthDict)
 
         SelectWell = ste.selectbox("Select Well", AvailWell_DF['well_name'].tolist(), index=None,key='SelWell', on_change=changeCompWell)
         st.session_state['SelWell'] = st.session_state['SYNC_SelWell']

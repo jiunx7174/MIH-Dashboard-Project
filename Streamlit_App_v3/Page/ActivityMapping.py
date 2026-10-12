@@ -211,7 +211,7 @@ def App():
     UserAuthDict = st.session_state['UserAuthDict']
     SelectComp = st.session_state['SelComp']
     SelectWell = st.session_state['SelWell']
-    WellInfoDict = IO_Data.getWellInfoDict(UserAuthDict, SelectComp, SelectWell)
+    WellInfoDict = IO_Data.call_or_stop("Memuat info well dari DOME", IO_Data.getWellInfoDict, UserAuthDict, SelectComp, SelectWell)
     # IO_Data.initiateTable(WellInfoDict)
     # st.write(WellInfoDict)
     # st.write(IO_Data.DomeCheckTable(WellInfoDict['wid'], table_type="ActivityLogTable"))
@@ -225,7 +225,7 @@ def App():
     # SectionParams_DF = cache_getWellParams(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="2100-01-01 00:00:01")
     # if "SectionParamsTable_df" not in st.session_state:
     #     st.session_state["SectionParamsTable_df"] =  IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
-    SectionParams_DF = IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+    SectionParams_DF = IO_Data.call_or_stop("Memuat Section Params dari server FastAPI", IO_Data.DomeSectionParamsTable_Get, WellInfoDict)
     if st.sidebar.button("🔄 Refresh Data", key="RefreshSectionParamsTable", on_click=resetDataEditorKey, args=(WellInfoDict,)):
         st.rerun()
     
@@ -364,7 +364,7 @@ def App():
         st.warning("Please select a date range")
     else:
         validate_start_end_dates(UserDateRange)
-        RTSensor_DF = cache_DomeGetRealtimeSensorData(WellInfoDict, UserDateRange)
+        RTSensor_DF = IO_Data.call_or_stop("Mengambil data realtime dari DOME", cache_DomeGetRealtimeSensorData, WellInfoDict, UserDateRange)
 
         RealtimeLoadingContainer.empty()
         # InputActivity_DB = ActivityMapping.translateRigActivity2Activity(RigActivity_DF)
@@ -399,7 +399,7 @@ def App():
         # st.write(st.session_state['OverridedActivity_df'])
         # st.stop()
         if 'OverrideActivityTable_df' not in st.session_state:
-            st.session_state['OverrideActivityTable_df'] = IO_Data.DomeOverrideActivity_Get(WellInfoDict)
+            st.session_state['OverrideActivityTable_df'] = IO_Data.call_or_stop("Memuat Override Activity Table", IO_Data.DomeOverrideActivity_Get, WellInfoDict)
         Override_df = st.session_state['OverrideActivityTable_df']
         RTSensor_DF = Activity.Override(RTSensor_DF, Override_df)
         ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')

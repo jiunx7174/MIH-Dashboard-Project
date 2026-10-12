@@ -15,9 +15,9 @@ reload(IO_Data)
 reload(Activity)
 reload(RealtimeDataViz)
 def DomeRequestPOST(API, Data_params):
-    return requests.post(API, data=Data_params)
+    return requests.post(API, data=Data_params, timeout=IO_Data._timeout())
 def DomeRequestGET(API, Data_params):
-    return requests.get(API, data=Data_params)
+    return requests.get(API, data=Data_params, timeout=IO_Data._timeout())
 # =================================================================================================
 
 def UpdateOverrideTable(OverideActivity_df, WellInfoDict, PrefixKey):
@@ -156,7 +156,7 @@ def OverrideActivityTableWidget(WellInfoDict, container,
     LABEL_SubActivity_list.sort()
 
     if f"{PrefixKey}_df" not in st.session_state:
-        st.session_state[f"{PrefixKey}_df"] =  IO_Data.DomeOverrideActivity_Get(WellInfoDict)
+        st.session_state[f"{PrefixKey}_df"] = IO_Data.call_or_stop("Memuat Override Activity Table", IO_Data.DomeOverrideActivity_Get, WellInfoDict)
     OverideActivity_df = st.session_state[f"{PrefixKey}_df"]
     OverrideActivity_ColConfig = {
             "StartDateTime": st.column_config.DatetimeColumn(
@@ -270,7 +270,7 @@ def SectionParamsTableWidget(WellInfoDict, container,
 
 
     if f"{PrefixKey}_df" not in st.session_state:
-        st.session_state[f"{PrefixKey}_df"] =  IO_Data.DomeSectionParamsTable_Get(WellInfoDict)
+        st.session_state[f"{PrefixKey}_df"] = IO_Data.call_or_stop("Memuat Section Params Table", IO_Data.DomeSectionParamsTable_Get, WellInfoDict)
     SectionParamsTable_df = st.session_state[f"{PrefixKey}_df"]
     SectionParamsTable_ColConfig = {
             "DateTime": st.column_config.DatetimeColumn(

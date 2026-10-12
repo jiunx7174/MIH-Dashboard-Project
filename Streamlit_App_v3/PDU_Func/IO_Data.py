@@ -24,6 +24,40 @@ def _vlog(*args):
         print(*args)
 
 
+# HTTP timeouts in seconds. The connect timeout is short; the read timeout is
+# the longest silence tolerated before giving up. Without these, a DOME
+# connection that never answers blocks a worker thread forever (Sept-Oct 2026:
+# the FastAPI pool filled up with such requests and the API went dead).
+# Values chosen from measured durations: light calls p99 ~5 s, ActivitySummary
+# full-table fetch p99 ~310 s, one realtime chunk p99 ~290 s.
+HTTP_CONNECT_TIMEOUT = 10
+HTTP_TIMEOUT_DEFAULT = 60      # get_well, section params, override, insert/update/delete rows
+HTTP_TIMEOUT_ACTSUM = 600      # ActivitySummary get_data (whole table since 2000)
+HTTP_TIMEOUT_REALTIME = 300    # one 30-minute realtime chunk
+
+
+def _timeout(read=HTTP_TIMEOUT_DEFAULT):
+    return (HTTP_CONNECT_TIMEOUT, read)
+
+
+def call_or_stop(label, func, *args, **kwargs):
+    """Run func(*args, **kwargs) for a Streamlit page. On failure show a clear
+    error and stop the script run, instead of an endless spinner or a raw
+    traceback. Streamlit's own control-flow exceptions (st.stop, st.rerun) pass
+    through untouched."""
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        if type(e).__module__.startswith("streamlit"):
+            raise
+        st.error(
+            f"**{label}** gagal: server tidak merespons atau mengembalikan error. "
+            f"Coba muat ulang halaman dalam beberapa menit.\n\n"
+            f"Detail: `{type(e).__name__}: {str(e)[:300]}`"
+        )
+        st.stop()
+
+
 def getURLAPI_pdu():
     try:
         with open('app_config.json') as json_file:
@@ -51,38 +85,43 @@ def getURLAPI_FastAPI():
 #             raise Exception(f"Function {func.__name__} still failed after {max_retries} retries.")
 #         return wrapper
 #     return decorator
-def retry_on_error(max_retries=10, retry_interval=10):
+def retry_on_error(max_retries=3, retry_interval=5):
+    """Retry func on any exception. Callers may override the count per call with
+    the keyword argument _max_retries (it is removed before calling func)."""
     def decorator(func):
         def wrapper(*args, **kwargs):
 
             last_error = None
+            max_retries_call = kwargs.pop("_max_retries", max_retries)
 
-            for attempt in range(1, max_retries + 1):
+            for attempt in range(1, max_retries_call + 1):
                 try:
                     return func(*args, **kwargs)
 
                 except Exception as e:
                     last_error = e
                     print(
-                        f"[Retry {attempt}/{max_retries}] "
+                        f"[Retry {attempt}/{max_retries_call}] "
                         f"Error: {e}. Retrying in {retry_interval} seconds..."
                     )
-                    time.sleep(retry_interval)
+                    if attempt < max_retries_call:
+                        time.sleep(retry_interval)
 
             raise Exception(
-                f"Function {func.__name__} failed after {max_retries} retries.\n"
+                f"Function {func.__name__} failed after {max_retries_call} retries.\n"
                 f"Last error: {last_error}"
             )
 
         return wrapper
     return decorator
 @retry_on_error()
-def DomeRequestGET(API, Data_params):
+def DomeRequestGET(API, Data_params, timeout=HTTP_TIMEOUT_DEFAULT):
     _vlog(API)
     _vlog(Data_params)
     response = requests.get(
         API,
         data=Data_params,
+        timeout=_timeout(timeout),
     )
 
     if response.status_code >= 500:
@@ -103,12 +142,13 @@ def DomeRequestGET(API, Data_params):
 
     return response
 @retry_on_error()
-def DomeRequestPOST(API, Data_params):
+def DomeRequestPOST(API, Data_params, timeout=HTTP_TIMEOUT_DEFAULT):
     _vlog(API)
     _vlog(Data_params)
     response = requests.post(
         API,
         data=Data_params,
+        timeout=_timeout(timeout),
     )
 
     if response.status_code >= 500:
@@ -145,7 +185,7 @@ def DomeCheckTable(wid: int, table_type: str = "ActivityLogTable"):
 
     WellAPI = f"{url_pdu_api}rtdc/{endpoint}/cek_table"
     json_queries = {"wid": wid}
-    response = requests.post(WellAPI, data=json.dumps(json_queries, indent=4))
+    response = requests.post(WellAPI, data=json.dumps(json_queries, indent=4), timeout=_timeout())
     print(f'check {table_type}')
     return dict(response.json())
 
@@ -158,7 +198,7 @@ def DomeCreateTable(wid: int, table_type: str = "ActivityLogTable"):
 
     WellAPI = f"{url_pdu_api}rtdc/{endpoint}/create_table"
     json_queries = {"wid": wid}
-    response = requests.post(WellAPI, data=json.dumps(json_queries, indent=4))
+    response = requests.post(WellAPI, data=json.dumps(json_queries, indent=4), timeout=_timeout())
     print(f'create {table_type}')
     return dict(response.json())
 
@@ -196,7 +236,7 @@ def getAvailableCompanyDF(UserAuthDict):
     else :
         GetCompAPI = f"{url_pdu_api}rtdc/get_company/" + UserAuthDict["user_cid"]
     # st.text(GetCompAPI)
-    CompName_JSON = requests.get(GetCompAPI).json()  
+    CompName_JSON = requests.get(GetCompAPI, timeout=_timeout()).json()
 
     # st.text(CompName_JSON)
 
@@ -215,7 +255,7 @@ def getAvailableWellDF(SelectComp,UserAuthDict):
     # print(cid.values[0])
     # st.text(cid)
     GetAvailableWellAPI =  f"{url_pdu_api}rtdc/get_well?cid=" + str(cid)
-    AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
+    AvailableWell_JSON = requests.get(GetAvailableWellAPI, timeout=_timeout()).json()
     # st.json(AvailableWell_JSON)
     AvailableWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
     # st.dataframe(AvailableWellDF)
@@ -258,7 +298,7 @@ def getWellInfoDict_byID(cid, wid):
     url_pdu_api = getURLAPI_pdu()
     GetAvailableWellAPI =  f"{url_pdu_api}rtdc/get_well?cid=" + str(cid)
     # print(GetAvailableWellAPI)
-    AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
+    AvailableWell_JSON = requests.get(GetAvailableWellAPI, timeout=_timeout()).json()
     # st.json(AvailableWell_JSON)
     SelectWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
     _vlog("------------------")
@@ -315,7 +355,7 @@ def getRigActivity(WellInfoDict, start_date="2000-01-01 00:00:01", end_date="210
     )
     empty_df = pd.DataFrame(columns=['id', 'DateTime', 'actcode', 'Activity'])
     try:
-        response = requests.get(getRigActAPI, data=getRigActAPI_json)
+        response = requests.get(getRigActAPI, data=getRigActAPI_json, timeout=_timeout())
     except Exception as e:
         print(f"[getRigActivity] request failed for wid={WellInfoDict['wid']}: {e}")
         return empty_df
@@ -358,7 +398,7 @@ def insertRigActivity(WellInfoDict, DateTime_str, ActCode_int):
     print(insertRigActAPI + " Post | " + f"{DateTime_str} - {ActCode_int}")
     response = (
             requests.post(
-                insertRigActAPI, data=insertRigActAPI_json 
+                insertRigActAPI, data=insertRigActAPI_json, timeout=_timeout()
             )
             )
     print(response)
@@ -379,7 +419,7 @@ def updateRigActivity(WellInfoDict, DateTime_str, ActCode_int, row_id):
     print(updateRigActAPI + " PUT | " + f"{DateTime_str} - {ActCode_int}")
     response = (
             requests.put(
-                updateRigActAPI, data=updateRigActAPI_json 
+                updateRigActAPI, data=updateRigActAPI_json, timeout=_timeout()
             )
             )
     print(response)
@@ -397,7 +437,7 @@ def deleteRigActivity(WellInfoDict,  row_id=None):
     print(updateRigActAPI + " DELETE | " + f"wid: {WellInfoDict['wid']} - {row_id}")
     response = (
             requests.delete(
-                updateRigActAPI, data=updateRigActAPI_json 
+                updateRigActAPI, data=updateRigActAPI_json, timeout=_timeout()
             )
             )
     print(response)
@@ -407,7 +447,7 @@ def deleteRigActivity(WellInfoDict,  row_id=None):
 def DomeGetRealtimeRange(WellInfoDict):
     url_pdu_api = getURLAPI_pdu()
     wid = WellInfoDict['wid']
-    result = dict(requests.get(f"{url_pdu_api}rtdc/get_realtime_interval/{wid}").json()['result'])
+    result = dict(requests.get(f"{url_pdu_api}rtdc/get_realtime_interval/{wid}", timeout=_timeout()).json()['result'])
 
     date_format = '%Y-%m-%d %H:%M:%S'
     AllRealtime_DF = pd.DataFrame.from_dict([{
@@ -520,7 +560,7 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
     WellData = (
         (
             # requests.get("https://pdumitradome.id/dome_api/rtdc/rtdc/get_data", data=json.dumps(Data_params))
-            requests.get(f"{url_pdu_api}rtdc/get_data", data=json.dumps(Data_params))
+            requests.get(f"{url_pdu_api}rtdc/get_data", data=json.dumps(Data_params), timeout=_timeout(HTTP_TIMEOUT_REALTIME))
         ).text
     )
     WellData = json.loads(WellData)
@@ -947,7 +987,10 @@ def DomeDeleteActivityLogData(WellInfoDict, row_id):
 
 
 # Activity Summary
-def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
+def DomeGetActivitySummaryData(WellInfoDict, UserDateRange, retries=3, raise_on_error=False):
+    """Fetch Activity Summary rows for the range. On a DOME failure returns an
+    empty frame (sync pipeline behaviour) unless raise_on_error=True, which the
+    Streamlit pages use so the user sees an error instead of 'no data'."""
     url_pdu_api = getURLAPI_pdu()
     ensureTable(int(WellInfoDict['wid']), 'ActivitySummary')
     TableAPI = f"{url_pdu_api}rtdc/ActivitySummary/get_data"
@@ -962,10 +1005,12 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange):
 
     empty_cols = list(ActivitySummaryColumnRenameDict()['ColumnName'].values())
     try:
-        response = DomeRequestGET(TableAPI, json_queries)
+        response = DomeRequestGET(TableAPI, json_queries, timeout=HTTP_TIMEOUT_ACTSUM, _max_retries=retries)
         result = dict(response.json()).get('result', [])
     except Exception as e:
         print(f"[DomeGetActivitySummaryData] get_data failed for wid={WellInfoDict['wid']}: {e}")
+        if raise_on_error:
+            raise
         return pd.DataFrame(columns=empty_cols)
 
     ActivitySummary_DF = pd.DataFrame(result)
@@ -1007,7 +1052,7 @@ def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict, runOnStreamli
             ProgressStatusDelete.progress(np.round(i/len(DeleteList),2), text=f"Delete Activity Summary Data, {ID_or_timestart} - {np.round(i/len(DeleteList),2)*100} % Complete", )
         response = (
             requests.post(
-                TableAPI, 
+                TableAPI, timeout=_timeout(),
                 data=json.dumps(
                                 {
                                     "wid": WellInfoDict['wid'],
@@ -1617,7 +1662,7 @@ def DomeSectionParamsTable_Get(WellInfoDict):
         indent = 4
     )
     _vlog('test==========================================================')
-    response = DomeRequestPOST(API_Request, json_queries)
+    response = DomeRequestPOST(API_Request, json_queries, _max_retries=2)
     _vlog('test==========================================================')
     _vlog(response)
     SectionParamsTable_df =  pd.DataFrame(response.json())
@@ -1765,7 +1810,7 @@ def DomeOverrideActivity_Get(WellInfoDict):
         },
         indent = 4
     )
-    response = DomeRequestPOST(API_Request, json_queries)
+    response = DomeRequestPOST(API_Request, json_queries, _max_retries=2)
     OverideActivity_df =  pd.DataFrame(response.json())
     # Convert 'wid' to integer
     for colname in ['wid']:

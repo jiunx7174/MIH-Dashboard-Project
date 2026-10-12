@@ -44,6 +44,71 @@ app = FastAPI()
 from PDU_Func import MemLogger
 MemLogger.install(app)
 
+# ---------------------------------------------------------------------------
+# Per-well sync lock
+#
+# The DOME scheduler calls the sync endpoints for every well every 15 minutes
+# without checking whether the previous call finished. When DOME is slow, syncs
+# for the same well pile up: each holds a worker thread (pool of 40) and its own
+# memory, sends the same queries to an already slow DOME, and two of them
+# delete/re-insert the same Activity Summary rows. Sept-Oct 2026 this filled the
+# pool and the API stopped answering for days.
+#
+# With this lock at most ONE sync runs per well. A second call for the same wid
+# is answered immediately with HTTP 409 and does nothing; the next 15-minute
+# cycle picks the data up. A lock older than SYNC_LOCK_STALE_S is treated as
+# dead so a hung request can never block a well forever.
+# ---------------------------------------------------------------------------
+import threading
+import functools
+
+_SYNC_GUARD = threading.Lock()
+_SYNC_RUNNING = {}            # wid -> {"since": epoch seconds, "endpoint": name}
+SYNC_LOCK_STALE_S = 2 * 3600
+
+
+def per_well_lock(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        wid = kwargs.get("wid")
+        if wid is None:
+            wid = getattr(kwargs.get("data"), "wid", None)
+        if wid is None:
+            return func(*args, **kwargs)
+        wid = int(wid)
+        now = time.time()
+        with _SYNC_GUARD:
+            running = _SYNC_RUNNING.get(wid)
+            if running and (now - running["since"]) < SYNC_LOCK_STALE_S:
+                elapsed = int(now - running["since"])
+                print(f"[sync-lock] wid={wid} rejected: {running['endpoint']} already running for {elapsed}s")
+                raise HTTPException(status_code=409, detail={
+                    "error": "a sync for this well is already running; try again later",
+                    "wid": wid,
+                    "running_endpoint": running["endpoint"],
+                    "running_for_s": elapsed,
+                })
+            if running:
+                print(f"[sync-lock] wid={wid}: previous {running['endpoint']} looks dead "
+                      f"({int(now - running['since'])}s), taking over")
+            _SYNC_RUNNING[wid] = {"since": now, "endpoint": func.__name__}
+        try:
+            return func(*args, **kwargs)
+        finally:
+            with _SYNC_GUARD:
+                if _SYNC_RUNNING.get(wid, {}).get("since") == now:
+                    _SYNC_RUNNING.pop(wid, None)
+    return wrapper
+
+
+@app.get("/sync-status/")
+def sync_status():
+    """Which wells have a sync running right now, and for how long."""
+    now = time.time()
+    with _SYNC_GUARD:
+        return {"running": {str(w): {"endpoint": v["endpoint"], "running_for_s": int(now - v["since"])}
+                            for w, v in _SYNC_RUNNING.items()}}
+
 class SectionParamsDataModel(BaseModel):
     # Define the structure of your JSON data here
     # For example:
@@ -101,6 +166,7 @@ def update_data_multiuser(data: updateDataRequest):
     return {"new_wid":new_wid, "new_cid":new_cid}
 
 @app.post("/update-activity-summary-data/")
+@per_well_lock
 def update_realtime_data(data: UpdateDataRequest):
     wid = data.wid
     cid = data.cid
@@ -197,6 +263,7 @@ class RecalculateDataRequest(BaseModel):
     startdatetime: str
     enddatetime: str
 @app.post("/recalculate-activity-summary-data/")
+@per_well_lock
 def recalculate_data(data: RecalculateDataRequest):
     wid = data.wid
     cid = data.cid
@@ -210,6 +277,7 @@ def recalculate_data(data: RecalculateDataRequest):
     MemLogger.checkpoint("recalculate_done", wid=wid)
 
 @app.post("/force-cache-update/")
+@per_well_lock
 def force_cache_update(data: RecalculateDataRequest):
     wid = data.wid
     cid = data.cid
@@ -607,6 +675,7 @@ def get_connection_time(wid: int = Query(None, title="wid"),
 
 ### Automatic API Update API
 @app.get("/update-data/",response_class=HTMLResponse)
+@per_well_lock
 def UpdateRealtimeData(wid: int = Query(None, title="wid"), 
                cid: int = Query(None, title="cid"), 
                sync_datetime: str = Query(None, title="sync_datetime")):
@@ -892,7 +961,7 @@ def get_unique_section_size(data: Get_SectionParamsDataModel):
 def getAvailableCompanyDF():
     url_pdu_api = getURLAPI_pdu()
     GetCompAPI = f"{url_pdu_api}rtdc/get_company/" 
-    CompName_JSON = requests.get(GetCompAPI).json()  
+    CompName_JSON = requests.get(GetCompAPI, timeout=IO_Data._timeout()).json()
     return CompName_JSON
 
 
@@ -900,7 +969,7 @@ def getAvailableCompanyDF():
 def getAvailableWellDF(cid: int):
     url_pdu_api = getURLAPI_pdu()
     GetAvailableWellAPI =  f"{url_pdu_api}rtdc/get_well?cid=" + str(cid)
-    AvailableWell_JSON = requests.get(GetAvailableWellAPI).json()
+    AvailableWell_JSON = requests.get(GetAvailableWellAPI, timeout=IO_Data._timeout()).json()
     return AvailableWell_JSON
 
 @app.post("/ActivitySummary/delete/")
@@ -910,7 +979,7 @@ def deleteActivitySummary(wid: int, ID_or_timestart:str):
     TableAPI = f"{url_pdu_api}rtdc/ActivitySummary/delete"
     response = (
         requests.post(
-            TableAPI, 
+            TableAPI, timeout=IO_Data._timeout(),
             data=json.dumps(
                             {
                                 "wid": wid,

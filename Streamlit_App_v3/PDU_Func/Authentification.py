@@ -3,7 +3,7 @@ import time
 import streamlit as st
 from . import IO_Data
 # getURLAPI_FastAPI, getURLAPI_FastAPI
-def retry_on_error(max_retries=10, retry_interval=5):
+def retry_on_error(max_retries=3, retry_interval=5):
     def decorator(func):
         def wrapper(*args, **kwargs):
             for _ in range(max_retries):
@@ -49,7 +49,8 @@ def getUserID(UserDict):
 
         getWellAPI = f"{PDU_API}rtdc/get_verifikasi/" + UniqueID
         UserLogin_dict = requests.get(
-                getWellAPI
+                getWellAPI,
+                timeout=IO_Data._timeout(),
             ).json()
         # st.json(UserLogin_dict)
         # UserLogin_dict = UserLogin_dict['data']
