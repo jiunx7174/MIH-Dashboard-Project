@@ -23,6 +23,16 @@ def _vlog(*args):
     if VERBOSE_LOG:
         print(*args)
 
+# Detailed per-request / per-chunk prints are off by default. Set the
+# environment variable PDU_VERBOSE_LOG=1 in the container to turn them back on.
+# Errors, retries and cache problems are always printed.
+VERBOSE_LOG = os.environ.get("PDU_VERBOSE_LOG", "0") == "1"
+
+
+def _vlog(*args):
+    if VERBOSE_LOG:
+        print(*args)
+
 
 # HTTP timeouts in seconds. The connect timeout is short; the read timeout is
 # the longest silence tolerated before giving up. Without these, a DOME
@@ -301,8 +311,8 @@ def getWellInfoDict_byID(cid, wid):
     AvailableWell_JSON = requests.get(GetAvailableWellAPI, timeout=_timeout()).json()
     # st.json(AvailableWell_JSON)
     SelectWellDF = pd.json_normalize(AvailableWell_JSON, record_path = 'result')
-    print("------------------")
-    print(SelectWellDF)
+    _vlog("------------------")
+    _vlog(SelectWellDF)
     # print(SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'well_name'])
 
     WellName = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'well_name'].tolist()[0]
@@ -554,8 +564,8 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
     # }
     # print(Data_params)
     url_pdu_api = getURLAPI_pdu()
-    print(f"Request Realtime on :{url_pdu_api}rtdc/get_data")
-    print(Data_params)
+    _vlog(f"Request Realtime on :{url_pdu_api}rtdc/get_data")
+    _vlog(Data_params)
     column_list = ["dt", "date", "time", "bitdepth", "md", "blockpos", "rop", "hklda", "woba", "torqa", "rpm", "stppress", "mudflowin","speedup", "speeddown"]
     WellData = (
         (
@@ -565,7 +575,7 @@ def DomeGetRealtimeSensorDataChunk(Data_params):
     )
     WellData = json.loads(WellData)
     # print(WellData)
-    print(WellData['status'])
+    _vlog(WellData['status'])
     if WellData['status'] == 404:
         return pd.DataFrame(columns=column_list)
     else:
@@ -614,9 +624,7 @@ def DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params):
         except Exception as remove_err:
             print(f"Failed to delete {file_path}: {remove_err}")
         return False
-    print("====================================")
-    print("======== Use Parquet Cache =======")
-    print("====================================")
+    _vlog(f"[realtime] use parquet cache {Data_params['start']} - {Data_params['end']}")
     wid = Data_params['wid']
     dir_path = f"Data/RealtimeCache/wid_{wid}"
     StartDateTimeStr = Data_params['start'].replace(' ', '-').replace(':', '')
@@ -640,9 +648,7 @@ def DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params):
             OutputRealtime['dt'] = OutputRealtime['dt'].astype('datetime64[ns]')
             if OutputRealtime['dt'].max() >= (datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S') - timedelta(seconds=20)):
 
-                print("====================================")
-                print(f"Save to Parquet Cache: {ParquetCacheFilepath}")
-                print("====================================")
+                print(f"[realtime] saved parquet cache {ParquetCacheFilepath}")
                 OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
                 return OutputRealtime
             else:
@@ -657,9 +663,7 @@ def DomeGetRealtimeSensorDataChunk_ParquetCache(Data_params):
         OutputRealtime['dt'] = OutputRealtime['dt'].astype('datetime64[ns]')
         if OutputRealtime['dt'].max() >= (datetime.strptime(Data_params['end'], '%Y-%m-%d %H:%M:%S') - timedelta(seconds=20)):
 
-            print("====================================")
-            print(f"Save to Parquet Cache: {ParquetCacheFilepath}")
-            print("====================================")
+            print(f"[realtime] saved parquet cache {ParquetCacheFilepath}")
             OutputRealtime.to_parquet(ParquetCacheFilepath, compression='gzip')
             return OutputRealtime
         else:
@@ -694,7 +698,7 @@ def ShowProgress(container, i, total):
     # ProgressContainer = container.empty()
     # if i ==0:
     #     container.progress(0.0,)
-    print(f"{i} - {total} - {np.round((i+1)/total,2)}")
+    _vlog(f"{i} - {total} - {np.round((i+1)/total,2)}")
     # print(np.round(i+1/total,2))
     if i > 0 and i < total:
         container.progress(np.round((i+1)/total,2), text=f"Download Realtime Sensor Data, {np.round((i+1)/total*100,0)} % Complete")
@@ -704,7 +708,8 @@ def ShowProgress(container, i, total):
         # container.progress(i/total)
 
 def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progress=True,runOnStreamlit=True, _container=None):
-    print(WellInfoDict)
+    _t0 = time.time()
+    _vlog(WellInfoDict)
     active_start_date = datetime.strptime(WellInfoDict['ActiveDate'], '%Y-%m-%d').date()
     active_end_date = datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d').date()
     if active_start_date > UserDateRange['StartDate']:
@@ -742,8 +747,8 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
         ProgressStatus = st.progress(0., text=" Download Realtime Sensor Data, 0 % Complete")
 
     for ii in range(len((StartEndList))):
-        print(f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
-        print(StartEndList[ii])
+        _vlog(f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
+        _vlog(StartEndList[ii])
         # my_bar.progress(np.round(ii/len(StartEndList),2), text=f" Download Realtime Sensor Data, {np.round(ii/len(StartEndList),2)*100} % Complete")
         StartDateTime,EndDateTime = StartEndList[ii]
         # loopStartTime = time.time()
@@ -821,7 +826,10 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
         ProgressStatus.empty()
     # return filtered_DF
     MemLogger.checkpoint("realtime_filtered", wid=WellInfoDict["wid"], df=filtered_DF)
-    return interpolateRealtimeData(filtered_DF[column_list])
+    Result_DF = interpolateRealtimeData(filtered_DF[column_list])
+    print(f"[realtime] wid={WellInfoDict['wid']} {start} -> {end} chunks={len(StartEndList)} "
+          f"with_data={len(Realtime_List)} rows={len(Result_DF)} in {time.time() - _t0:.1f}s")
+    return Result_DF
 
 
 # Activity Log
@@ -1045,6 +1053,9 @@ def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict, runOnStreamli
         i = 0
 
     MemLogger.checkpoint("actsum_delete_start", wid=WellInfoDict["wid"], n_rows=len(DeleteList) if "DeleteList" in locals() else -1)
+    _t0 = time.time()
+    n_ok = 0
+    n_fail = 0
     for ID_or_timestart in DeleteList:
         if runOnStreamlit:
             i = i+1
@@ -1061,7 +1072,14 @@ def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict, runOnStreamli
                             ) 
                 )
         )
-        print(f"{ID_or_timestart} - {response.json()}")
+        if response.ok:
+            n_ok += 1
+            _vlog(f"{ID_or_timestart} - {response.text}")
+        else:
+            n_fail += 1
+            print(f"[ActivitySummary] delete failed wid={WellInfoDict['wid']} time_start={ID_or_timestart} "
+                  f"status={response.status_code} body={response.text[:200]}")
+    print(f"[ActivitySummary] deleted {n_ok} rows wid={WellInfoDict['wid']} failed={n_fail} in {time.time() - _t0:.1f}s")
 
     if runOnStreamlit:
         ProgressStatusDelete.progress(1., text=f"Delete Activity Summary Data Complete")
@@ -1170,6 +1188,7 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, i
         ProgressStatusInsert = st.progress(0., text="Upload **Activity Summary** Data, 0 % Complete")
 
     MemLogger.checkpoint("actsum_insert_start", wid=WellInfoDict["wid"], n_rows=len(ActSumdf))
+    _t0 = time.time()
     for idx,row in ActSumdf.iterrows():
         i = i+1
         if runOnStreamlit:
@@ -1189,6 +1208,7 @@ def DomeInsertActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, i
         response = (
             DomeRequestPOST(AddRowAPI, json_queries)
         )
+    print(f"[ActivitySummary] inserted {i_end} rows wid={WellInfoDict['wid']} in {time.time() - _t0:.1f}s")
     if runOnStreamlit:
         ProgressStatusInsert.progress(1. , text=f"Upload **New Activity Summary** Data Complete")
         ProgressStatusInsert.empty()
@@ -1247,6 +1267,7 @@ def DomeUpdateActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, i
     if runOnStreamlit:
         ProgressStatusUpdate = st.progress(0., text="Update **Activity Summary** Data, 0 % Complete")
 
+    _t0 = time.time()
     for _, row in ActSumdf.iterrows():
         i += 1
         if runOnStreamlit:
@@ -1256,6 +1277,7 @@ def DomeUpdateActivitySummaryData(WellInfoDict, ActSumdf, insert_remark=False, i
             )
         json_queries = json.dumps(row.to_dict(), indent=4)
         DomeRequestPOST(UpdateRowAPI, json_queries)
+    print(f"[ActivitySummary] updated {i_end} rows wid={WellInfoDict['wid']} in {time.time() - _t0:.1f}s")
 
     if runOnStreamlit:
         ProgressStatusUpdate.progress(1., text="Update **Activity Summary** Data Complete")
