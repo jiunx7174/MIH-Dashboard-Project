@@ -131,7 +131,7 @@ def App():
                                         )
         with StartTimeCol:
             UserDateRange['StartTime'] = ste.time_input(
-                                        "",
+                                        "Start Time",
                                         # "Start Time",
                                         label_visibility='collapsed',
                                         value = datetime.strptime('00:00', '%H:%M').time(),
@@ -146,7 +146,7 @@ def App():
                                         key="EndDateRT")
         with EndTimeCol:
             UserDateRange['EndTime'] = ste.time_input(
-                                        "",
+                                        "End Time",
                                         label_visibility='collapsed',
                                         # "End Time",
                                         value = datetime.strptime('23:59', '%H:%M').time(),
@@ -169,7 +169,7 @@ def App():
             st.warning("No data available for the selected date range.")
             st.stop()
         SectionFilter_col.selectbox("Section Filter", options=['All'] + ActivitySummary_DF['Section'].unique().tolist(), key="SectionFilter", index=0)
-        if st.session_state['SectionFilter'] is not 'All':
+        if st.session_state['SectionFilter'] != 'All':
             ActivitySummary_DF = ActivitySummary_DF[ActivitySummary_DF['Section'] == st.session_state['SectionFilter']]
 
 
@@ -207,7 +207,7 @@ def App():
                                                 )
                 with RecalculateStartTimeCol:
                     RecalculateUserDateRange['StartTime'] = st.time_input(
-                                                "",
+                                                "Start Time",
                                                 # "Start Time",
                                                 label_visibility='collapsed',
                                                 value = datetime.strptime('00:00', '%H:%M').time(),
@@ -222,7 +222,7 @@ def App():
                                                 key="RecalculateEndDateRT")
                 with RecalculateEndTimeCol:
                     RecalculateUserDateRange['EndTime'] = st.time_input(
-                                                "",
+                                                "End Time",
                                                 label_visibility='collapsed',
                                                 # "End Time",
                                                 value = datetime.strptime('23:59', '%H:%M').time(),

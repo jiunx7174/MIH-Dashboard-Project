@@ -171,7 +171,9 @@ def malloc_trim():
 # emitting
 # --------------------------------------------------------------------------- #
 def _emit(ev, human, **fields):
-    rec = {"ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3], "pid": _PID, "ev": ev}
+    _n = datetime.now().astimezone()
+    # "tz": UTC offset of "ts" (the containers run in UTC), read by Tools/log_summary.py
+    rec = {"ts": _n.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3], "tz": _n.strftime("%z"), "pid": _PID, "ev": ev}
     rec.update(fields)
     try:
         _LOG.info(json.dumps(rec, default=str), extra={"human": human})
@@ -236,6 +238,14 @@ def checkpoint(stage, **fields):
 
     Example: checkpoint("realtime_downloaded", df=RTSensor_DF, wid=429)
     """
+    # Also a "stage" event in the application log (AppLog), in both the FastAPI
+    # and the Streamlit process, so a sync or recalculation can be followed
+    # step by step by its run_id.
+    try:
+        from PDU_Func import AppLog
+        AppLog.stage(stage, **fields)
+    except Exception:
+        pass
     if not _INSTALLED:
         return
     try:

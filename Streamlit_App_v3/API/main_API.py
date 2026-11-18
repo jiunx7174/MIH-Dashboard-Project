@@ -45,6 +45,58 @@ from PDU_Func import MemLogger
 MemLogger.install(app)
 
 # ---------------------------------------------------------------------------
+# Application log (PDU_Func/AppLog.py, Tools/LOGGING.md): Logs/app_fastapi.jsonl
+# and Logs/errors_fastapi.jsonl. Every request gets a request_id (= run_id) that
+# is added to all its events, prints and sync stages, and is returned in the
+# X-Request-ID header so a caller can report it.
+# ---------------------------------------------------------------------------
+from PDU_Func import AppLog
+AppLog.setup("fastapi")
+_APPLOG_SLOW_MS = 30000
+
+
+@app.middleware("http")
+async def _applog_middleware(request, call_next):
+    path = request.url.path
+    if path.startswith("/memlog/"):
+        return await call_next(request)
+    rid = AppLog.new_id()
+    wid = request.query_params.get("wid")
+    cid = request.query_params.get("cid")
+    token = AppLog.reset_context(run_id=rid, request_id=rid, endpoint=path, method=request.method,
+                                 wid=int(wid) if wid and wid.isdigit() else None,
+                                 cid=int(cid) if cid and cid.isdigit() else None,
+                                 client=request.client.host if request.client else None)
+    t0 = time.time()
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        AppLog.exception("request_error", e, duration_ms=int((time.time() - t0) * 1000))
+        AppLog.event("request", level="error", status=500, duration_ms=int((time.time() - t0) * 1000),
+                     query=str(request.url.query)[:300] or None)
+        AppLog.unbind(token)
+        # same 500 as before, but with the error code so the caller can report it
+        return JSONResponse(status_code=500, headers={"X-Request-ID": rid},
+                            content={"detail": "Internal Server Error", "error_code": rid,
+                                     "error": f"{type(e).__name__}: {str(e)[:300]}"})
+    dur = int((time.time() - t0) * 1000)
+    status = response.status_code
+    if status >= 500:
+        level = "error"
+    elif status == 404 and not path.startswith(("/v2/", "/v3/", "/get", "/sync", "/update", "/recalculate", "/force", "/override", "/section")):
+        level = None            # scanner noise (/phpmyadmin, /.env, ...): not logged
+    elif dur >= _APPLOG_SLOW_MS:
+        level = "warning"
+    else:
+        level = "info"
+    if level:
+        AppLog.event("request", level=level, status=status, duration_ms=dur,
+                     query=str(request.url.query)[:300] or None, slow=dur >= _APPLOG_SLOW_MS or None)
+    response.headers["X-Request-ID"] = rid
+    AppLog.unbind(token)
+    return response
+
+# ---------------------------------------------------------------------------
 # Per-well sync lock
 #
 # The DOME scheduler calls the sync endpoints for every well every 15 minutes
@@ -81,6 +133,8 @@ def per_well_lock(func):
             running = _SYNC_RUNNING.get(wid)
             if running and (now - running["since"]) < SYNC_LOCK_STALE_S:
                 elapsed = int(now - running["since"])
+                AppLog.event("sync_rejected", wid=wid, kind=func.__name__,
+                             running_endpoint=running["endpoint"], running_for_s=elapsed)
                 print(f"[sync-lock] wid={wid} rejected: {running['endpoint']} already running for {elapsed}s")
                 raise HTTPException(status_code=409, detail={
                     "error": "a sync for this well is already running; try again later",
@@ -92,8 +146,22 @@ def per_well_lock(func):
                 print(f"[sync-lock] wid={wid}: previous {running['endpoint']} looks dead "
                       f"({int(now - running['since'])}s), taking over")
             _SYNC_RUNNING[wid] = {"since": now, "endpoint": func.__name__}
+        _cid = kwargs.get("cid") if kwargs.get("cid") is not None else getattr(kwargs.get("data"), "cid", None)
+        AppLog.bind(wid=wid, cid=int(_cid) if str(_cid).isdigit() else None, kind=func.__name__)
+        AppLog.event("sync_start", sync_datetime=getattr(kwargs.get("data"), "sync_datetime", None))
         try:
-            return func(*args, **kwargs)
+            result = func(*args, **kwargs)
+            AppLog.event("sync_done", duration_ms=int((time.time() - now) * 1000),
+                         status=getattr(result, "status_code", None))
+            return result
+        except HTTPException as e:
+            AppLog.event("sync_done", level="warning" if e.status_code >= 500 else "info",
+                         duration_ms=int((time.time() - now) * 1000), status=e.status_code,
+                         detail=str(e.detail)[:500])
+            raise
+        except Exception as e:
+            AppLog.exception("sync_failed", e, duration_ms=int((time.time() - now) * 1000))
+            raise
         finally:
             with _SYNC_GUARD:
                 if _SYNC_RUNNING.get(wid, {}).get("since") == now:
@@ -203,6 +271,9 @@ def update_realtime_data(data: UpdateDataRequest):
     "EndTime": LastDateTime_obj.time()
     }
 
+    # Cover stored rows that cross the window start, so the delete below removes
+    # them instead of leaving them under the new rows (overlap / double count).
+    UserDateRange_Sync = IO_Data.expandRangeToStoredRows(WellInfoDict, UserDateRange_Sync)
     print(f"request realtime data {UserDateRange_Sync}")
     MemLogger.checkpoint("sync_range", wid=wid, sync_range=str(UserDateRange_Sync))
     df_list.append(pd.DataFrame.from_records([UserDateRange_Sync]))
@@ -238,7 +309,10 @@ def update_realtime_data(data: UpdateDataRequest):
     ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
     MemLogger.checkpoint("grouped", df=ActivitySummary_DF)
     ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
-    ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
+    # Stored rows back to the previous Connection, so the first stand of the
+    # window is grouped (otherwise it loses its Stand Group ID on every sync).
+    StandContext_DF = IO_Data.getStandContext(WellInfoDict, UserDateRange_Sync)
+    ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF, context_df=StandContext_DF)
     MemLogger.checkpoint("stand_labelled", df=ActivitySummary_DF)
     df_list.append(ActivitySummary_DF)
 
@@ -719,6 +793,9 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
     "EndDate": LastDateTime_obj.date(),
     "EndTime": LastDateTime_obj.time()
     }
+    # Cover stored rows that cross the window start, so the delete below removes
+    # them instead of leaving them under the new rows (overlap / double count).
+    UserDateRange_Sync = IO_Data.expandRangeToStoredRows(WellInfoDict, UserDateRange_Sync)
     print(f"request realtime data {UserDateRange_Sync}")
     MemLogger.checkpoint("sync_range", wid=wid, sync_range=str(UserDateRange_Sync))
     df_list.append(pd.DataFrame.from_records([UserDateRange_Sync]))
@@ -754,7 +831,10 @@ def UpdateRealtimeData(wid: int = Query(None, title="wid"),
     ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
     MemLogger.checkpoint("grouped", df=ActivitySummary_DF)
     ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
-    ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
+    # Stored rows back to the previous Connection, so the first stand of the
+    # window is grouped (otherwise it loses its Stand Group ID on every sync).
+    StandContext_DF = IO_Data.getStandContext(WellInfoDict, UserDateRange_Sync)
+    ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF, context_df=StandContext_DF)
     MemLogger.checkpoint("stand_labelled", df=ActivitySummary_DF)
     df_list.append(ActivitySummary_DF)
 

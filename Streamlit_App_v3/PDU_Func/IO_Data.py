@@ -8,9 +8,10 @@ import os
 
 from datetime import datetime,timedelta
 try:
-    from PDU_Func import MemLogger
+    from PDU_Func import MemLogger, AppLog
 except Exception:  # PDU_Func not importable as a package
     import MemLogger
+    import AppLog
 # from stqdm import stqdm
 
 # Detailed per-request / per-chunk prints are off by default. Set the
@@ -60,10 +61,12 @@ def call_or_stop(label, func, *args, **kwargs):
     except Exception as e:
         if type(e).__module__.startswith("streamlit"):
             raise
+        code = AppLog.exception("step_failed", e, step=label)
         st.error(
             f"**{label}** gagal: server tidak merespons atau mengembalikan error. "
             f"Coba muat ulang halaman dalam beberapa menit.\n\n"
-            f"Detail: `{type(e).__name__}: {str(e)[:300]}`"
+            f"Detail: `{type(e).__name__}: {str(e)[:300]}`\n\n"
+            f"Kode error: `{code}` (sebutkan kode ini saat melapor; detail lengkap ada di log server)."
         )
         st.stop()
 
@@ -290,6 +293,7 @@ def getWellInfoDict(UserAuthDict, SelectComp, SelectWell):
 
     Comp_ID = int(match['cid'].values[0])
     Well_ID = int(match['wid'].values[0])
+    AppLog.bind(wid=Well_ID, cid=Comp_ID, well=SelectWell, company=SelectComp)
     WellActiveDate = match['active_date'].tolist()[0]
     WellEndDate = match['end_date'].tolist()[0]
     RigName = match['rig_name']
@@ -316,6 +320,7 @@ def getWellInfoDict_byID(cid, wid):
     # print(SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'well_name'])
 
     WellName = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'well_name'].tolist()[0]
+    AppLog.bind(wid=int(wid), cid=int(cid), well=WellName)
     WellActiveDate = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'active_date'].tolist()[0]
     WellEndDate = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'end_date'].tolist()[0]
     RigName = SelectWellDF.loc[SelectWellDF['wid']==str(wid), 'rig_name']
@@ -712,12 +717,14 @@ def DomeGetRealtimeSensorData(WellInfoDict, UserDateRange, hours=0.5, show_progr
     _vlog(WellInfoDict)
     active_start_date = datetime.strptime(WellInfoDict['ActiveDate'], '%Y-%m-%d').date()
     active_end_date = datetime.strptime(WellInfoDict['EndDate'], '%Y-%m-%d').date()
+    # .time(): the caller reuses this dict for the delete query; a full datetime
+    # here made the query "2026-10-15 1900-01-01 00:00:00", so nothing was deleted.
     if active_start_date > UserDateRange['StartDate']:
         UserDateRange['StartDate'] = active_start_date
-        UserDateRange['StartTime'] = datetime.strptime("00:00:00", '%H:%M:%S')
+        UserDateRange['StartTime'] = datetime.strptime("00:00:00", '%H:%M:%S').time()
     if active_end_date < UserDateRange['EndDate']:
         UserDateRange['EndDate'] = active_end_date
-        UserDateRange['EndTime'] = datetime.strptime("23:59:55", '%H:%M:%S')
+        UserDateRange['EndTime'] = datetime.strptime("23:59:55", '%H:%M:%S').time()
 
     UserDateRange = {
             "StartDate": UserDateRange['StartDate'].strftime('%Y-%m-%d'),
@@ -1036,16 +1043,94 @@ def DomeGetActivitySummaryData(WellInfoDict, UserDateRange, retries=3, raise_on_
 # def DomeInsertActivitySummaryData():
 #     # TODO create API for Activity Summary upload
 #     pass
+def expandRangeToStoredRows(WellInfoDict, UserDateRange, lookback_days=3, max_iter=5):
+    """Widen a recalculation window so it covers every stored Activity Summary row
+    that crosses its edges.
+
+    DOME ActivitySummary/get_data returns only rows that lie fully inside the
+    queried range. The delete step of a sync or recalculation therefore never
+    sees a stored row that starts before the window (or ends after it): that row
+    survives and the new rows are inserted inside it, which double counts the
+    time (e.g. AKP-004, RUN CASING/Moving 2026-11-09 23:38 -> 11-11 16:09).
+    Moving the window start back to that row's start (and the end forward to a
+    row's end) lets the delete remove it and the recalculation rebuild it.
+
+    Rows longer than lookback_days are not found. Raises if DOME does not answer,
+    so the caller stops before deleting or inserting anything."""
+    start = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+    end = datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
+    orig_start, orig_end = start, end
+    for _ in range(max_iter):
+        q_start = start - timedelta(days=lookback_days)
+        q_end = end + timedelta(days=lookback_days)
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, {
+            "StartDate": q_start.date(), "StartTime": q_start.time(),
+            "EndDate": q_end.date(), "EndTime": q_end.time(),
+        }, raise_on_error=True)
+        if ActSum_df.empty:
+            break
+        s = pd.to_datetime(ActSum_df['StartDateTime'])
+        e = pd.to_datetime(ActSum_df['EndDateTime'])
+        cross_start = s[(s < start) & (e >= start)]
+        cross_end = e[(s <= end) & (e > end)]
+        new_start = min(start, cross_start.min().to_pydatetime()) if not cross_start.empty else start
+        new_end = max(end, cross_end.max().to_pydatetime()) if not cross_end.empty else end
+        if new_start == start and new_end == end:
+            break
+        start, end = new_start, new_end
+    if (start, end) != (orig_start, orig_end):
+        print(f"[ActivitySummary] wid={WellInfoDict['wid']} window widened to cover stored rows: "
+              f"{orig_start} -> {start}, {orig_end} -> {end}")
+    return {
+        "StartDate": start.date(), "StartTime": start.time(),
+        "EndDate": end.date(), "EndTime": end.time(),
+    }
+
+def getStandContext(WellInfoDict, UserDateRange, lookback_hours=48):
+    """Stored Activity Summary rows from the last Connection before the window
+    start up to the window start, for Activity.getStandLabel(context_df=...).
+
+    getStandLabel groups a stand between two Connection rows. A sync or
+    recalculation window starts right after a Connection (or inside a stand), so
+    without these rows the first stand of the window has no left Connection and
+    stays ungrouped. The sync then deletes its old label, and the next sync
+    restarts further back (AKP-004: 5 Nov 22:03 -> 6 Nov 05:48 and 17 Oct 22:23,
+    empty Stand Group ID). The rows are context only: they are not re-inserted.
+
+    Returns an empty DataFrame if DOME does not answer or no Connection is found,
+    which gives the old behaviour."""
+    start = datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
+    q_start = start - timedelta(hours=lookback_hours)
+    try:
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, {
+            "StartDate": q_start.date(), "StartTime": q_start.time(),
+            "EndDate": start.date(), "EndTime": start.time(),
+        })
+    except Exception as e:
+        print(f"[getStandContext] wid={WellInfoDict['wid']} read failed: {e}")
+        return pd.DataFrame()
+    if ActSum_df is None or ActSum_df.empty:
+        return pd.DataFrame()
+    ActSum_df = ActSum_df.copy()
+    ActSum_df['StartDateTime'] = pd.to_datetime(ActSum_df['StartDateTime'])
+    ActSum_df['EndDateTime'] = pd.to_datetime(ActSum_df['EndDateTime'])
+    ActSum_df = ActSum_df[ActSum_df['StartDateTime'] < start].sort_values('StartDateTime').reset_index(drop=True)
+    conn = ActSum_df.index[ActSum_df['LABEL_SubActivity'] == 'Connection']
+    if len(conn) == 0:
+        return pd.DataFrame()
+    return ActSum_df.loc[conn[-1]:].reset_index(drop=True)
+
 def DomeDeleteActivitySummaryData(DateTimeRangeList, WellInfoDict, runOnStreamlit=False):
     url_pdu_api = getURLAPI_pdu()
     TableAPI = f"{url_pdu_api}rtdc/ActivitySummary/delete"
     if isinstance(DateTimeRangeList, dict):
-        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, DateTimeRangeList)
-        try:
-            DeleteList = ActSum_df['StartDateTime'].astype('str').tolist()
-        except:
+        # raise_on_error: if DOME fails to answer, stop here. Before, a failed read
+        # returned an empty frame, nothing was deleted, and the caller still
+        # inserted the new rows on top of the old ones (duplicates / overlaps).
+        ActSum_df = DomeGetActivitySummaryData(WellInfoDict, DateTimeRangeList, raise_on_error=True)
+        DeleteList = ActSum_df['StartDateTime'].astype('str').tolist() if not ActSum_df.empty else []
+        if not DeleteList:
             print(f"No data to delete | {DateTimeRangeList}")
-            pass
     else:
         DeleteList = DateTimeRangeList
     if runOnStreamlit:
@@ -1306,25 +1391,32 @@ def getLastConnectionDateTime(WellInfoDict, UserDateRange):
         if ("Connection" in ActSum_df['LABEL_Connection'].values) or (len(ActSum_df['LABEL_Activity'].unique())> 1):
             isRun = False
             break
-        
+
+        # The sync asks from the year 2000, so there is nothing earlier to find;
+        # moving the start back would only fetch the same table 23 more times.
+        if UserDateRange["StartDate"] <= datetime(2000, 12, 31).date():
+            break
+
         # Calculate the new StartDate and StartTime by subtracting 3 hours
-        start_datetime = datetime.datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
-        new_start_datetime = start_datetime - datetime.timedelta(hours=total_hours_adjusted)
-        
+        start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+        new_start_datetime = start_datetime - timedelta(hours=total_hours_adjusted)
+
         # Update the UserDateRange
         UserDateRange["StartDate"] = new_start_datetime.date()
         UserDateRange["StartTime"] = new_start_datetime.time()
-        
+
         # Update the total hours adjusted
         total_hours_adjusted += 1
-        
+
         # # If we've adjusted more than 24 hours, stop adjusting
         if total_hours_adjusted >= max_hours_to_adjust:
             break
-    
-    # # If ActSum_df is still empty after the loop, return None or handle as needed
-    # if ActSum_df.empty:
-    #     return None
+
+    if ActSum_df is None or ActSum_df.empty:
+        return pd.DataFrame({
+            "StartDateTime": [datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"]).strftime('%Y-%m-%d %H:%M:%S')],
+            "LABEL_Activity": ['N/A'],
+        })
 
     # Return the last 'EndDateTime' if ActSum_df is not empty
     if ("Connection" in ActSum_df['LABEL_Connection'].values):
@@ -1367,6 +1459,27 @@ def getLastActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
     ActSum_df = None
     total_hours_adjusted = 1
     max_hours_to_adjust = 24
+
+    # If the stored summary is empty, or starts well after the realtime data does
+    # (e.g. Rayeu D-1: realtime from 2026-10-30, but the only stored rows are 3
+    # override rows on 2026-11-06), sync from the start of the realtime data.
+    # Without this the sync restarts at the first stored row and the days
+    # before it never reach the Dashboard.
+    ActSum_df = DomeGetActivitySummaryData(WellInfoDict, UserDateRange)
+    try:
+        realtime_start = DomeGetRealtimeRange(WellInfoDict)['StartDateTime'].iloc[0].to_pydatetime()
+    except Exception as e:
+        print(f"[getLastActSum] realtime range unavailable for wid={WellInfoDict['wid']}: {e}")
+        realtime_start = None
+    if realtime_start is not None:
+        first_stored = None if ActSum_df.empty else pd.to_datetime(ActSum_df['StartDateTime']).min()
+        if first_stored is None or first_stored > realtime_start + timedelta(hours=1):
+            print(f"[getLastActSum] wid={WellInfoDict['wid']} stored summary starts at {first_stored}, "
+                  f"realtime at {realtime_start}: syncing from the realtime start")
+            return pd.DataFrame({
+                "StartDateTime": [realtime_start.strftime('%Y-%m-%d %H:%M:%S')],
+                "LABEL_Activity": ['N/A'],
+            })
 
     # Loop until we get a non-empty activity summary or have adjusted the start time by 24 hours
     while ActSum_df is None or ActSum_df.empty:
@@ -1441,8 +1554,8 @@ def getBeforeConnectionDateTime(WellInfoDict, UserDateRange):
             break
         
         # Calculate the new StartDate and StartTime by subtracting 3 hours
-        start_datetime = datetime.datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
-        new_start_datetime = start_datetime - datetime.timedelta(hours=total_hours_adjusted)
+        start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+        new_start_datetime = start_datetime - timedelta(hours=total_hours_adjusted)
         
         # Update the UserDateRange
         UserDateRange["StartDate"] = new_start_datetime.date()
@@ -1502,8 +1615,8 @@ def getNextConnectionDateTime(WellInfoDict, UserDateRange):
             break
         
         # Calculate the new StartDate and StartTime by subtracting 3 hours
-        end_datetime = datetime.datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
-        new_end_datetime = end_datetime + datetime.timedelta(hours=total_hours_adjusted)
+        end_datetime = datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
+        new_end_datetime = end_datetime + timedelta(hours=total_hours_adjusted)
 
         total_hours_adjusted = total_hours_adjusted + 1
         
@@ -1572,8 +1685,8 @@ def getBeforeActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
             break
         
         # Calculate the new StartDate and StartTime by subtracting 3 hours
-        start_datetime = datetime.datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
-        new_start_datetime = start_datetime - datetime.timedelta(hours=total_hours_adjusted)
+        start_datetime = datetime.combine(UserDateRange["StartDate"], UserDateRange["StartTime"])
+        new_start_datetime = start_datetime - timedelta(hours=total_hours_adjusted)
         
         # Update the UserDateRange
         UserDateRange["StartDate"] = new_start_datetime.date()
@@ -1632,8 +1745,8 @@ def getNextActSum(WellInfoDict, UserDateRange, DrillActivityList='default'):
             break
         
         # Calculate the new StartDate and StartTime by subtracting 3 hours
-        end_datetime = datetime.datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
-        new_end_datetime = end_datetime + datetime.timedelta(hours=total_hours_adjusted)
+        end_datetime = datetime.combine(UserDateRange["EndDate"], UserDateRange["EndTime"])
+        new_end_datetime = end_datetime + timedelta(hours=total_hours_adjusted)
         
         # Update the UserDateRange
         UserDateRange["EndDate"] = new_end_datetime.date()
