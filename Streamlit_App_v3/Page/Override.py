@@ -434,6 +434,9 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
                                             "EndDate": EndDateTime_obj.date(),
                                             "EndTime": EndDateTime_obj.time(),
                                             })
+    # Cover stored rows that cross either edge of the window, so the delete below
+    # removes them instead of leaving them under the new rows (overlap / double count).
+    UserDateRange_Sync = IO_Data.expandRangeToStoredRows(WellInfoDict, UserDateRange_Sync)
     print(f"[override] recalculate wid={WellInfoDict['wid']} range={UserDateRange_Sync}")
     MemLogger.checkpoint("sync_range", wid=WellInfoDict["wid"], sync_range=str(UserDateRange_Sync))
     # st.toast(UserDateRange_Sync)
@@ -529,7 +532,10 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     ActivitySummary_DF= Activity.groupActivity(RTSensor_DF , DrillActivityList='default')
     MemLogger.checkpoint("grouped", df=ActivitySummary_DF)
     ActivitySummary_DF = Activity.cleanFalseSensor(ActivitySummary_DF)
-    ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF)
+    # Stored rows back to the previous Connection, so the first stand of the
+    # window is grouped (otherwise it stays without Stand Group ID).
+    StandContext_DF = IO_Data.getStandContext(WellInfoDict, UserDateRange_Sync)
+    ActivitySummary_DF = Activity.getStandLabel(ActivitySummary_DF, context_df=StandContext_DF)
     MemLogger.checkpoint("stand_labelled", df=ActivitySummary_DF)
     # TODO delete the ActivitySummary in startdatetime enddatetime range
     IO_Data.DomeDeleteActivitySummaryData(UserDateRange_Sync, WellInfoDict, runOnStreamlit=runOnStreamlit)
@@ -541,41 +547,6 @@ def DomeUpdateRealtimeData(WellInfoDict:dict,
     print(f"[override] activity summary updated wid={WellInfoDict['wid']} rows={len(ActivitySummary_DF)}")
     IO_Data._vlog(ActivitySummary_DF)
 
-def Override(RTSensor_df, Override_df, UserDateRange="All"):
-    if Override_df.empty:
-        return RTSensor_df
-    ii = 0
-    if UserDateRange != "All":
-        StartDateTime =  datetime.combine(UserDateRange['StartDate'], UserDateRange['StartTime'])
-        EndDateTime =  datetime.combine(UserDateRange['EndDate'], UserDateRange['EndTime'])
-        RTSensor_df = RTSensor_df[(RTSensor_df['dt'] >= StartDateTime) & (RTSensor_df['dt'] < EndDateTime)]
-
-    Override_df = Override_df.reset_index()
-
-
-    for i,row in Override_df.iterrows():
-
-
-        start_time_temp = row[ii, 'StartDateTime']
-        end_time_temp = row[ii+1, 'EndDateTime']
-
-        idx_logic = (RTSensor_df['dt'] >= start_time_temp) & (RTSensor_df['dt'] < end_time_temp)
-
-        activity_label_temp = Override_df.loc[ii, 'LABEL_ACTIVITY']
-        subactivity_label_temp = Override_df.loc[ii, 'LABEL_SUBACTIVITY']
-        pic_label_temp = Override_df.loc[ii, 'PIC']
-        # section_label_temp = Override_df.loc[ii, 'Section Size']
-        # remarks_label_temp = InputActivity_DB.loc[ii, 'Remarks']
-        # activity_label_temp = Override_df.loc[ii, 'In-Slip Threshold']
-
-        RTSensor_df.loc[idx_logic, ("Activity")] = activity_label_temp
-        RTSensor_df.loc[idx_logic, ("SubActivity")] = subactivity_label_temp
-        RTSensor_df.loc[idx_logic, ("PIC")] = pic_label_temp
-        # RTSensor_df.loc[idx_logic, ("Section Size")] = section_label_temp
-        # RTSensor_df.loc[idx_logic, ("remarks")] = remarks_label_temp
-        # RTSensor_df.loc[idx_logic, ("In-Slip Threshold")] = activity_label_temp
-        ii = ii+1
-    return RTSensor_df
 
 
 

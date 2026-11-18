@@ -81,7 +81,32 @@ def getOverrideActivityList():
             
             "TEST BOP", 
             "WIRELINE LOGS", ]
-def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
+def _alignContextRows(context_df, ActSum_df):
+    """Cast stored (string) context rows to the dtypes of the new rows, so the
+    concat in getStandLabel does not turn the new rows' columns into object."""
+    ctx = context_df.reindex(columns=ActSum_df.columns).copy()
+    for c in ActSum_df.columns:
+        dt = ActSum_df[c].dtype
+        try:
+            if pd.api.types.is_datetime64_any_dtype(dt):
+                ctx[c] = pd.to_datetime(ctx[c], errors='coerce')
+            elif pd.api.types.is_numeric_dtype(dt):
+                ctx[c] = pd.to_numeric(ctx[c], errors='coerce').fillna(0).astype(dt)
+            else:
+                ctx[c] = ctx[c].astype(dt)
+        except (ValueError, TypeError):
+            pass
+    return ctx
+
+def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None, context_df=None):
+    """context_df: stored rows just before ActSum_df, starting at the last
+    Connection (IO_Data.getStandContext). They give the first stand of the window
+    its left Connection and are dropped again before returning."""
+    n_ctx = 0
+    if context_df is not None and not context_df.empty and not ActSum_df.empty:
+        ctx = _alignContextRows(context_df, ActSum_df)
+        n_ctx = len(ctx)
+        ActSum_df = pd.concat([ctx, ActSum_df], ignore_index=True)
     ActSum_df['DrillingMeteragePerStand'] = np.NaN
     ActSum_df['StandDuration'] = np.NaN
     ActSum_df['OnBottomDurationPerStand'] = np.NaN
@@ -161,6 +186,8 @@ def getStandLabel(ActSum_df, DrillActivityList='default',stand_num=None):
         if conn_idx_in_block:
             last_conn_idx = conn_idx_in_block[-1]
 
+    if n_ctx:
+        ActSum_df = ActSum_df.iloc[n_ctx:].reset_index(drop=True)
     return ActSum_df
 def replace_connection_with_nearest_activity(ActSum_df):
     connection_indices = ActSum_df.index[ActSum_df['LABEL_Activity'] == 'CONNECTION'].tolist()
@@ -967,7 +994,7 @@ def translateRigActivity2Activity(RigActivityDF):
         "Nipple Up /Nipple Down BOP Stack":"N/U or N/D BOP",
         "Plug Back":"Cementing Job",
         "Pressure Integrity Test":"Pressure Test",
-        "Reaming":" Reaming",
+        "Reaming":"Reaming",
         "Rig Repair":"Rig Repair",
         "Run Casing":"Run Casing",
         "Short Trip In":"Wiper/Short Trip",

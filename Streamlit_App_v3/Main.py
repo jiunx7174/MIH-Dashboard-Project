@@ -5,7 +5,13 @@ try:
     sys.stdout.reconfigure(line_buffering=True)
 except Exception:
     pass
+import time
 import streamlit as st
+from PDU_Func import AppLog
+# Application log: Logs/app_streamlit.jsonl + Logs/errors_streamlit.jsonl
+# (see Tools/LOGGING.md). setup() runs once per process; every script run below
+# gets its own run_id, which is also the error code shown to the user.
+AppLog.setup("streamlit")
 from PDU_Func import Authentification, IO_Data
 from Page import ActivityMapping,  ActivityVisualization, Override, DataAnalytics
 from Page import Welcome, PageNotFound
@@ -61,6 +67,18 @@ def setPage(AppName):
     st.session_state['AppName'] = AppName
 
 init_session()
+
+
+def _session_hash():
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        return AppLog.hash_id(get_script_run_ctx().session_id)
+    except Exception:
+        return None
+
+
+_RUN_T0 = time.time()
+AppLog.reset_context(run_id=AppLog.new_id(), session=_session_hash(), page=st.session_state['AppName'])
 st.set_page_config(
     page_title="RTDC App",
     # initial_sidebar_state=st.session_state.sidebar_state, 
@@ -69,6 +87,13 @@ st.set_page_config(
 query_params = st.query_params
 UserAuthDict = IO_Data.call_or_stop("Verifikasi login ke DOME", Authentification.getUserID, query_params)
 st.session_state['UserAuthDict'] = UserAuthDict
+try:
+    # who is using the page; the login token (?ID=) and the email are never logged
+    AppLog.bind(user_name=UserAuthDict['data'].get('user_name'),
+                user_id=UserAuthDict['data'].get('user_id'),
+                user_company=UserAuthDict['data'].get('user_company_name'))
+except Exception:
+    AppLog.bind(user_name="unverified")
 if UserAuthDict['verification'] != 'verified':
     # st.stop()
     PageNotFound.App()
@@ -122,4 +147,22 @@ AppDict = {
     'Data Analytics': DataAnalytics.App,
     # 'Override': Override.App,
 }
-AppDict[st.session_state['AppName']]()
+AppLog.bind(page=st.session_state['AppName'], company=SelectComp, well=SelectWell)
+_outcome = "stopped"          # st.stop()/st.rerun() end the run without returning
+try:
+    AppDict[st.session_state['AppName']]()
+    _outcome = "ok"
+except Exception as e:
+    if type(e).__module__.startswith("streamlit"):
+        raise
+    _outcome = "error"
+    _code = AppLog.exception("page_error", e)
+    st.error(
+        f"Terjadi error di halaman **{st.session_state['AppName']}**.\n\n"
+        f"Detail: `{type(e).__name__}: {str(e)[:300]}`\n\n"
+        f"Kode error: `{_code}` (sebutkan kode ini saat melapor; detail lengkap ada di log server)."
+    )
+finally:
+    _dur = int((time.time() - _RUN_T0) * 1000)
+    AppLog.event("page_run", level="warning" if _dur > 120000 else "info",
+                 outcome=_outcome, duration_ms=_dur, slow=_dur > 120000 or None)

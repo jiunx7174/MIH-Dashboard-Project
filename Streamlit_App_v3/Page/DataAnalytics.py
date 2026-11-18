@@ -86,7 +86,7 @@ def App():
                                         )
         with StartTimeCol:
             UserDateRange['StartTime'] = ste.time_input(
-                                        "",
+                                        "Start Time",
                                         # "Start Time",
                                         label_visibility='collapsed',
                                         value = datetime.strptime('00:00', '%H:%M').time(),
@@ -101,7 +101,7 @@ def App():
                                         key="EndDateRT")
         with EndTimeCol:
             UserDateRange['EndTime'] = ste.time_input(
-                                        "",
+                                        "End Time",
                                         label_visibility='collapsed',
                                         # "End Time",
                                         value = datetime.strptime('23:59', '%H:%M').time(),
